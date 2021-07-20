@@ -14,6 +14,8 @@ void getImuInput(Adafruit_BNO055 &bno, messaging_IMU &input) {
 	input.gyr_x = gyr.x();
 	input.gyr_y = gyr.y();
 	input.gyr_z = gyr.z();
+	// Make sure the publisher fills in the proper time
+	input.time = NULL;
 }
 
 /*

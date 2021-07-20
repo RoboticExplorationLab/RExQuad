@@ -17,6 +17,7 @@ typedef struct _messaging_IMU {
     double gyr_x; 
     double gyr_y; 
     double gyr_z; 
+    double time; 
 } messaging_IMU;
 
 
@@ -25,8 +26,8 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define messaging_IMU_init_default               {0, 0, 0, 0, 0, 0}
-#define messaging_IMU_init_zero                  {0, 0, 0, 0, 0, 0}
+#define messaging_IMU_init_default               {0, 0, 0, 0, 0, 0, 0}
+#define messaging_IMU_init_zero                  {0, 0, 0, 0, 0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define messaging_IMU_acc_x_tag                  1
@@ -35,6 +36,7 @@ extern "C" {
 #define messaging_IMU_gyr_x_tag                  5
 #define messaging_IMU_gyr_y_tag                  6
 #define messaging_IMU_gyr_z_tag                  7
+#define messaging_IMU_time_tag                   8
 
 /* Struct field encoding specification for nanopb */
 #define messaging_IMU_FIELDLIST(X, a) \
@@ -43,7 +45,8 @@ X(a, STATIC,   SINGULAR, DOUBLE,   acc_y,             2) \
 X(a, STATIC,   SINGULAR, DOUBLE,   acc_z,             3) \
 X(a, STATIC,   SINGULAR, DOUBLE,   gyr_x,             5) \
 X(a, STATIC,   SINGULAR, DOUBLE,   gyr_y,             6) \
-X(a, STATIC,   SINGULAR, DOUBLE,   gyr_z,             7)
+X(a, STATIC,   SINGULAR, DOUBLE,   gyr_z,             7) \
+X(a, STATIC,   SINGULAR, DOUBLE,   time,              8)
 #define messaging_IMU_CALLBACK NULL
 #define messaging_IMU_DEFAULT NULL
 
@@ -53,7 +56,7 @@ extern const pb_msgdesc_t messaging_IMU_msg;
 #define messaging_IMU_fields &messaging_IMU_msg
 
 /* Maximum encoded size of messages (where known) */
-#define messaging_IMU_size                       54
+#define messaging_IMU_size                       63
 
 #ifdef __cplusplus
 } /* extern "C" */

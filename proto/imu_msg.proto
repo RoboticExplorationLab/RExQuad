@@ -10,6 +10,8 @@ message IMU {
     double gyr_x=5;
     double gyr_y=6;
     double gyr_z=7;
+    
+    double time=8;
 }
 
 

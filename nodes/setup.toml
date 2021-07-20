@@ -5,9 +5,13 @@ title = "ZMQ Ports"
     subject = "coffeetime"
 
 [zmq]
-    server = "127.0.0.1"
-    vicon_port = "5000"
-    imu_port = "5002"
+    [zmq.jetson]
+        server = "127.0.0.1"
+        vicon_port = "5000"
+        imu_port = "5002"
+    [zmq.vicon_relay]
+        server = "127.0.0.1"
+        vicon_port = "5000"
 
 [imu_arduino]
     serial_port = "/dev/tty.usbmodem92225501"

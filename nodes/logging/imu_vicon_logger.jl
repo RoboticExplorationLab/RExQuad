@@ -30,8 +30,10 @@ module ImuViconLogger
             println("IMU subscriber waiting...")
             while true
                 bin_data = recv(sub)
-                io = seek(convert(IOStream, bin_data),0)
+                io = seek(convert(IOStream, bin_data), 0)
                 data = readproto(io, IMU())
+
+                
                 for n in propertynames(proto_msg)
                     setproperty!(proto_msg, n, getproperty(data,n))
                 end
