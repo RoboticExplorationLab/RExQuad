@@ -1,0 +1,14 @@
+title = "ZMQ Ports"
+
+[vicon]
+    server = "192.168.3.249"
+    subject = "coffeetime"
+
+[zmq]
+    server = "127.0.0.1"
+    vicon_port = "5000"
+    imu_port = "5002"
+
+[imu_arduino]
+    serial_port = "/dev/tty.usbmodem92225501"
+    baud_rate = 57600
