@@ -5,8 +5,6 @@ bool ViconDriverZMQ::initialize(char *sub_ip, char *rigid_body, char *pub_ip, ch
 	vicon_server_name_ = std::string(sub_ip);
 	rigid_body_name_ = std::string(rigid_body);
 	zmq_socket_name_ = std::string("tcp://") + std::string(pub_ip) + std::string(":") + std::string(pub_port);
-	// std::cout << "Vicon Server " << vicon_server_name_ << "\t" << rigid_body_name_ << std::endl;
-	// std::cout << "ZMQ Socket " << zmq_socket_name_ << std::endl;
 
 	// Setup ZMQ channel
 	context_ = zmq::context_t(1);

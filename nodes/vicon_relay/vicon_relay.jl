@@ -1,6 +1,6 @@
 module ViconRelay
-    using Pkg
-    Pkg.activate(@__DIR__)
+    # using Pkg
+    # Pkg.activate("$(@__DIR__)/../..")
 
     using TOML
     using ZMQ
@@ -54,18 +54,18 @@ module ViconRelay
 
         vicon_ip = setup_dict["vicon"]["server"]
         vicon_subject = setup_dict["vicon"]["subject"]
-        zmq_relay_ip = setup_dict["zmq"]["vicon_relay"]["server"]
-        zmq_vicon_port = setup_dict["zmq"]["vicon_relay"]["vicon_port"]
+        zmq_relay_ip = setup_dict["zmq"]["relay"]["server"]
+        zmq_vicon_port = setup_dict["zmq"]["relay"]["vicon_port"]
         # Run the CPP ViconDriverZMQ file
-        @async run(`$(@__DIR__)/RExLabVicon/build/vicon_pub $vicon_ip $vicon_subject $zmq_relay_ip $zmq_vicon_port`)
-        
+        vicon_process = run(`$(@__DIR__)/RExLabVicon/build/vicon_pub $vicon_ip $vicon_subject $zmq_relay_ip $zmq_vicon_port`, wait=false)
+
         relay_serial_port = setup_dict["serial"]["relay"]["serial_port"]
         relay_baud_rate = setup_dict["serial"]["relay"]["baud_rate"]
         # Launch the relay to send the Vicon data through the telemetry radio
-        vicon_relay() = vicon_relay(zmq_relay_ip, zmq_vicon_port, 
-                                    relay_serial_port, relay_baud_rate; 
-                                    debug=true)
-        vicon_thread = Task(vicon_relay)
+        vicon_pub() = vicon_relay(zmq_relay_ip, zmq_vicon_port, 
+                                  relay_serial_port, relay_baud_rate; 
+                                  debug=true)
+        vicon_thread = Task(vicon_pub)
         schedule(vicon_thread)
     end
 end

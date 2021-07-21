@@ -2,14 +2,13 @@
 # data coming through the telemetry radio and the Arduino.
 
 module ImuViconPublisher 
-    using Pkg
-    Pkg.activate(@__DIR__)
+    # using Pkg
+    # Pkg.activate("$(@__DIR__)/../../")
 
     using TOML
     using ZMQ
     using ProtoBuf
     using SerialCOBS
-    using Dates
 
     include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
@@ -83,13 +82,13 @@ module ImuViconPublisher
         zmq_jetson_ip = setup_dict["zmq"]["jetson"]["server"]
         zmq_imu_port = setup_dict["zmq"]["jetson"]["imu_port"]
         zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon_port"]
-        imu_serial_port = setup_dict["imu_arduino"]["serial_port"]
-        imu_baud_rate = setup_dict["imu_arduino"]["baud_rate"]
+        imu_serial_port = setup_dict["serial"]["jetson"]["serial_port"]
+        imu_baud_rate = setup_dict["serial"]["jetson"]["baud_rate"]
 
-        imu_pub() = imu_publisher(zmq_jetson_ip, zmq_imu_port, 
-                                  zmq_jetson_ip, zmq_vicon_port, 
-                                  imu_serial_port, imu_baud_rate; 
-                                  debug=true)
+        imu_pub() = imu_vicon_publisher(zmq_jetson_ip, zmq_imu_port, 
+                                        zmq_jetson_ip, zmq_vicon_port, 
+                                        imu_serial_port, imu_baud_rate; 
+                                        debug=true)
         imu_thread = Task(imu_pub)
         schedule(imu_thread)
     end

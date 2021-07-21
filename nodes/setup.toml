@@ -1,8 +1,8 @@
-title = "ZMQ Ports"
+title = "MocapZMQ"
 
 [vicon]
-    server = "192.168.3.249"
-    subject = "coffeetime"
+    server = "192.168.3.194"
+    subject = "UnitreeA1"
 
 [zmq]
     [zmq.jetson]
@@ -12,15 +12,15 @@ title = "ZMQ Ports"
         filtered_state_port = "5004"
         # motor_torques = "5006"
 
-    [zmq.vicon_relay]
-        server = "127.0.0.1"
-        vicon_port = "5000"
+    [zmq.relay]
+        server = "127.0.0.2"
+        vicon_port = "5002"
 
 [serial]
     [serial.jetson]
-        serial_port = "/dev/tty.usbmodem92225501"
+        serial_port = "/dev/tty.usbmodem14101"
         baud_rate = 57600
 
     [serial.relay]
-        serial_port = "/dev/tty.usbmodem92225501"
+        serial_port = "/dev/tty.usbmodem14101"
         baud_rate = 57600

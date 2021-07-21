@@ -2,14 +2,13 @@
 # data coming through the telemetry radio and the Arduino.
 
 module FilteredStatePublisher 
-    using Pkg
-    Pkg.activate(@__DIR__)
+    # using Pkg
+    # Pkg.activate("$(@__DIR__)/../..")
 
     using TOML
     using ZMQ
     using ProtoBuf
     using EKF
-    using Dates
 
     include("$(@__DIR__)/imu_states.jl")
 

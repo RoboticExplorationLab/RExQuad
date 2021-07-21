@@ -24,13 +24,13 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	char *pub_ip = argv[1];
+	char *sub_ip = argv[1];
 	char *rigid_body = argv[2];
-	char *sub_ip = argv[3];
-	char *sub_port = argv[4];
+	char *pub_ip = argv[3];
+	char *pub_port = argv[4];
 	// char *pub_port = argv[4];
 
-	if (!viconZMQ.initialize(pub_ip, rigid_body, sub_ip, sub_port))
+	if (!viconZMQ.initialize(sub_ip, rigid_body, pub_ip, pub_port))
 	{
 		std::cerr << "Failed to init driver" << std::endl;
 	}
