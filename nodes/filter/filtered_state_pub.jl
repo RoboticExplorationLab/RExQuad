@@ -54,10 +54,10 @@ module FilteredStatePublisher
         end 
     end 
 
-    function imu_vicon_publisher(imu_sub_ip::String, imu_sub_port::String, 
-                                 vicon_sub_ip::String, vicon_sub_port::String, 
-                                 filtered_state_pub_ip::String, filtered_state_pub_port::String, 
-                                 debug::Bool=false)
+    function filtered_state_publisher(imu_sub_ip::String, imu_sub_port::String, 
+                                      vicon_sub_ip::String, vicon_sub_port::String, 
+                                      filtered_state_pub_ip::String, filtered_state_pub_port::String; 
+                                      debug::Bool=false)
         ctx = Context(1)
 
         # Initalize Subscriber threads
@@ -88,11 +88,11 @@ module FilteredStatePublisher
 
         # Setup the EKF filter
         est_state = zeros(ImuState); est_state.q𝑤 = 1.0
-        est_cov = Matrix(2.2 * I(length(ImuErrorState)))
-        measurement = zeros(Vicon); vicon.q𝑤= 1.0;
+        est_cov = Matrix(2.2 * I(length(ImuError)))
+        measurement = zeros(Vicon); measurement.q𝑤= 1.0;
         input = zeros(ImuInput)
-        process_cov = Matrix(2.2 * I(length(ImuErrorState)))
-        measure_cov = Matrix(2.2 * I(length(ViconErrorMeasurement)))
+        process_cov = Matrix(2.2 * I(length(ImuError)))
+        measure_cov = Matrix(2.2 * I(length(ViconError)))
 
         ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov, 
                                                                                 process_cov, measure_cov) 
@@ -111,15 +111,19 @@ module FilteredStatePublisher
 
                     prediction!(ekf, input, dt=dt)
 
+                    if (debug) println(input) end
+
                     imu_time = imu.time
                 end  
 
                 # Update 
-                if imu.time > imu_time  
+                if vicon.time > vicon_time  
                     measurement[1:3] .= [vicon.pos_x, vicon.pos_y, vicon.pos_z]
                     measurement[4:end] .= [vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z]
 
-                    update!(ekf, vicon)
+                    update!(ekf, measurement)
+
+                    if (debug) println(measurement) end
 
                     vicon_time = vicon.time
                     filtering = true
@@ -133,6 +137,8 @@ module FilteredStatePublisher
                     filtered_state.quat_w, filtered_state.quat_x, filtered_state.quat_y, filtered_state.quat_z = params(q)
                     filtered_state.vel_x, filtered_state.vel_y, filtered_state.vel_z = v
                     filtered_state.ang_x, filtered_state.ang_y, filtered_state.ang_z = ω - β
+
+                    if (debug) println(filtered_state) end
 
                     writeproto(iob, filtered_state)
                     ZMQ.send(filtered_state_pub, take!(iob))
@@ -155,14 +161,13 @@ module FilteredStatePublisher
         zmq_jetson_ip = setup_dict["zmq"]["jetson"]["server"]
         zmq_imu_port = setup_dict["zmq"]["jetson"]["imu_port"]
         zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon_port"]
-        imu_serial_port = setup_dict["imu_arduino"]["serial_port"]
-        imu_baud_rate = setup_dict["imu_arduino"]["baud_rate"]
+        zmq_filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state_port"]
 
-        imu_pub() = imu_publisher(zmq_jetson_ip, zmq_imu_port, 
-                                  zmq_jetson_ip, zmq_vicon_port, 
-                                  imu_serial_port, imu_baud_rate; 
-                                  debug=true)
-        imu_thread = Task(imu_pub)
-        schedule(imu_thread)
+        filtered_state_pub() = filtered_state_publisher(zmq_jetson_ip, zmq_imu_port, 
+                                                        zmq_jetson_ip, zmq_vicon_port, 
+                                                        zmq_jetson_ip, zmq_filtered_state_port; 
+                                                        debug=true)
+        filtered_state_thread = Task(filtered_state_pub)
+        schedule(filtered_state_thread)
     end
 end

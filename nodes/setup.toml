@@ -9,10 +9,18 @@ title = "ZMQ Ports"
         server = "127.0.0.1"
         vicon_port = "5000"
         imu_port = "5002"
+        filtered_state_port = "5004"
+        # motor_torques = "5006"
+
     [zmq.vicon_relay]
         server = "127.0.0.1"
         vicon_port = "5000"
 
-[imu_arduino]
-    serial_port = "/dev/tty.usbmodem92225501"
-    baud_rate = 57600
+[serial]
+    [serial.jetson]
+        serial_port = "/dev/tty.usbmodem92225501"
+        baud_rate = 57600
+
+    [serial.relay]
+        serial_port = "/dev/tty.usbmodem92225501"
+        baud_rate = 57600
