@@ -10,7 +10,6 @@ title = "MocapZMQ"
         vicon_port = "5000"
         imu_port = "5002"
         filtered_state_port = "5004"
-        # motor_torques = "5006"
 
     [zmq.relay]
         server = "127.0.0.2"
@@ -18,9 +17,9 @@ title = "MocapZMQ"
 
 [serial]
     [serial.jetson]
-        serial_port = "/dev/tty.usbmodem14101"
+        serial_port = "/dev/tty.usbmodem14201"
         baud_rate = 57600
 
     [serial.relay]
-        serial_port = "/dev/tty.usbmodem14101"
+        serial_port = "/dev/tty.usbmodem14201"
         baud_rate = 57600

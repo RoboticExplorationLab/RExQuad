@@ -1,11 +1,8 @@
-module ViconRelay
-    # using Pkg
-    # Pkg.activate("$(@__DIR__)/../..")
-
+#
+module LinkJetson
     using TOML
     using ZMQ
     using ProtoBuf
-    using SerialCOBS
 
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
