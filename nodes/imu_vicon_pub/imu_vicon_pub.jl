@@ -1,28 +1,23 @@
-# This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon 
+# This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon
 # data coming through the telemetry radio and the Arduino.
 
-module ImuViconPublisher 
-    # using Pkg
-    # Pkg.activate("$(@__DIR__)/../../")
-
+module ImuViconPublisher
     using TOML
     using ZMQ
     using ProtoBuf
     using SerialCOBS
 
+    include("$(@__DIR__)/../utils/PubSubBuilder.jl")
+    using .PubSubBuilder
+
     include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
-    function create_pub(ctx, pub_ip, pub_port)
-        p = Socket(ctx, PUB)
-        ZMQ.bind(p, "tcp://$pub_ip:$pub_port")
-        return p
-    end
 
-    function imu_vicon_publisher(imu_pub_ip::String, imu_pub_port::String, 
-                                 vicon_pub_ip::String, vicon_pub_port::String, 
-                                 serial_port::String, baud_rate::Int; 
+    function imu_vicon_publisher(imu_pub_ip::String, imu_pub_port::String,
+                                 vicon_pub_ip::String, vicon_pub_port::String,
+                                 serial_port::String, baud_rate::Int;
                                  debug::Bool=false)
         ard = Arduino(serial_port, baud_rate);
 
@@ -31,7 +26,7 @@ module ImuViconPublisher
         imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
                   gyr_x=0., gyr_y=0., gyr_z=0.,
                   time=time())
-        
+
         vicon_pub = create_pub(ctx, vicon_pub_ip, vicon_pub_port)
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
@@ -54,7 +49,7 @@ module ImuViconPublisher
                             ZMQ.send(imu_pub, take!(iob))
                         catch # Check if its a VICON protobuf
                             readproto(iob, vicon)
-                            
+
                             if (debug) println(vicon_pub.pos_x, " ", vicon_pub.pos_y, " ", vicon_pub.pos_z) end
 
                             writeproto(iob, vicon)
@@ -86,9 +81,9 @@ module ImuViconPublisher
         imu_serial_port = setup_dict["serial"]["jetson"]["serial_port"]
         imu_baud_rate = setup_dict["serial"]["jetson"]["baud_rate"]
 
-        imu_pub() = imu_vicon_publisher(zmq_jetson_ip, zmq_imu_port, 
-                                        zmq_jetson_ip, zmq_vicon_port, 
-                                        imu_serial_port, imu_baud_rate; 
+        imu_pub() = imu_vicon_publisher(zmq_jetson_ip, zmq_imu_port,
+                                        zmq_jetson_ip, zmq_vicon_port,
+                                        imu_serial_port, imu_baud_rate;
                                         debug=true)
         imu_thread = Task(imu_pub)
         schedule(imu_thread)
