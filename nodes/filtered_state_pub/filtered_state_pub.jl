@@ -157,16 +157,18 @@ module FilteredStatePublisher
     function main()
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        zmq_jetson_ip = setup_dict["zmq"]["jetson"]["server"]
-        zmq_imu_port = setup_dict["zmq"]["jetson"]["imu_port"]
-        zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon_port"]
-        zmq_filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state_port"]
+        zmq_imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        zmq_imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
+        zmq_vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
+        zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+        zmq_filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
+        zmq_filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-        filtered_state_pub() = filtered_state_publisher(zmq_jetson_ip, zmq_imu_port, 
-                                                        zmq_jetson_ip, zmq_vicon_port, 
-                                                        zmq_jetson_ip, zmq_filtered_state_port; 
-                                                        debug=true)
-        filtered_state_thread = Task(filtered_state_pub)
-        schedule(filtered_state_thread)
+        fs_pub() = filtered_state_publisher(zmq_imu_ip, zmq_imu_port, 
+                                            zmq_vicon_ip, zmq_vicon_port, 
+                                            zmq_filtered_state_ip, zmq_filtered_state_port; 
+                                            debug=true)
+        fs_thread = Task(fs_pub)
+        schedule(fs_thread)
     end
 end

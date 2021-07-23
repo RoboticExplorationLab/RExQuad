@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package messaging;
+
+message MOTORS {
+    double front_left = 1;
+    double front_right = 2;
+    double back_right = 3;
+    double back_left = 4;
+
+    double time = 5;
+}
+
+

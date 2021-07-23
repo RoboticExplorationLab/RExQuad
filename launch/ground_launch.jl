@@ -1,10 +1,10 @@
 using Pkg
 Pkg.activate("$(@__DIR__)/..")
 
-include("$(@__DIR__)/../nodes/vicon_relay/vicon_relay.jl")
+include("$(@__DIR__)/../nodes/ground_link/ground_link.jl")
 
 # Launch Vicon Relay
-vicon_relay_thread = ViconRelay.main()
+ground_link_thread = GroundLink.main()
 
 try
     while true 

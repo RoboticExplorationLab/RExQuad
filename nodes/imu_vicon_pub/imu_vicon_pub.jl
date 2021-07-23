@@ -79,9 +79,10 @@ module ImuViconPublisher
     function main()
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        zmq_jetson_ip = setup_dict["zmq"]["jetson"]["server"]
-        zmq_imu_port = setup_dict["zmq"]["jetson"]["imu_port"]
-        zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon_port"]
+        zmq_jetson_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        zmq_imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
+        zmq_jetson_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
         imu_serial_port = setup_dict["serial"]["jetson"]["serial_port"]
         imu_baud_rate = setup_dict["serial"]["jetson"]["baud_rate"]
 

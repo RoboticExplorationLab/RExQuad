@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "filtered_state_msg.proto";
+import "motors_msg.proto";
+import "vicon_msg.proto";
+
+package messaging;
+
+message QUAD_INFO {
+    FILTERED_STATE state = 1;
+    MOTORS input = 2;
+    VICON measurement = 3;
+}
+
+
