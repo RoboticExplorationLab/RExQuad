@@ -1,14 +1,14 @@
-# This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon 
+# This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon
 # data coming through the telemetry radio and the Arduino.
 
-module FilteredStatePublisher 
-    # using Pkg
-    # Pkg.activate("$(@__DIR__)/../..")
-
+module FilteredStatePublisher
     using TOML
     using ZMQ
     using ProtoBuf
     using EKF
+
+    include("$(@__DIR__)/../utils/PubSubBuilder.jl")
+    using .PubSubBuilder
 
     include("$(@__DIR__)/imu_states.jl")
 
@@ -17,45 +17,10 @@ module FilteredStatePublisher
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
-    function create_sub(ctx::ZMQ.Context, sub_ip, sub_port)
-        s = Socket(ctx, SUB)
-        ZMQ.subscribe(s)
-        ZMQ.connect(s, "tcp://$sub_ip:$sub_port")
-        return s
-    end
 
-    function create_pub(ctx::ZMQ.Context, pub_ip, pub_port)
-        p = Socket(ctx, PUB)
-        ZMQ.bind(p, "tcp://$pub_ip:$pub_port")
-        return p
-    end
-
-    function subscriber_thread(ctx::ZMQ.Context, proto_msg::ProtoBuf.ProtoType, 
-                               sub_ip::String, sub_port::String)
-        sub = create_sub(ctx, sub_ip, sub_port) 
-
-        try 
-            println("waiting..")
-            while true 
-                bin_data = recv(sub)
-                io = seek(convert(IOStream, bin_data), 0)
-                data = readproto(io, proto_msg)
-                for n in propertynames(proto_msg)
-                    if hasproperty(proto_msg,n)
-                        setproperty!(proto_msg, n, getproperty(data, n))
-                    end
-                end
-            end 
-        catch e 
-            close(sub)
-            println(stacktrace())
-            println(e)
-        end 
-    end 
-
-    function filtered_state_publisher(imu_sub_ip::String, imu_sub_port::String, 
-                                      vicon_sub_ip::String, vicon_sub_port::String, 
-                                      filtered_state_pub_ip::String, filtered_state_pub_port::String; 
+    function filtered_state_publisher(imu_sub_ip::String, imu_sub_port::String,
+                                      vicon_sub_ip::String, vicon_sub_port::String,
+                                      filtered_state_pub_ip::String, filtered_state_pub_port::String;
                                       debug::Bool=false)
         ctx = Context(1)
 
@@ -64,7 +29,7 @@ module FilteredStatePublisher
                   gyr_x=0., gyr_y=0., gyr_z=0.,
                   time=time())
         imu_sub() = subscriber_thread(ctx, imu, imu_sub_ip, imu_sub_port)
-        
+
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                       time=time())
@@ -80,7 +45,7 @@ module FilteredStatePublisher
         # Setup Filtered state publisher
         filtered_state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
                                         quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                                        vel_x=0., vel_y=0., vel_z=0., 
+                                        vel_x=0., vel_y=0., vel_z=0.,
                                         ang_x=0., ang_y=0., ang_z=0.)
         filtered_state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
         iob = PipeBuffer()
@@ -93,16 +58,16 @@ module FilteredStatePublisher
         process_cov = Matrix(2.2 * I(length(ImuError)))
         measure_cov = Matrix(2.2 * I(length(ViconError)))
 
-        ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov, 
-                                                                                process_cov, measure_cov) 
+        ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov,
+                                                                                process_cov, measure_cov)
         vicon_time = time()
         imu_time = time()
         filtering = false
 
         try
-            while true                
-                # Prediction 
-                if imu.time > imu_time 
+            while true
+                # Prediction
+                if imu.time > imu_time
                     dt = imu.time - imu_time
 
                     input[1:3] .= [imu.acc_x, imu.acc_y, imu.acc_z]
@@ -113,10 +78,10 @@ module FilteredStatePublisher
                     if (debug) println(input) end
 
                     imu_time = imu.time
-                end  
+                end
 
-                # Update 
-                if vicon.time > vicon_time  
+                # Update
+                if vicon.time > vicon_time
                     measurement[1:3] .= [vicon.pos_x, vicon.pos_y, vicon.pos_z]
                     measurement[4:end] .= [vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z]
 
@@ -126,7 +91,7 @@ module FilteredStatePublisher
 
                     vicon_time = vicon.time
                     filtering = true
-                end  
+                end
 
                 # Publishing
                 if filtering
@@ -164,10 +129,10 @@ module FilteredStatePublisher
         zmq_filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
         zmq_filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-        fs_pub() = filtered_state_publisher(zmq_imu_ip, zmq_imu_port, 
-                                            zmq_vicon_ip, zmq_vicon_port, 
-                                            zmq_filtered_state_ip, zmq_filtered_state_port; 
-                                            debug=true)
+        fs_pub() = filtered_state_publisher(zmq_imu_ip, zmq_imu_port,
+                                            zmq_vicon_ip, zmq_vicon_port,
+                                            zmq_filtered_state_ip, zmq_filtered_state_port;
+                                            freq=200, debug=true)
         fs_thread = Task(fs_pub)
         schedule(fs_thread)
     end

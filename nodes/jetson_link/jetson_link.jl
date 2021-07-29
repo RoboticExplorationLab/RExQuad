@@ -1,5 +1,5 @@
 #
-module LinkJetson
+module JetsonLink
     using TOML
     using ZMQ
     using ProtoBuf

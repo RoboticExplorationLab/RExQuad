@@ -3,23 +3,23 @@ module PubSubBuilder
     using ZMQ
     using ProtoBuf
 
-    export create_sub, create_pub, subscriber_thread
+    export create_sub, create_pub, subscriber_thread, publish
 
-    function create_sub(ctx, sub_ip, sub_port)
+    function create_sub(ctx::ZMQ.Context, sub_ip::String, sub_port::String)::ZMQ.Socket
         s = Socket(ctx, SUB)
         ZMQ.subscribe(s)
         ZMQ.connect(s, "tcp://$sub_ip:$sub_port")
         return s
     end
 
-    function create_pub(ctx, pub_ip, pub_port)
+    function create_pub(ctx::ZMQ.Context, pub_ip::String, pub_port::String)::ZMQ.Socket
         p = Socket(ctx, PUB)
         ZMQ.bind(p, "tcp://$pub_ip:$pub_port")
         return p
     end
 
     function subscriber_thread(ctx::ZMQ.Context, proto_msg::ProtoBuf.ProtoType,
-                               sub_ip::String, sub_port::String)
+                               sub_ip::String, sub_port::String)::Nothing
         sub = create_sub(ctx, sub_ip, sub_port)
         try
             println("Listening for message type: $proto_msg, on: tcp://$sub_ip:$sub_port")
@@ -34,9 +34,23 @@ module PubSubBuilder
                 end
             end
         catch e
-            close(sub)
             println(stacktrace())
             println(e)
+        finally
+            close(sub)
         end
+
+        return Nothing
+    end
+
+    function publish(sock::ZMQ.Socket, proto_msg::ProtoBuf.ProtoType,
+                     iob::IOBuffer=IOBuffer())::Nothing
+        writeproto(iob, proto_msg)
+        msg = Message(iob.size)
+        msg[:] = iob.data
+
+        ZMQ.send(sock, msg)
+
+        return nothing
     end
 end

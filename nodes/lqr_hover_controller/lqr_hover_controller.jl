@@ -24,7 +24,7 @@ module LqrHoverController
                                quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                                vel_x=0., vel_y=0., vel_z=0.,
                                ang_x=0., ang_y=0., ang_z=0.)
-        state_sub() = subscriber_thread(ctx, state, quad_info_sub_ip, quad_info_sub_port)
+        state_sub() = subscriber_thread(ctx, state, filtered_state_sub_ip, filtered_state_sub_port)
 
         # Setup and Schedule Subscriber Tasks
         state_thread = Task(state_sub)
@@ -33,7 +33,7 @@ module LqrHoverController
         # Setup Filtered state publisher
         motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
                         time=0.)
-        quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
+        motors_pub = create_pub(ctx, motor_pub_ip, motor_pub_port)
         iob = PipeBuffer()
 
         state_time = time()
@@ -45,8 +45,10 @@ module LqrHoverController
                     # TODO: Run controller here
                     # controller()
 
+
+
                     writeproto(iob, motors)
-                    ZMQ.send(quad_pub, take!(iob))
+                    ZMQ.send(motors_pub, take!(iob))
 
                     state_time = state.time
                 end
