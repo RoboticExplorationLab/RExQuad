@@ -43,15 +43,17 @@ module FilteredStatePublisher
         schedule(vicon_thread)
 
         # Setup Filtered state publisher
-        filtered_state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                                        quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                                        vel_x=0., vel_y=0., vel_z=0.,
-                                        ang_x=0., ang_y=0., ang_z=0.)
-        filtered_state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
+        state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
+                               quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                               vel_x=0., vel_y=0., vel_z=0.,
+                               ang_x=0., ang_y=0., ang_z=0.)
+        state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
         iob = PipeBuffer()
 
         # Setup the EKF filter
         est_state = zeros(ImuState); est_state.q𝑤 = 1.0
+
+
         est_cov = Matrix(2.2 * I(length(ImuError)))
         measurement = zeros(Vicon); measurement.q𝑤= 1.0;
         input = zeros(ImuInput)
@@ -97,15 +99,15 @@ module FilteredStatePublisher
                 if filtering
                     v̇, ω = getComponents(input)
                     p, q, v, α, β = getComponents(ekf.est_state)
-                    filtered_state.pos_x, filtered_state.pos_y, filtered_state.pos_z = p
-                    filtered_state.quat_w, filtered_state.quat_x, filtered_state.quat_y, filtered_state.quat_z = params(q)
-                    filtered_state.vel_x, filtered_state.vel_y, filtered_state.vel_z = v
-                    filtered_state.ang_x, filtered_state.ang_y, filtered_state.ang_z = ω - β
+                    state.pos_x, state.pos_y, state.pos_z = p
+                    state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(q)
+                    state.vel_x, state.vel_y, state.vel_z = v
+                    state.ang_x, state.ang_y, state.ang_z = ω - β
 
-                    if (debug) println(filtered_state) end
+                    if (debug) println(state) end
 
-                    writeproto(iob, filtered_state)
-                    ZMQ.send(filtered_state_pub, take!(iob))
+                    writeproto(iob, state)
+                    ZMQ.send(state_pub, take!(iob))
                 end
             end
         catch e
@@ -122,16 +124,16 @@ module FilteredStatePublisher
     function main()
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        zmq_imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
-        zmq_imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
-        zmq_vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
-        zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
-        zmq_filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
-        zmq_filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
+        imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
+        vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
+        vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
+        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-        fs_pub() = filtered_state_publisher(zmq_imu_ip, zmq_imu_port,
-                                            zmq_vicon_ip, zmq_vicon_port,
-                                            zmq_filtered_state_ip, zmq_filtered_state_port;
+        fs_pub() = filtered_state_publisher(imu_ip, imu_port,
+                                            vicon_ip, vicon_port,
+                                            filtered_state_ip, filtered_state_port;
                                             freq=200, debug=true)
         fs_thread = Task(fs_pub)
         schedule(fs_thread)

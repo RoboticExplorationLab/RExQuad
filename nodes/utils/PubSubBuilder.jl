@@ -21,35 +21,38 @@ module PubSubBuilder
     function subscriber_thread(ctx::ZMQ.Context, proto_msg::ProtoBuf.ProtoType,
                                sub_ip::String, sub_port::String)::Nothing
         sub = create_sub(ctx, sub_ip, sub_port)
+
         try
-            println("Listening for message type: $proto_msg, on: tcp://$sub_ip:$sub_port")
+            println("Listening for message type: $(typeof(proto_msg)), on: tcp://$sub_ip:$sub_port")
             while true
-                bin_data = recv(sub)
+                bin_data = ZMQ.recv(sub)
                 io = seek(convert(IOStream, bin_data), 0)
-                data = readproto(io, proto_msg)
-                for n in propertynames(proto_msg)
-                    if hasproperty(proto_msg,n)
-                        setproperty!(proto_msg, n, getproperty(data, n))
-                    end
-                end
+                readproto(io, proto_msg)
+
+                GC.gc(false)
             end
         catch e
             println(stacktrace())
             println(e)
+            rethrow(e)
         finally
+            close(ctx)
             close(sub)
         end
 
-        return Nothing
+        return nothing
     end
 
     function publish(sock::ZMQ.Socket, proto_msg::ProtoBuf.ProtoType,
-                     iob::IOBuffer=IOBuffer())::Nothing
+                     iob::IOBuffer)::Nothing
         writeproto(iob, proto_msg)
         msg = Message(iob.size)
-        msg[:] = iob.data
+        msg[:] = @view iob.data[1:iob.size]
 
         ZMQ.send(sock, msg)
+
+        # Move cursor position to begining
+        seek(iob, 0)
 
         return nothing
     end

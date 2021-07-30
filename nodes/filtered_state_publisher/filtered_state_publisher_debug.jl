@@ -1,11 +1,12 @@
 # This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon
 # data coming through the telemetry radio and the Arduino.
 module FilteredStatePublisher
-    using ZMQ: length
-using TOML
+    using TOML
     using ZMQ
     using ProtoBuf
     using EKF
+    using BenchmarkTools
+
     # Import pub/sub utility functions
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -18,38 +19,30 @@ using TOML
 
     function filtered_state_publisher(imu_sub_ip::String, imu_sub_port::String,
                                       vicon_sub_ip::String, vicon_sub_port::String,
-                                      filtered_state_pub_ip::String, filtered_state_pub_port::String;
+                                      state_pub_ip::String, state_pub_port::String;
                                       freq::Int64=200, debug::Bool=false)
         rate = 1 / freq
         ctx = Context(1)
 
         # Setup Filtered state publisher
-        filtered_state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
+        state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
                                         quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                                         vel_x=0., vel_y=0., vel_z=0.,
                                         ang_x=0., ang_y=0., ang_z=0.)
-        filtered_state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
+        state_pub = create_pub(ctx, state_pub_ip, state_pub_port)
         iob = IOBuffer()
-
-        i = 0
 
         try
             while true
-                v̇, ω = rand(3), rand(3)
-                p, q, v, α, β = rand(3), params(rand(UnitQuaternion)), rand(3), rand(3), rand(3)
-                filtered_state.pos_x, filtered_state.pos_y, filtered_state.pos_z = p
-                filtered_state.quat_w, filtered_state.quat_x, filtered_state.quat_y, filtered_state.quat_z = q
-                filtered_state.vel_x, filtered_state.vel_y, filtered_state.vel_z = v
-                filtered_state.ang_x, filtered_state.ang_y, filtered_state.ang_z = ω - β
+                state.pos_x, state.pos_y, state.pos_z = rand(3)
+                state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(rand(UnitQuaternion))
+                state.vel_x, state.vel_y, state.vel_z = rand(3)
+                state.ang_x, state.ang_y, state.ang_z = rand(3)
 
-                publish(filtered_state_pub, filtered_state, iob)
+                publish(state_pub, state, iob)
 
                 sleep(rate)
-
-                if i >= 10
-                    break
-                end
-                i += 1
+                GC.gc(false) # TODO: hopefully get rid of this
             end
         catch e
             if e isa InterruptException

@@ -2,7 +2,7 @@
 
 # Build RExLabVicon package
 if ! test -d "nodes/vicon_relay/RExLabVicon/build"; then
-    echo "RExLabVicon package has not been built!"    
+    echo "RExLabVicon package has not been built!"
 fi
 
 JL_PLUGIN="$HOME/.julia/packages/ProtoBuf/TYEdo/plugin/protoc-gen-julia"
@@ -32,3 +32,9 @@ SRC_DIR1="proto"
 SRC_DIR2="nodes/vicon_relay/RExLabVicon/proto"
 MSG_NAME="quad_info_msg.proto"
 protoc -I=. --plugin=$JL_PLUGIN --proto_path=$SRC_DIR1 --proto_path=$SRC_DIR2 --julia_out=$JL_BUILD_DIR $MSG_NAME
+
+
+# QUAD INFO MESSAGE
+SRC_DIR="proto"
+MSG_NAME="message.proto"
+protoc -I=. --plugin=$JL_PLUGIN --proto_path=$SRC_DIR --julia_out=$JL_BUILD_DIR $MSG_NAME
