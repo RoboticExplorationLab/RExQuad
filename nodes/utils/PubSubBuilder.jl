@@ -15,6 +15,8 @@ module PubSubBuilder
     function create_pub(ctx::ZMQ.Context, pub_ip::String, pub_port::String)::ZMQ.Socket
         p = Socket(ctx, PUB)
         ZMQ.bind(p, "tcp://$pub_ip:$pub_port")
+
+        println("Publishing message on: tcp://$pub_ip:$pub_port")
         return p
     end
 

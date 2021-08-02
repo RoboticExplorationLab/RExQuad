@@ -17,7 +17,7 @@ module JetsonLink
                        motors_sub_ip::String, motors_sub_port::String,
                        vicon_sub_ip::String, vicon_sub_port::String,
                        quad_info_pub_ip::String, quad_info_pub_port::String;
-                       freq::Int64=200, debug::Bool=false)
+                       freq::Int64=20, debug::Bool=false)
         rate = 1 / freq
 
         ctx = Context(1)
@@ -51,7 +51,7 @@ module JetsonLink
         vicon_time = time()
 
         quad_info = QUAD_INFO(state=state, input=motors, measurement=vicon, time=time())
-        quad_pub = create_pub(ctx, "0.0.0.0", quad_info_pub_port)
+        quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
 
         # Setup inial times
         iob = IOBuffer()
@@ -104,15 +104,15 @@ module JetsonLink
         motors_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
         vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
         vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
-        quad_info_ip = setup_dict["zmq"]["ground"]["quad_info"]["server"]
-        quad_info_port = setup_dict["zmq"]["ground"]["quad_info"]["port"]
+        quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
+        quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
         link_pub() = quad_link(filtered_state_ip, filtered_state_port,
                                motors_ip, motors_port,
                                vicon_ip, vicon_port,
                                quad_info_ip, quad_info_port;
-                               freq=200, debug=debug)
+                               freq=20, debug=debug)
         link_thread = Task(link_pub)
         schedule(link_thread)
 
