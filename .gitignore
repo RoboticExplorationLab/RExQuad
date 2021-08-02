@@ -24,6 +24,5 @@ docs/site/
 # environment.
 Manifest.toml
 
-msgs/*
 
 data/*
