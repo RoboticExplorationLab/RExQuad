@@ -29,7 +29,7 @@ module GroundLink
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                       time=0.)
-        quad_info = QUAD_INFO(state=filtered_state, input=motors, measurement=vicon)
+        quad_info = QUAD_INFO(state=filtered_state, input=motors, measurement=vicon, time=time())
         quad_sub() = subscriber_thread(ctx, quad_info, quad_info_sub_ip, quad_info_sub_port)
         # Setup and Schedule Subscriber Tasks
         quad_thread = Task(quad_sub)

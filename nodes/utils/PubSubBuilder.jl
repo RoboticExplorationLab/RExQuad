@@ -32,12 +32,12 @@ module PubSubBuilder
                 GC.gc(false)
             end
         catch e
+            close(ctx)
+            close(sub)
+
             println(stacktrace())
             println(e)
             rethrow(e)
-        finally
-            close(ctx)
-            close(sub)
         end
 
         return nothing
