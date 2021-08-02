@@ -10,6 +10,8 @@ message QUAD_INFO {
     FILTERED_STATE state = 1;
     MOTORS input = 2;
     VICON measurement = 3;
+
+    double time = 4;
 }
 
 

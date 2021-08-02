@@ -29,9 +29,8 @@ module GroundLink
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                       time=0.)
-        quad_info = QUAD_INFO(state=filtered_state, motors=motors, vicon=vicon)
+        quad_info = QUAD_INFO(state=filtered_state, input=motors, measurement=vicon)
         quad_sub() = subscriber_thread(ctx, quad_info, quad_info_sub_ip, quad_info_sub_port)
-
         # Setup and Schedule Subscriber Tasks
         quad_thread = Task(quad_sub)
         schedule(quad_thread)
@@ -86,24 +85,25 @@ module GroundLink
                 end
             end
         catch e
-            close(ctx)
             if e isa InterruptException
                 println("Process terminated by you")
             else
                 rethrow(e)
             end
+        finally
+            close(ctx)
         end
     end
 
     # Launch IMU publisher
-    function main()
+    function main(; debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        zmq_quad_info_sub_ip = setup_dict["zmq"]["ground"]["quad_info"]["server"]
-        zmq_quad_info_sub_port = setup_dict["zmq"]["ground"]["quad_info"]["port"]
+        quad_info_sub_ip = setup_dict["zmq"]["ground"]["quad_info"]["server"]
+        quad_info_sub_port = setup_dict["zmq"]["ground"]["quad_info"]["port"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
-        link_sub() = quad_link(zmq_quad_info_sub_ip, zmq_quad_info_sub_port; debug=false)
+        link_sub() = quad_link(quad_info_sub_ip, quad_info_sub_port; debug=debug)
         link_thread = Task(link_sub)
         schedule(link_thread)
 

@@ -27,7 +27,7 @@ function meta(::Type{QUAD_INFO})
     ProtoBuf.metalock() do
         if !isassigned(__meta_QUAD_INFO)
             __meta_QUAD_INFO[] = target = ProtoMeta(QUAD_INFO)
-            allflds = Pair{Symbol,Union{Type,String}}[:state => FILTERED_STATE, :input => MOTORS, :measurement => VICON]
+            allflds = Pair{Symbol,Union{Type,String}}[:state => FILTERED_STATE, :input => MOTORS, :measurement => VICON, :time => Float64]
             meta(target, QUAD_INFO, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
         end
         __meta_QUAD_INFO[]
@@ -40,6 +40,8 @@ function Base.getproperty(obj::QUAD_INFO, name::Symbol)
         return (obj.__protobuf_jl_internal_values[name])::MOTORS
     elseif name === :measurement
         return (obj.__protobuf_jl_internal_values[name])::VICON
+    elseif name === :time
+        return (obj.__protobuf_jl_internal_values[name])::Float64
     else
         getfield(obj, name)
     end
