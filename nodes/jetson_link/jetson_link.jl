@@ -56,9 +56,12 @@ module JetsonLink
         # Setup inial times
         iob = IOBuffer()
 
+        println("Here")
+
         try
             while true
-                pub = false
+                # pub = false
+                pub = true
 
                 if state.time > state_time
                     state_time = state.time
@@ -75,20 +78,21 @@ module JetsonLink
 
                 if pub
                     quad_info.time = time()
+                    if (debug) println("Published message") end
+
                     publish(quad_pub, quad_info, iob)
                 end
                 sleep(rate)
                 GC.gc(false)
             end
         catch e
-            if e isa InterruptException
-                println("Process terminated by you")
-            else
-                rethrow(e)
-            end
-        finally 
-            close(ctx)
             close(quad_pub)
+            close(ctx)
+            if e isa InterruptException
+                println("Shutting down Jetson Link")
+            else 
+                rethrow(e)
+            end           
         end
     end
 
@@ -98,15 +102,17 @@ module JetsonLink
 
         filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
         filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
-        motors_sub_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
-        motors_sub_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
+        motors_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
+        motors_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
+        vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
+        vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
         quad_info_ip = setup_dict["zmq"]["ground"]["quad_info"]["server"]
         quad_info_port = setup_dict["zmq"]["ground"]["quad_info"]["port"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
         link_pub() = quad_link(filtered_state_ip, filtered_state_port,
-                               motors_sub_ip, motors_sub_port,
-                               vicon_sub_ip, vicon_sub_port,
+                               motors_ip, motors_port,
+                               vicon_ip, vicon_port,
                                quad_info_ip, quad_info_port;
                                freq=200, debug=debug)
         link_thread = Task(link_pub)

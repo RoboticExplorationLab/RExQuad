@@ -68,7 +68,7 @@ module ImuViconPublisher
             end
         catch e
             if e isa InterruptException
-                println("Process terminated by you")
+                println("Shutting down IMU Vicon Publisher")
             else
                 rethrow(e)
             end
