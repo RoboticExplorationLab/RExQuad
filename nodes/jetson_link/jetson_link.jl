@@ -35,22 +35,22 @@ module JetsonLink
 
         motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
                         time=0.)
-        state_sub() = subscriber_thread(ctx, motors, motors_sub_ip, motors_sub_port)
+        motors_sub() = subscriber_thread(ctx, motors, motors_sub_ip, motors_sub_port)
         # Setup and Schedule Subscriber Tasks
-        motors_thread = Task(motors)
+        motors_thread = Task(motors_sub)
         schedule(motors_thread)
         motors_time = time()
 
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                       time=0.)
-        state_sub() = subscriber_thread(ctx, vicon, vicon_sub_ip, vicon_sub_port)
+        vicon_sub() = subscriber_thread(ctx, vicon, vicon_sub_ip, vicon_sub_port)
         # Setup and Schedule Subscriber Tasks
-        vicon_thread = Task(vicon)
+        vicon_thread = Task(vicon_sub)
         schedule(vicon_thread)
         vicon_time = time()
 
-        quad_info = QUAD_INFO(state=filtered_state, motors=motors, vicon=vicon)
+        quad_info = QUAD_INFO(state=filtered_state, input=motors, measurement=vicon, time=time())
         quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
 
         # Setup inial times
@@ -74,18 +74,21 @@ module JetsonLink
                 end
 
                 if pub
+                    quad_info.time = time()
                     publish(quad_pub, quad_info, iob)
                 end
                 sleep(rate)
                 GC.gc(false)
             end
         catch e
-            close(ctx)
             if e isa InterruptException
                 println("Process terminated by you")
             else
                 rethrow(e)
             end
+        finally 
+            close(ctx)
+            close(quad_pub)
         end
     end
 
@@ -93,14 +96,18 @@ module JetsonLink
     function main(; debug=false)::Task
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        zmq_quad_info_pub_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
-        zmq_quad_info_pub_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
-        zmq_filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
-        zmq_filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
+        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
+        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
+        motors_sub_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
+        motors_sub_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
+        quad_info_ip = setup_dict["zmq"]["ground"]["quad_info"]["server"]
+        quad_info_port = setup_dict["zmq"]["ground"]["quad_info"]["port"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
-        link_pub() = quad_link(zmq_filtered_state_ip, zmq_filtered_state_port,
-                               zmq_quad_info_pub_ip, zmq_quad_info_pub_port;
+        link_pub() = quad_link(filtered_state_ip, filtered_state_port,
+                               motors_sub_ip, motors_sub_port,
+                               vicon_sub_ip, vicon_sub_port,
+                               quad_info_ip, quad_info_port;
                                freq=200, debug=debug)
         link_thread = Task(link_pub)
         schedule(link_thread)

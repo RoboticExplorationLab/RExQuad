@@ -90,14 +90,10 @@ module ImuViconPublisher
         vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
         vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
 
-        imu_vicon_publisher(imu_serial_port, imu_baud_rate,
-                            imu_ip, imu_port, vicon_ip, vicon_port;
-                            freq=200, debug=debug)
-
-        imu_pub() = imu_vicon_publisher(zmq_jetson_ip, zmq_imu_port,
-                                        zmq_jetson_ip, zmq_vicon_port,
-                                        imu_serial_port, imu_baud_rate;
-                                        debug=true)
+        imu_pub() = imu_vicon_publisher(imu_serial_port, imu_baud_rate,
+                                        imu_ip, imu_port,
+                                        vicon_ip, vicon_port;
+                                        freq=200, debug=debug)
         imu_thread = Task(imu_pub)
         schedule(imu_thread)
 
