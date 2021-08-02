@@ -12,7 +12,6 @@ begin
     filter_thread = FilteredStatePublisher.main()
     lqr_thread = LqrHoverController.main()
     jetson_link_thread = JetsonLink.main()
-
     try
         while (!istaskdone(imu_vicon_thread) && !istaskdone(filter_thread) &&
             !istaskdone(lqr_thread) && !istaskdone(jetson_link_thread))
