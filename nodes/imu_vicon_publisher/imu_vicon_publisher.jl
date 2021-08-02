@@ -15,10 +15,12 @@ module ImuViconPublisher
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
 
-    function imu_vicon_publisher(imu_pub_ip::String, imu_pub_port::String,
-                                 vicon_pub_ip::String, vicon_pub_port::String,
-                                 serial_port::String, baud_rate::Int;
-                                 debug::Bool=false)
+    function imu_vicon_publisher(serial_port::String, baud_rate::Int,
+                                 imu_pub_ip::String, imu_pub_port::String,
+                                 vicon_pub_ip::String, vicon_pub_port::String;
+                                 freq::Int64=200, debug::Bool=false)
+        rate = 1 / freq
+
         ard = Arduino(serial_port, baud_rate);
 
         ctx = Context(1)
@@ -37,7 +39,7 @@ module ImuViconPublisher
                 while true
                     if bytesavailable(ard) > 0
                         # Get the data packet from the Arudino
-                        iob = PipeBuffer(recieve(ard))
+                        iob = IOBuffer(recieve(ard))
 
                         try # Check if its a IMU protobuf
                             readproto(iob, imu)
@@ -45,41 +47,52 @@ module ImuViconPublisher
 
                             if (debug) println(imu.acc_x, " ", imu.acc_y, " ", imu.acc_z) end
 
-                            writeproto(iob, imu)
-                            ZMQ.send(imu_pub, take!(iob))
+                            publish(imu_pub, imu, iob)
                         catch # Check if its a VICON protobuf
+                        end
+
+                        try # Check if its a Vicon protobuf
                             readproto(iob, vicon)
+                            vicon.time = time()
 
                             if (debug) println(vicon_pub.pos_x, " ", vicon_pub.pos_y, " ", vicon_pub.pos_z) end
 
-                            writeproto(iob, vicon)
-                            ZMQ.send(vicon_pub, take!(iob))
-                        finally
-                            if (debug) println("Heard enroneous message from IMU/VICON Arduino.") end
+                            publish(vicon_pub, vicon, iob)
+                        catch
                         end
                     end
+
+                    sleep(rate)
+                    GC.gc(false)
                 end
             end
         catch e
-            close(ctx)
             if e isa InterruptException
                 println("Process terminated by you")
             else
                 rethrow(e)
             end
+        finally
+            close(imu_pub)
+            close(vicon_pub)
+            close(ctx)
         end
     end
 
     # Launch IMU publisher
-    function main()
+    function main(; debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        zmq_jetson_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
-        zmq_imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
-        zmq_jetson_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
-        zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
-        imu_serial_port = setup_dict["serial"]["jetson"]["serial_port"]
-        imu_baud_rate = setup_dict["serial"]["jetson"]["baud_rate"]
+        imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
+        imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
+        imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
+        vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
+        vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+
+        imu_vicon_publisher(imu_serial_port, imu_baud_rate,
+                            imu_ip, imu_port, vicon_ip, vicon_port;
+                            freq=200, debug=debug)
 
         imu_pub() = imu_vicon_publisher(zmq_jetson_ip, zmq_imu_port,
                                         zmq_jetson_ip, zmq_vicon_port,
@@ -87,5 +100,7 @@ module ImuViconPublisher
                                         debug=true)
         imu_thread = Task(imu_pub)
         schedule(imu_thread)
+
+        return imu_thread
     end
 end

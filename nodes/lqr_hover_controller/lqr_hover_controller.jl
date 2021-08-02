@@ -25,7 +25,6 @@ module LqrHoverController
                                vel_x=0., vel_y=0., vel_z=0.,
                                ang_x=0., ang_y=0., ang_z=0.)
         state_sub() = subscriber_thread(ctx, state, filtered_state_sub_ip, filtered_state_sub_port)
-
         # Setup and Schedule Subscriber Tasks
         state_thread = Task(state_sub)
         schedule(state_thread)

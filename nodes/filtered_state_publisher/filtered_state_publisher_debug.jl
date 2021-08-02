@@ -51,7 +51,7 @@ module FilteredStatePublisher
                 rethrow(e)
             end
         finally
-            close(filtered_state_pub)
+            close(state_pub)
             close(ctx)
         end
     end
@@ -60,22 +60,20 @@ module FilteredStatePublisher
     function main(; debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        zmq_imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
-        zmq_imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
-        zmq_vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
-        zmq_vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
-        zmq_filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
-        zmq_filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
+        imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
+        vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
+        vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
+        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-        _filtered_state_publisher() =
-            filtered_state_publisher(zmq_imu_ip, zmq_imu_port,
-                                     zmq_vicon_ip, zmq_vicon_port,
-                                     zmq_filtered_state_ip, zmq_filtered_state_port;
-                                     freq=200, debug=debug)
+        fs_pub() = filtered_state_publisher(imu_ip, imu_port,
+                                            vicon_ip, vicon_port,
+                                            filtered_state_ip, filtered_state_port;
+                                            freq=200, debug=true)
+        fs_thread = Task(fs_pub)
+        schedule(fs_thread)
 
-        filtered_state_thread = Task(_filtered_state_publisher)
-        schedule(filtered_state_thread)
-
-        return filtered_state_thread
+        return fs_thread
     end
 end

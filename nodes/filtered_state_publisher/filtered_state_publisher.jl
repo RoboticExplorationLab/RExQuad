@@ -6,6 +6,7 @@ module FilteredStatePublisher
     using ZMQ
     using ProtoBuf
     using EKF
+    using LinearAlgebra: I
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -21,7 +22,8 @@ module FilteredStatePublisher
     function filtered_state_publisher(imu_sub_ip::String, imu_sub_port::String,
                                       vicon_sub_ip::String, vicon_sub_port::String,
                                       filtered_state_pub_ip::String, filtered_state_pub_port::String;
-                                      debug::Bool=false)
+                                      freq::Int64=200, debug::Bool=false)
+        rate = 1 / freq
         ctx = Context(1)
 
         # Initalize Subscriber threads
@@ -38,7 +40,6 @@ module FilteredStatePublisher
         # Setup and Schedule Subscriber Tasks
         imu_thread = Task(imu_sub)
         schedule(imu_thread)
-
         vicon_thread = Task(vicon_sub)
         schedule(vicon_thread)
 
@@ -48,15 +49,11 @@ module FilteredStatePublisher
                                vel_x=0., vel_y=0., vel_z=0.,
                                ang_x=0., ang_y=0., ang_z=0.)
         state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
-        iob = PipeBuffer()
+        iob = IOBuffer()
 
         # Setup the EKF filter
-        est_state = zeros(ImuState); est_state.q𝑤 = 1.0
-
-
+        est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9))
         est_cov = Matrix(2.2 * I(length(ImuError)))
-        measurement = zeros(Vicon); measurement.q𝑤= 1.0;
-        input = zeros(ImuInput)
         process_cov = Matrix(2.2 * I(length(ImuError)))
         measure_cov = Matrix(2.2 * I(length(ViconError)))
 
@@ -72,31 +69,23 @@ module FilteredStatePublisher
                 if imu.time > imu_time
                     dt = imu.time - imu_time
 
-                    input[1:3] .= [imu.acc_x, imu.acc_y, imu.acc_z]
-                    input[4:6] .= [imu.gyr_x, imu.gyr_y, imu.gyr_z]
+                    input = ImuInput(imu.acc_x, imu.acc_y, imu.acc_z,
+                                     imu.gyr_x, imu.gyr_y, imu.gyr_z)
 
                     prediction!(ekf, input, dt=dt)
-
-                    if (debug) println(input) end
 
                     imu_time = imu.time
                 end
 
-                # Update
+                # Update & Publish
                 if vicon.time > vicon_time
-                    measurement[1:3] .= [vicon.pos_x, vicon.pos_y, vicon.pos_z]
-                    measurement[4:end] .= [vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z]
+                    measurement = Vicon(vicon.pos_x, vicon.pos_y, vicon.pos_z,
+                                        vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
 
                     update!(ekf, measurement)
 
-                    if (debug) println(measurement) end
-
                     vicon_time = vicon.time
-                    filtering = true
-                end
 
-                # Publishing
-                if filtering
                     v̇, ω = getComponents(input)
                     p, q, v, α, β = getComponents(ekf.est_state)
                     state.pos_x, state.pos_y, state.pos_z = p
@@ -104,24 +93,26 @@ module FilteredStatePublisher
                     state.vel_x, state.vel_y, state.vel_z = v
                     state.ang_x, state.ang_y, state.ang_z = ω - β
 
-                    if (debug) println(state) end
-
-                    writeproto(iob, state)
-                    ZMQ.send(state_pub, take!(iob))
+                    publish(state_pub, state, iob)
                 end
+
+                sleep(rate)
+                GC.gc(false) # TODO: hopefully get rid of this
             end
         catch e
-            close(ctx)
             if e isa InterruptException
                 println("Process terminated by you")
             else
                 rethrow(e)
             end
+        finally
+            close(state_pub)
+            close(ctx)
         end
     end
 
     # Launch IMU publisher
-    function main()
+    function main(; debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
@@ -134,8 +125,10 @@ module FilteredStatePublisher
         fs_pub() = filtered_state_publisher(imu_ip, imu_port,
                                             vicon_ip, vicon_port,
                                             filtered_state_ip, filtered_state_port;
-                                            freq=200, debug=true)
+                                            freq=200, debug=debug)
         fs_thread = Task(fs_pub)
         schedule(fs_thread)
+
+        return fs_thread
     end
 end

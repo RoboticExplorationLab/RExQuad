@@ -22,12 +22,13 @@ module GroundLink
         filtered_state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
                                         quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                                         vel_x=0., vel_y=0., vel_z=0.,
-                                        ang_x=0., ang_y=0., ang_z=0.)
+                                        ang_x=0., ang_y=0., ang_z=0.,
+                                        time=0.)
         motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
                         time=0.)
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                      time=time())
+                      time=0.)
         quad_info = QUAD_INFO(state=filtered_state, motors=motors, vicon=vicon)
         quad_sub() = subscriber_thread(ctx, quad_info, quad_info_sub_ip, quad_info_sub_port)
 

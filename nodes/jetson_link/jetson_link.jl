@@ -13,39 +13,71 @@ module JetsonLink
     include("$(@__DIR__)/../../msgs/quad_info_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
-    function quad_link(filtered_state_sub_ip::String, filtered_state_sub_port::String,
+    function quad_link(state_sub_ip::String, state_sub_port::String,
+                       motors_sub_ip::String, motors_sub_port::String,
+                       vicon_sub_ip::String, vicon_sub_port::String,
                        quad_info_pub_ip::String, quad_info_pub_port::String;
                        freq::Int64=200, debug::Bool=false)
+        rate = 1 / freq
+
         ctx = Context(1)
 
-        filtered_state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                                        quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                                        vel_x=0., vel_y=0., vel_z=0.,
-                                        ang_x=0., ang_y=0., ang_z=0.)
-        filtered_state_sub() = subscriber_thread(ctx, filtered_state,
-                                                 filtered_state_sub_ip,
-                                                 filtered_state_sub_port)
+        state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
+                               quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                               vel_x=0., vel_y=0., vel_z=0.,
+                               ang_x=0., ang_y=0., ang_z=0.,
+                               time=0.)
+        state_sub() = subscriber_thread(ctx, state, state_sub_ip, state_sub_port)
         # Setup and Schedule Subscriber Tasks
-        filtered_state_thread = Task(filtered_state_sub)
-        schedule(filtered_state_thread)
+        state_thread = Task(state_sub)
+        schedule(state_thread)
+        state_time = time()
 
-        # motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
-        #                 time=0.)
-        # vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
-        #               quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-        #               time=time())
-        # quad_info = QUAD_INFO(state=filtered_state, motors=motors, vicon=vicon)
-        # quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
+        motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
+                        time=0.)
+        state_sub() = subscriber_thread(ctx, motors, motors_sub_ip, motors_sub_port)
+        # Setup and Schedule Subscriber Tasks
+        motors_thread = Task(motors)
+        schedule(motors_thread)
+        motors_time = time()
+
+        vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
+                      quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                      time=0.)
+        state_sub() = subscriber_thread(ctx, vicon, vicon_sub_ip, vicon_sub_port)
+        # Setup and Schedule Subscriber Tasks
+        vicon_thread = Task(vicon)
+        schedule(vicon_thread)
+        vicon_time = time()
+
+        quad_info = QUAD_INFO(state=filtered_state, motors=motors, vicon=vicon)
+        quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
 
         # Setup inial times
-        iob = PipeBuffer()
-        delay = 1 / freq
+        iob = IOBuffer()
 
         try
             while true
-                # writeproto(iob, quad_info)
-                # ZMQ.send(quad_pub, take!(iob))
-                sleep(delay)
+                pub = false
+
+                if state.time > state_time
+                    state_time = state.time
+                    pub = true
+                end
+                if motors.time > motors_time
+                    motors_time = motors.time
+                    pub = true
+                end
+                if vicon.time > vicon_time
+                    vicon_time = vicon.time
+                    pub = true
+                end
+
+                if pub
+                    publish(quad_pub, quad_info, iob)
+                end
+                sleep(rate)
+                GC.gc(false)
             end
         catch e
             close(ctx)
