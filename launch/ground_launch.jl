@@ -12,7 +12,7 @@ begin
 
     try
         while (!istaskdone(ground_link_thread))
-            sleep(0.0001)
+            sleep(0.1)
         end
         # Check there were no issues in any of the threads
         fetch(ground_link_thread)
