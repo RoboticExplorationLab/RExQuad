@@ -14,8 +14,10 @@ module ViconRelay
 
 
     function vicon_relay(vicon_sub_ip::String, vicon_sub_port::String,
-                         serial_port::String, baud_rate::Int; debug::Bool=false)
+                         serial_port::String, baud_rate::Int;
+                         freq::Int64=200, debug::Bool=false)
         ctx = Context(1)
+        rate = 1 / freq
         ard = Arduino(serial_port, baud_rate);
 
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
@@ -37,6 +39,8 @@ module ViconRelay
                         writeproto(iob, vicon);
                         message(ard, take!(iob))
                     end
+
+                    sleep(rate)
                 end
             end
         catch e
