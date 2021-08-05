@@ -24,45 +24,47 @@ module ImuViconPublisher
         ard = Arduino(serial_port, baud_rate);
 
         ctx = Context(1)
-        imu_pub = create_pub(ctx, imu_pub_ip, imu_pub_port)
         imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
                   gyr_x=0., gyr_y=0., gyr_z=0.,
                   time=time())
+        imu_pub = create_pub(ctx, imu_pub_ip, imu_pub_port)
 
-        vicon_pub = create_pub(ctx, vicon_pub_ip, vicon_pub_port)
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                       time=time())
+        vicon_pub = create_pub(ctx, vicon_pub_ip, vicon_pub_port)
+
+        iob = IOBuffer()
+        imu_msg_size = writeproto(iob, imu)
+        vicon_msg_size = writeproto(iob, vicon)
+        println(imu_msg_size)
+        println(vicon_msg_size)
+
 
         try
             open(ard) do sp
                 while true
                     if bytesavailable(ard) > 0
-                        # Get the data packet from the Arudino
                         iob = IOBuffer(recieve(ard))
-
-                        try # Check if its a IMU protobuf
+        
+                        if iob.size == imu_msg_size
                             readproto(iob, imu)
                             imu.time = time()
 
                             if (debug) println(imu.acc_x, " ", imu.acc_y, " ", imu.acc_z) end
 
-                            publish(imu_pub, imu, iob)
-                        catch # Check if its a VICON protobuf
-                        end
-
-                        try # Check if its a Vicon protobuf
+                            publish(imu_pub, imu)
+                        elseif iob.size == vicon_msg_size
                             readproto(iob, vicon)
                             vicon.time = time()
 
-                            if (debug) println(vicon_pub.pos_x, " ", vicon_pub.pos_y, " ", vicon_pub.pos_z) end
+                            if (debug) println(vicon.pos_x, " ", vicon.pos_y, " ", vicon.pos_z) end
 
-                            publish(vicon_pub, vicon, iob)
-                        catch
+                            publish(vicon_pub, vicon)
                         end
                     end
 
-                    sleep(rate)
+                    # sleep(rate)
                     GC.gc(false)
                 end
             end

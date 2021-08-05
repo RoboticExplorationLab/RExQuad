@@ -46,7 +46,7 @@ module PubSubBuilder
     end
 
     function publish(sock::ZMQ.Socket, proto_msg::ProtoBuf.ProtoType,
-                     iob::IOBuffer)::Nothing
+                     iob::IOBuffer=IOBuffer())::Nothing
         msg_size = writeproto(iob, proto_msg)
         msg = Message(msg_size)
         msg[:] = @view iob.data[1:msg_size]

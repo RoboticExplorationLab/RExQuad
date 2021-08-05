@@ -8,7 +8,7 @@ begin
     include("$(@__DIR__)/../nodes/jetson_link/jetson_link.jl")
 
     # Launch Various thread
-    imu_vicon_thread = ImuViconPublisher.main(; debug=false)
+    imu_vicon_thread = ImuViconPublisher.main(; debug=true)
     # jetson_link_thread = JetsonLink.main(; debug=false)
     # filter_thread = FilteredStatePublisher.main()
     # lqr_thread = LqrHoverController.main()
@@ -29,7 +29,6 @@ begin
         if e isa InterruptException  # clean up
             println("Process terminated by you")
         end
-    finally 
         Base.throwto(imu_vicon_thread, InterruptException())
         # Base.throwto(jetson_link_thread, InterruptException())
         # Base.throwto(filtered_state_thread, InterruptException())
