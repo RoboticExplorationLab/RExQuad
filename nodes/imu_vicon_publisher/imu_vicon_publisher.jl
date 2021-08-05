@@ -67,15 +67,15 @@ module ImuViconPublisher
                 end
             end
         catch e
+            close(imu_pub)
+            close(vicon_pub)
+            close(ctx)
+
             if e isa InterruptException
                 println("Shutting down IMU Vicon Publisher")
             else
                 rethrow(e)
             end
-        finally
-            close(imu_pub)
-            close(vicon_pub)
-            close(ctx)
         end
     end
 

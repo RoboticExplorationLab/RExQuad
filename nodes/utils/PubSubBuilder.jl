@@ -36,6 +36,7 @@ module PubSubBuilder
         catch e
             close(ctx)
             close(sub)
+            println("Shutting Down $(typeof(proto_msg)) subscriber, on: tcp://$sub_ip:$sub_port")
 
             println(stacktrace())
             println(e)

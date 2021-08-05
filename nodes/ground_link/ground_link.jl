@@ -88,13 +88,13 @@ module GroundLink
                 GC.gc(false)
             end
         catch e
+            close(ctx)
+
             if e isa InterruptException
                 println("Process terminated by you")
             else
                 rethrow(e)
             end
-        finally
-            close(ctx)
         end
     end
 
