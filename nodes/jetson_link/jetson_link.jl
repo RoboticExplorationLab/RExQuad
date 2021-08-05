@@ -86,11 +86,12 @@ module JetsonLink
         catch e
             close(quad_pub)
             close(ctx)
+
             if e isa InterruptException
                 println("Shutting down Jetson Link")
-            else 
+            else
                 rethrow(e)
-            end           
+            end
         end
     end
 

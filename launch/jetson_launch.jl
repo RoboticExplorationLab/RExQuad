@@ -14,15 +14,15 @@ begin
     # lqr_thread = LqrHoverController.main()
 
     try
-        while true 
+        while true
             sleep(0.1)
 
             if istaskdone(imu_vicon_thread)
                 fetch(imu_vicon_thread); break
             end
-            # if istaskdone(jetson_link_thread)
-            #     fetch(jetson_link_thread); break
-            # end
+            if istaskdone(jetson_link_thread)
+                fetch(jetson_link_thread); break
+            end
         end
 
     catch e
@@ -30,7 +30,7 @@ begin
             println("Process terminated by you")
         end
         Base.throwto(imu_vicon_thread, InterruptException())
-        # Base.throwto(jetson_link_thread, InterruptException())
+        Base.throwto(jetson_link_thread, InterruptException())
         # Base.throwto(filtered_state_thread, InterruptException())
         # Base.throwto(lqr_controller_thread, InterruptException())
     end

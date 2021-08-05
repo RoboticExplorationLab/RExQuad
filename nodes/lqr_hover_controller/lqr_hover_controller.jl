@@ -53,7 +53,9 @@ module LqrHoverController
                 end
             end
         catch e
+            close(motors_pub)
             close(ctx)
+
             if e isa InterruptException
                 println("Process terminated by you")
             else

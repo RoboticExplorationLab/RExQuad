@@ -100,14 +100,14 @@ module FilteredStatePublisher
                 GC.gc(false) # TODO: hopefully get rid of this
             end
         catch e
+            close(state_pub)
+            close(ctx)
+
             if e isa InterruptException
                 println("Process terminated by you")
             else
                 rethrow(e)
             end
-        finally
-            close(state_pub)
-            close(ctx)
         end
     end
 
