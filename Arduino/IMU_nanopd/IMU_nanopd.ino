@@ -7,6 +7,7 @@
 #include <pb_common.h>
 #include <pb.h>
 #include <pb_encode.h>
+#include <pb_decode.h>
 
 #define HOLYBRO_BAUDRATE (57600)
 #define LED_PIN (13)
@@ -25,24 +26,26 @@ Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
 sensors_event_t imu_event;
 
 // Build buffers and message types
-size_t vicon_buffer_length = 256
-uint8_t vicon_buffer[vicon_buffer_length];
-size_t imu_buffer_length = 256
-uint8_t imu_buffer[imu_buffer_length];
+uint8_t imu_buffer[256];
+size_t imu_buffer_length = sizeof(imu_buffer);
+uint8_t vicon_buffer[256];
+size_t vicon_buffer_length = sizeof(vicon_buffer);
 
-messaging_VICON VICON_measurement = messaging_VICON_init_zero;
+uint8_t imu_vicon_buffer[512];
+size_t imu_vicon_buffer_length = sizeof(imu_vicon_buffer);
+
 messaging_IMU IMU_input = messaging_IMU_init_zero;
-messaging_IMU_VICON IMU_VICON_message = {false, IMU_input, false, VICON_measurement};
+messaging_VICON VICON_measurement = messaging_VICON_init_zero;
+messaging_IMU_VICON IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
 
 // Initialize packet serial ports
 PacketSerial jetsonPacketSerial;
 PacketSerial viconPacketSerial;
 
-
-//
 void onViconRecieved(const uint8_t *buffer, size_t size);
 
-//
+void sendMessage(PacketSerial &myPacketSerial, messaging_IMU &mes);
+void sendMessage(PacketSerial &myPacketSerial, messaging_VICON &mes);
 void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON &mes);
 
 
@@ -69,19 +72,30 @@ void setup() {
     if (calibrateIMU(bno, FORCE_CALI)) {
         if (DEBUG) { Serial.println("\nSuccessfully Calibrated IMU\n"); };
     }
+
+    randomSeed(42);
 }
 
 void loop() {
-    viconPacketSerial.update();
     jetsonPacketSerial.update();
+    viconPacketSerial.update();
 
     bno.getEvent(&imu_event);
     if (DEBUG) { displaySensorReading(bno); }
 
     getImuInput(bno, IMU_input);
-    sendImuMessage(jetsonPacketSerial, IMU_VICON_message);
+
+    // mes.imu = IMU_input;
+    // mes.vicon = VICON_measurement;
+    IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
+    sendMessage(jetsonPacketSerial, IMU_VICON_message);
+
+    // VICON_measurement = {1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0};
+    // sendMessage(jetsonPacketSerial, IMU_input);
+    // sendMessage(jetsonPacketSerial, VICON_measurement);
     
     if (jetsonPacketSerial.overflow() || viconPacketSerial.overflow()) {
+    // if (jetsonPacketSerial.overflow()) {
         digitalWrite(LED_PIN, HIGH);
     }
     else {
@@ -94,7 +108,7 @@ void loop() {
  */
 void onViconRecieved(const uint8_t *buffer, size_t size) {
     pb_istream_t stream = pb_istream_from_buffer(buffer, size);
-    int status = pb_encode(&stream, messaging_VICON_fields, &VICON_measurement);
+    int status = pb_decode(&stream, messaging_VICON_fields, &VICON_measurement);
     if (!status) {
         Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
     }
@@ -103,15 +117,87 @@ void onViconRecieved(const uint8_t *buffer, size_t size) {
 /*
  * Send IMU protocol buff to jetson
  */
-void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON &mes) {
+void sendMessage(PacketSerial &myPacketSerial, messaging_IMU & mes) {
+// void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON *mes) {
     /* Create a stream that will write to our buffer. */
-    pb_ostream_t stream = pb_ostream_from_buffer(imu_buffer, sizeof(imu_buffer));
-    int status = pb_encode(&stream, messaging_IMU_fields, &input);
+    pb_ostream_t stream = pb_ostream_from_buffer(imu_buffer, imu_buffer_length);
+    int status = pb_encode(&stream, messaging_IMU_fields, &mes);
     if (!status) {
         Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
     }
-    // Get the number of bytes written
-    int message_length = stream.bytes_written;
-    // Send to Jetson
-    myPacketSerial.send(imu_buffer, message_length);
+    Serial.println();    
+    Serial.print(status);
+    Serial.print(", Packed IMU message: ");
+    Serial.println(stream.bytes_written);
 }
+
+void sendMessage(PacketSerial &myPacketSerial, messaging_VICON & mes) {
+    /* Create a stream that will write to our buffer. */
+    Serial.println();
+    Serial.print(mes.pos_x);     Serial.print(", ");
+    Serial.print(mes.pos_y);     Serial.print(", ");
+    Serial.print(mes.pos_z);     Serial.print(", ");
+    Serial.println();
+
+    pb_ostream_t stream = pb_ostream_from_buffer(vicon_buffer, vicon_buffer_length);
+    int status = pb_encode(&stream, messaging_VICON_fields, &mes);
+    if (!status) {
+        Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
+    }
+    Serial.println();
+    Serial.print(status);
+    Serial.print(", Packed VICON message: ");
+    Serial.println(stream.bytes_written);
+}
+
+void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON & mes) {
+    /* Create a stream that will write to our buffer. */
+    pb_ostream_t stream = pb_ostream_from_buffer(imu_vicon_buffer, imu_vicon_buffer_length);
+
+    // pb_encode_submessage(&stream, messaging_IMU_fields, &(mes.imu));
+    // pb_encode_submessage(&stream, messaging_VICON_fields, &(mes.vicon));
+
+    int status = pb_encode(&stream, messaging_IMU_VICON_fields, &mes);
+    if (!status) {
+        Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
+    }
+    Serial.println();
+    Serial.print(status);
+    Serial.print(", Packed VICON message: ");
+    Serial.println(stream.bytes_written);
+}
+
+
+
+// void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON *mes) {
+    // if (!pb_encode_submessage(&stream, messaging_IMU_fields, &(mes.imu))) {
+    //     Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
+    // }
+    // else {
+    //     if (!pb_encode_submessage(&stream, messaging_IMU_fields, &(mes.imu))) {
+    //         Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
+    //     }
+    //     else {
+    //         int status = pb_encode(&stream, messaging_IMU_VICON_fields, &mes);
+    //         if (!status) {
+    //             Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
+    //         }
+
+    //         Serial.println(status);
+    //         Serial.println(PB_GET_ERROR(&stream));
+    //         Serial.println(mes.imu.acc_x);
+
+    //         // Get the number of bytes written
+    //         int message_length = stream.bytes_written;
+
+    //         Serial.println();
+    //         Serial.println(message_length);
+    //         Serial.println();
+
+    //         // Send to Jetson
+    //         myPacketSerial.send(imu_vicon_buffer, message_length);
+
+    //     }
+    // }  
+// }
+

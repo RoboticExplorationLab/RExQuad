@@ -10,8 +10,8 @@ module ImuViconPublisher
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
 
-    include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
+    include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
 
@@ -33,35 +33,44 @@ module ImuViconPublisher
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                       time=time())
         vicon_pub = create_pub(ctx, vicon_pub_ip, vicon_pub_port)
+        vicon_time = time()
 
-        iob = IOBuffer()
-        imu_msg_size = writeproto(iob, imu)
-        vicon_msg_size = writeproto(iob, vicon)
-        println(imu_msg_size)
-        println(vicon_msg_size)
-
+        imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
+        
+        # iob = IOBuffer()
+        # imu_vicon_msg_size = writeproto(iob, imu_vicon)
+        # println(imu_vicon_msg_size)
 
         try
             open(ard) do sp
                 while true
                     if bytesavailable(ard) > 0
                         iob = IOBuffer(recieve(ard))
-        
-                        if iob.size == imu_msg_size
-                            readproto(iob, imu)
-                            imu.time = time()
+                        println(iob.size)
+                        # readproto(iob, imu_vicon)
 
-                            if (debug) println(imu.acc_x, " ", imu.acc_y, " ", imu.acc_z) end
+                        # publish(imu_pub, imu)
 
-                            publish(imu_pub, imu)
-                        elseif iob.size == vicon_msg_size
-                            readproto(iob, vicon)
-                            vicon.time = time()
+                        # if vicon.time > vicon_time
+                        #     vicon_time = vicon.time
+                        #     publish(vicon_pub, vicon)
+                        # end
 
-                            if (debug) println(vicon.pos_x, " ", vicon.pos_y, " ", vicon.pos_z) end
+                        # if iob.size == imu_msg_size
+                        #     readproto(iob, imu)
+                        #     imu.time = time()
 
-                            publish(vicon_pub, vicon)
-                        end
+                        #     if (debug) println(imu.acc_x, " ", imu.acc_y, " ", imu.acc_z) end
+
+                        #     publish(imu_pub, imu)
+                        # elseif iob.size == vicon_msg_size
+                        #     readproto(iob, vicon)
+                        #     vicon.time = time()
+
+                        #     if (debug) println(vicon.pos_x, " ", vicon.pos_y, " ", vicon.pos_z) end
+
+                        #     publish(vicon_pub, vicon)
+                        # end
                     end
 
                     # sleep(rate)
