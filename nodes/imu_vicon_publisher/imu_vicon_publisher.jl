@@ -37,43 +37,27 @@ module ImuViconPublisher
 
         imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
         
-        # iob = IOBuffer()
-        # imu_vicon_msg_size = writeproto(iob, imu_vicon)
-        # println(imu_vicon_msg_size)
-
         try
             open(ard) do sp
                 while true
                     if bytesavailable(ard) > 0
                         iob = IOBuffer(recieve(ard))
-                        println(iob.size)
-                        # readproto(iob, imu_vicon)
+                        readproto(iob, imu_vicon)
 
-                        # publish(imu_pub, imu)
+                        if debug
+                            println("IMU: ", imu_vicon.imu.acc_x, ", ", imu_vicon.imu.acc_y, ", ", imu_vicon.imu.acc_z)
+                            println("VICON: ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x)
+                            println()
+                        end
 
-                        # if vicon.time > vicon_time
-                        #     vicon_time = vicon.time
-                        #     publish(vicon_pub, vicon)
-                        # end
-
-                        # if iob.size == imu_msg_size
-                        #     readproto(iob, imu)
-                        #     imu.time = time()
-
-                        #     if (debug) println(imu.acc_x, " ", imu.acc_y, " ", imu.acc_z) end
-
-                        #     publish(imu_pub, imu)
-                        # elseif iob.size == vicon_msg_size
-                        #     readproto(iob, vicon)
-                        #     vicon.time = time()
-
-                        #     if (debug) println(vicon.pos_x, " ", vicon.pos_y, " ", vicon.pos_z) end
-
-                        #     publish(vicon_pub, vicon)
-                        # end
+                        if imu_vicon.vicon.time > vicon_time
+                            vicon_time = imu_vicon.vicon.time
+                            publish(vicon_pub, imu_vicon.vicon)
+                        end
+                        publish(imu_pub, imu_vicon.imu)
                     end
 
-                    # sleep(rate)
+                    sleep(rate)
                     GC.gc(false)
                 end
             end

@@ -81,18 +81,13 @@ void loop() {
     viconPacketSerial.update();
 
     bno.getEvent(&imu_event);
+    
     if (DEBUG) { displaySensorReading(bno); }
 
     getImuInput(bno, IMU_input);
 
-    // mes.imu = IMU_input;
-    // mes.vicon = VICON_measurement;
     IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
     sendMessage(jetsonPacketSerial, IMU_VICON_message);
-
-    // VICON_measurement = {1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0};
-    // sendMessage(jetsonPacketSerial, IMU_input);
-    // sendMessage(jetsonPacketSerial, VICON_measurement);
     
     if (jetsonPacketSerial.overflow() || viconPacketSerial.overflow()) {
     // if (jetsonPacketSerial.overflow()) {
@@ -115,89 +110,18 @@ void onViconRecieved(const uint8_t *buffer, size_t size) {
 }
 
 /*
- * Send IMU protocol buff to jetson
+ * Relay the message over from Holybro to Jetson
  */
-void sendMessage(PacketSerial &myPacketSerial, messaging_IMU & mes) {
-// void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON *mes) {
-    /* Create a stream that will write to our buffer. */
-    pb_ostream_t stream = pb_ostream_from_buffer(imu_buffer, imu_buffer_length);
-    int status = pb_encode(&stream, messaging_IMU_fields, &mes);
-    if (!status) {
-        Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
-    }
-    Serial.println();    
-    Serial.print(status);
-    Serial.print(", Packed IMU message: ");
-    Serial.println(stream.bytes_written);
-}
-
-void sendMessage(PacketSerial &myPacketSerial, messaging_VICON & mes) {
-    /* Create a stream that will write to our buffer. */
-    Serial.println();
-    Serial.print(mes.pos_x);     Serial.print(", ");
-    Serial.print(mes.pos_y);     Serial.print(", ");
-    Serial.print(mes.pos_z);     Serial.print(", ");
-    Serial.println();
-
-    pb_ostream_t stream = pb_ostream_from_buffer(vicon_buffer, vicon_buffer_length);
-    int status = pb_encode(&stream, messaging_VICON_fields, &mes);
-    if (!status) {
-        Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
-    }
-    Serial.println();
-    Serial.print(status);
-    Serial.print(", Packed VICON message: ");
-    Serial.println(stream.bytes_written);
-}
-
 void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON & mes) {
     /* Create a stream that will write to our buffer. */
     pb_ostream_t stream = pb_ostream_from_buffer(imu_vicon_buffer, imu_vicon_buffer_length);
-
-    // pb_encode_submessage(&stream, messaging_IMU_fields, &(mes.imu));
-    // pb_encode_submessage(&stream, messaging_VICON_fields, &(mes.vicon));
 
     int status = pb_encode(&stream, messaging_IMU_VICON_fields, &mes);
     if (!status) {
         Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
     }
-    Serial.println();
-    Serial.print(status);
-    Serial.print(", Packed VICON message: ");
-    Serial.println(stream.bytes_written);
+    else {
+        int message_length = stream.bytes_written;
+        myPacketSerial.send(imu_vicon_buffer, message_length);
+    }
 }
-
-
-
-// void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON *mes) {
-    // if (!pb_encode_submessage(&stream, messaging_IMU_fields, &(mes.imu))) {
-    //     Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
-    // }
-    // else {
-    //     if (!pb_encode_submessage(&stream, messaging_IMU_fields, &(mes.imu))) {
-    //         Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
-    //     }
-    //     else {
-    //         int status = pb_encode(&stream, messaging_IMU_VICON_fields, &mes);
-    //         if (!status) {
-    //             Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
-    //         }
-
-    //         Serial.println(status);
-    //         Serial.println(PB_GET_ERROR(&stream));
-    //         Serial.println(mes.imu.acc_x);
-
-    //         // Get the number of bytes written
-    //         int message_length = stream.bytes_written;
-
-    //         Serial.println();
-    //         Serial.println(message_length);
-    //         Serial.println();
-
-    //         // Send to Jetson
-    //         myPacketSerial.send(imu_vicon_buffer, message_length);
-
-    //     }
-    // }  
-// }
-
