@@ -23,6 +23,7 @@ module PubSubBuilder
     function subscriber_thread(ctx::ZMQ.Context, proto_msg::ProtoBuf.ProtoType,
                                sub_ip::String, sub_port::String)::Nothing
         sub = create_sub(ctx, sub_ip, sub_port)
+        ZMQ.set_rcvhwm(sub, 1)
 
         try
             println("Listening for message type: $(typeof(proto_msg)), on: tcp://$sub_ip:$sub_port")
