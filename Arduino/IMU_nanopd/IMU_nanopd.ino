@@ -10,15 +10,12 @@
 #include <pb_decode.h>
 
 #define HOLYBRO_BAUDRATE (57600)
-#define LED_PIN (13)
 
 // #define DEBUG (true)
 #define DEBUG (false)
 
 // #define FORCE_CALI (true)
 #define FORCE_CALI (false)
-
-#define LOOP_RATE_DELAY (1)
 
 #define LED_PIN (13)
 

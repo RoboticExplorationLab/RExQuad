@@ -1,77 +1,48 @@
-#include "IMU_helper.h"
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
-#include <PacketSerial.h>
+#include "PacketSerial.h"
 
 #include <pb_common.h>
 #include <pb.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
+#include "motors_msg.pb.h"
 
-#define HOLYBRO_BAUDRATE (57600)
-#define LED_PIN (13)
+// #define DEBUG           (true)
+#define DEBUG           (false)
 
-// #define DEBUG (true)
-#define DEBUG (false)
+#define LED_PIN         (13)
 
-// #define FORCE_CALI (true)
-#define FORCE_CALI (false)
+#define FRONT_LEFT_PIN  (9);
+#define FRONT_RIGHT_PIN (10);
+#define BACK_RIGHT_PIN  (11);
+#define BACK_LEFT_PIN   (12);
 
-#define LOOP_RATE_DELAY (1)
-
-#define LED_PIN (13)
-
-Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
-sensors_event_t imu_event;
 
 // Build buffers and message types
-uint8_t imu_buffer[256];
-size_t imu_buffer_length = sizeof(imu_buffer);
-uint8_t vicon_buffer[256];
-size_t vicon_buffer_length = sizeof(vicon_buffer);
+uint8_t motors_buffer[256];
+size_t motors_buffer_length = sizeof(motors_buffer);
 
-uint8_t imu_vicon_buffer[512];
-size_t imu_vicon_buffer_length = sizeof(imu_vicon_buffer);
-
-messaging_IMU IMU_input = messaging_IMU_init_zero;
-messaging_VICON VICON_measurement = messaging_VICON_init_zero;
-messaging_IMU_VICON IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
+messaging_MOTORS MOTORS_input = messaging_MOTORS_init_zero;
 
 // Initialize packet serial ports
 PacketSerial jetsonPacketSerial;
-PacketSerial viconPacketSerial;
 
-void onViconRecieved(const uint8_t *buffer, size_t size);
-
-void sendMessage(PacketSerial &myPacketSerial, messaging_IMU &mes);
-void sendMessage(PacketSerial &myPacketSerial, messaging_VICON &mes);
-void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON &mes);
+void onMotorsRecieved(const uint8_t *buffer, size_t size);
+void displayMessage(messaging_MOTORS &mes); 
+void sendMessage(messaging_MOTORS &mes);
 
 
 void setup() {
     pinMode(LED_PIN, OUTPUT);
+    pinMode(FRONT_LEFT_PIN, OUTPUT);    
+    pinMode(FRONT_RIGHT_PIN, OUTPUT);    
+    pinMode(BACK_RIGHT_PIN, OUTPUT);    
+    pinMode(BACK_LEFT_PIN, OUTPUT);    
 
     // Setup PacketSerial to handle communicating from Serial
-    Serial.begin(9600);
+    Serial.begin(921600);
     while (!Serial) { delay(100); }
     jetsonPacketSerial.setStream(&Serial);
-
-    // Setup PacketSerial to handle communicating from Serial1
-    Serial1.begin(HOLYBRO_BAUDRATE);
-    while (!Serial1) { delay(100); }
-    viconPacketSerial.setStream(&Serial1);
-    viconPacketSerial.setPacketHandler(&onViconRecieved);
-
-    // Start up SPI imu and initialize
-    if (!bno.begin()) {
-        if (DEBUG) { Serial.print("\nOoops, no BNO055 detected ... Check your wiring or I2C ADDR!\n"); };
-        while (true);
-    }
-    // If necessary force calibration and wait until successful
-    if (calibrateIMU(bno, FORCE_CALI)) {
-        if (DEBUG) { Serial.println("\nSuccessfully Calibrated IMU\n"); };
-    }
+    jetsonPacketSerial.setPacketHandler(&onMotorsRecieved);
 
     randomSeed(42);
 }
@@ -79,18 +50,10 @@ void setup() {
 void loop() {
     jetsonPacketSerial.update();
     viconPacketSerial.update();
+ 
+    if (DEBUG) { displayMessage(mes); }
 
-    bno.getEvent(&imu_event);
-    
-    if (DEBUG) { displaySensorReading(bno); }
-
-    getImuInput(bno, IMU_input);
-
-    IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
-    sendMessage(jetsonPacketSerial, IMU_VICON_message);
-    
-    if (jetsonPacketSerial.overflow() || viconPacketSerial.overflow()) {
-    // if (jetsonPacketSerial.overflow()) {
+    if (jetsonPacketSerial.overflow()) {
         digitalWrite(LED_PIN, HIGH);
     }
     else {
@@ -101,27 +64,30 @@ void loop() {
 /*
  * Relay the message over from Holybro to Jetson
  */
-void onViconRecieved(const uint8_t *buffer, size_t size) {
+void onMotorsRecieved(const uint8_t *buffer, size_t size) {
     pb_istream_t stream = pb_istream_from_buffer(buffer, size);
-    int status = pb_decode(&stream, messaging_VICON_fields, &VICON_measurement);
+    int status = pb_decode(&stream, messaging_MOTORS_fields, &MOTORS_input);
     if (!status) {
         Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
     }
 }
 
+void displayMessage(messaging_MOTORS &mes) {
+    Serial.println();
+    Serial.print("Front Left: "); Serial.print(mes.front_left);
+    Serial.print("Front Right: "); Serial.println(mes.front_right);
+    Serial.print("Back Right: "); Serial.println(mes.back_right);
+    Serial.print("Back Left: "); Serial.println(mes.back_left);
+    Serial.println();
+}
+
 /*
  * Relay the message over from Holybro to Jetson
  */
-void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON & mes) {
+void sendMessage(messaging_MOTORS &mes) {
     /* Create a stream that will write to our buffer. */
-    pb_ostream_t stream = pb_ostream_from_buffer(imu_vicon_buffer, imu_vicon_buffer_length);
-
-    int status = pb_encode(&stream, messaging_IMU_VICON_fields, &mes);
-    if (!status) {
-        Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
-    }
-    else {
-        int message_length = stream.bytes_written;
-        myPacketSerial.send(imu_vicon_buffer, message_length);
-    }
+    analogWrite(FRONT_LEFT_PIN, mes.front_left);
+    analogWrite(FRONT_RIGHT_PIN, mes.front_right);
+    analogWrite(BACK_RIGHT_PIN, mes.back_right);
+    analogWrite(BACK_LEFT_PIN, mes.back_left);
 }
