@@ -1,7 +1,7 @@
 # This node is run of the Jetson, it is a simple LQR controller to
 # stabilize the quadrotor around a hover
 
-module LqrHoverController
+module LqrHoverControllerDebug
     using TOML
     using ZMQ
     using ProtoBuf
@@ -34,6 +34,7 @@ module LqrHoverController
                 publish(motors_pub, motors, iob)
 
                 sleep(rate)
+                GC.gc(false)
             end
         catch e
             close(motors_pub)
