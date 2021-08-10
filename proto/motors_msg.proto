@@ -3,10 +3,10 @@ syntax = "proto3";
 package messaging;
 
 message MOTORS {
-    double front_left = 1;
-    double front_right = 2;
-    double back_right = 3;
-    double back_left = 4;
+    int32 front_left = 1;
+    int32 front_right = 2;
+    int32 back_right = 3;
+    int32 back_left = 4;
 
     double time = 5;
 }

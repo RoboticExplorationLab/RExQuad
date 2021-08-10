@@ -11,10 +11,10 @@
 
 /* Struct definitions */
 typedef struct _messaging_MOTORS { 
-    double front_left; 
-    double front_right; 
-    double back_right; 
-    double back_left; 
+    int32_t front_left; 
+    int32_t front_right; 
+    int32_t back_right; 
+    int32_t back_left; 
     double time; 
 } messaging_MOTORS;
 
@@ -36,10 +36,10 @@ extern "C" {
 
 /* Struct field encoding specification for nanopb */
 #define messaging_MOTORS_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, DOUBLE,   front_left,        1) \
-X(a, STATIC,   SINGULAR, DOUBLE,   front_right,       2) \
-X(a, STATIC,   SINGULAR, DOUBLE,   back_right,        3) \
-X(a, STATIC,   SINGULAR, DOUBLE,   back_left,         4) \
+X(a, STATIC,   SINGULAR, INT32,    front_left,        1) \
+X(a, STATIC,   SINGULAR, INT32,    front_right,       2) \
+X(a, STATIC,   SINGULAR, INT32,    back_right,        3) \
+X(a, STATIC,   SINGULAR, INT32,    back_left,         4) \
 X(a, STATIC,   SINGULAR, DOUBLE,   time,              5)
 #define messaging_MOTORS_CALLBACK NULL
 #define messaging_MOTORS_DEFAULT NULL
@@ -50,7 +50,7 @@ extern const pb_msgdesc_t messaging_MOTORS_msg;
 #define messaging_MOTORS_fields &messaging_MOTORS_msg
 
 /* Maximum encoded size of messages (where known) */
-#define messaging_MOTORS_size                    45
+#define messaging_MOTORS_size                    53
 
 #ifdef __cplusplus
 } /* extern "C" */

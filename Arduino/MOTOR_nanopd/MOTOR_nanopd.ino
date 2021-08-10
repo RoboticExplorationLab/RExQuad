@@ -31,7 +31,7 @@ messaging_MOTORS MOTORS_input = messaging_MOTORS_init_zero;
 PacketSerial jetsonPacketSerial;
 
 void onMotorsRecieved(const uint8_t *buffer, size_t size);
-void displayMessage(messaging_MOTORS &mes); 
+void displayMessage(messaging_MOTORS &mes);
 void sendMessage(messaging_MOTORS &mes);
 void arm();
 void calibrate();
@@ -41,10 +41,10 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
 
     // Setup Motor ESC
-    pinMode(FRONT_LEFT_PIN, OUTPUT);    
-    pinMode(FRONT_RIGHT_PIN, OUTPUT);    
-    pinMode(BACK_RIGHT_PIN, OUTPUT);    
-    pinMode(BACK_LEFT_PIN, OUTPUT);    
+    pinMode(FRONT_LEFT_PIN, OUTPUT);
+    pinMode(FRONT_RIGHT_PIN, OUTPUT);
+    pinMode(BACK_RIGHT_PIN, OUTPUT);
+    pinMode(BACK_LEFT_PIN, OUTPUT);
     front_left_esc.attach(FRONT_LEFT_PIN, MAX_THROTLE, MIN_THROTLE);
     front_right_esc.attach(FRONT_RIGHT_PIN, MAX_THROTLE, MIN_THROTLE);
     back_right_esc.attach(BACK_RIGHT_PIN, MAX_THROTLE, MIN_THROTLE);
@@ -56,12 +56,12 @@ void setup() {
     jetsonPacketSerial.setStream(&Serial);
     jetsonPacketSerial.setPacketHandler(&onMotorsRecieved);
 
-    randomSeed(42);
+    arm();
 }
 
 void loop() {
     jetsonPacketSerial.update();
- 
+
     if (DEBUG) { displayMessage(MOTORS_input); }
 
     if (jetsonPacketSerial.overflow()) {
@@ -96,19 +96,19 @@ void sendMessage(messaging_MOTORS &mes) {
     /* Create a stream that will write to our buffer. */
     if (MIN_THROTLE < mes.front_left && mes.front_left < MAX_THROTLE) {
         front_left_esc.writeMicroseconds(MAX_THROTLE);
-    }  
+    }
     if (MIN_THROTLE < mes.front_right && mes.front_right < MAX_THROTLE) {
         front_right_esc.writeMicroseconds(mes.front_left);
-    }  
+    }
     if (MIN_THROTLE < mes.back_right && mes.back_right < MAX_THROTLE) {
         back_right_esc.writeMicroseconds(mes.back_right);
-    }  
+    }
     if (MIN_THROTLE < mes.back_left && mes.back_left < MAX_THROTLE) {
         back_left_esc.writeMicroseconds(mes.back_left);
     }
 }
 
-void arm(messaging_MOTORS &mes) {
+void arm() {
     front_left_esc.writeMicroseconds(MAX_THROTLE);
     front_right_esc.writeMicroseconds(MAX_THROTLE);
     back_right_esc.writeMicroseconds(MAX_THROTLE);
@@ -121,10 +121,6 @@ void arm(messaging_MOTORS &mes) {
     delay(2000);
 }
 
-void calibrate(messaging_MOTORS &mes) {
-    analogWrite(FRONT_LEFT_PIN, mes.front_left);
-    analogWrite(FRONT_RIGHT_PIN, mes.front_right);
-    analogWrite(BACK_RIGHT_PIN, mes.back_right);
-    analogWrite(BACK_LEFT_PIN, mes.back_left);
+void calibrate() {
 }
 
