@@ -99,7 +99,7 @@ void displayMessage(messaging_MOTORS &mes) {
 void sendMessage(messaging_MOTORS &mes) {
     /* Create a stream that will write to our buffer. */
     if (MIN_THROTLE < mes.front_left && mes.front_left < MAX_THROTLE) {
-        front_left_esc.writeMicroseconds(MAX_THROTLE);
+        front_left_esc.writeMicroseconds(mes.front_left);
     }
     if (MIN_THROTLE < mes.front_right && mes.front_right < MAX_THROTLE) {
         front_right_esc.writeMicroseconds(mes.front_left);
