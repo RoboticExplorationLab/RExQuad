@@ -7,8 +7,8 @@ module LqrHoverControllerDebug
     using ProtoBuf
     using SerialCOBS
 
-    const MAX_THROTLE = 1832
-    const MIN_THROTLE = 1148
+    MAX_THROTLE = 1900
+    MIN_THROTLE = 1100
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -26,23 +26,55 @@ module LqrHoverControllerDebug
         ard = Arduino(serial_port, baud_rate);
 
         # Setup Filtered state publisher
-        motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
-                        time=0.)
+        motors = MOTORS(front_left=MIN_THROTLE, front_right=MIN_THROTLE, 
+                        back_right=MIN_THROTLE, back_left=MIN_THROTLE,
+                        time=time())
         motors_pub = create_pub(ctx, motor_pub_ip, motor_pub_port)
         iob = IOBuffer()
         pb = PipeBuffer()
 
         len = 100
         ramp = [MIN_THROTLE:(MAX_THROTLE-MIN_THROTLE)/len:MAX_THROTLE;]
-        ramp = convert.(Int32, floor.([ramp; reverse(ramp)]))
+        ramp = [ramp; reverse(ramp)]
 
         try
             open(ard) do sp
 
+                motors.front_left = 1500
+                motors.front_right = 1500
+                motors.back_right = 1500
+                motors.back_left = 1500
+                motors.time = time()
+
+                msg_size = writeproto(pb, motors);
+                message(ard, take!(pb))
+
+                sleep(2)
+
+                motors.front_left = 1900
+                motors.front_right = 1900
+                motors.back_right = 1900
+                motors.back_left = 1900
+                motors.time = time()
+
+                msg_size = writeproto(pb, motors);
+                message(ard, take!(pb))
+
+                sleep(7)
+
+                motors.front_left = 1500
+                motors.front_right = 1500
+                motors.back_right = 1500
+                motors.back_left = 1500
+                motors.time = time()
+
+                msg_size = writeproto(pb, motors);
+                message(ard, take!(pb))
+
+                sleep(2)
+
                 # while true
                 for throt in ramp
-                    println(throt)
-
                     motors.front_left = throt
                     motors.front_right = MIN_THROTLE
                     motors.back_right = MIN_THROTLE
@@ -52,7 +84,7 @@ module LqrHoverControllerDebug
                     msg_size = writeproto(pb, motors);
                     message(ard, take!(pb))
 
-                    publish(motors_pub, motors, iob)
+                    # publish(motors_pub, motors, iob)
 
                     sleep(rate)
                     GC.gc(false)
