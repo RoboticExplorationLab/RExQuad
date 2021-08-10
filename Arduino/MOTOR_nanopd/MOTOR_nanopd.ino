@@ -42,10 +42,6 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
 
     // Setup Motor ESC
-    // pinMode(FRONT_LEFT_PIN, OUTPUT);
-    // pinMode(FRONT_RIGHT_PIN, OUTPUT);
-    // pinMode(BACK_RIGHT_PIN, OUTPUT);
-    // pinMode(BACK_LEFT_PIN, OUTPUT);
     front_left_esc.attach(FRONT_LEFT_PIN, MIN_THROTLE, MAX_THROTLE);
     front_right_esc.attach(FRONT_RIGHT_PIN, MIN_THROTLE, MAX_THROTLE);
     back_right_esc.attach(BACK_RIGHT_PIN, MIN_THROTLE, MAX_THROTLE);

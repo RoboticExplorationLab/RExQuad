@@ -8,6 +8,7 @@ module LqrHoverControllerDebug
     using SerialCOBS
 
     MAX_THROTLE = 1900
+    THROTLE_OFF = 1500
     MIN_THROTLE = 1100
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
@@ -33,58 +34,52 @@ module LqrHoverControllerDebug
         iob = IOBuffer()
         pb = PipeBuffer()
 
-        len = 100
-        ramp = [MIN_THROTLE:(MAX_THROTLE-MIN_THROTLE)/len:MAX_THROTLE;]
-        ramp = [ramp; reverse(ramp)]
-
         try
-            open(ard) do sp
+            open(ard) do sp 
+                # motors.front_left = THROTLE_OFF
+                # motors.front_right = THROTLE_OFF
+                # motors.back_right = THROTLE_OFF
+                # motors.back_left = THROTLE_OFF
 
-                motors.front_left = 1500
-                motors.front_right = 1500
-                motors.back_right = 1500
-                motors.back_left = 1500
-                motors.time = time()
+                # msg_size = writeproto(pb, motors);
+                # message(ard, take!(pb))
+                # sleep(2)
 
-                msg_size = writeproto(pb, motors);
-                message(ard, take!(pb))
+                # motors.front_left = MAX_THROTLE
+                # motors.front_right = MAX_THROTLE
+                # motors.back_right = MAX_THROTLE
+                # motors.back_left = MAX_THROTLE
 
-                sleep(2)
+                # msg_size = writeproto(pb, motors);
+                # message(ard, take!(pb))
+                # sleep(7)
 
-                motors.front_left = 1900
-                motors.front_right = 1900
-                motors.back_right = 1900
-                motors.back_left = 1900
-                motors.time = time()
+                # motors.front_left = THROTLE_OFF
+                # motors.front_right = THROTLE_OFF
+                # motors.back_right = THROTLE_OFF
+                # motors.back_left = THROTLE_OFF
 
-                msg_size = writeproto(pb, motors);
-                message(ard, take!(pb))
+                # msg_size = writeproto(pb, motors);
+                # message(ard, take!(pb))
+                # sleep(2)
 
-                sleep(7)
+                while true
+                    # motors.front_left = Float64((1600 - THROTLE_OFF) * (sin(time() / 2) + 1) + THROTLE_OFF)
 
-                motors.front_left = 1500
-                motors.front_right = 1500
-                motors.back_right = 1500
-                motors.back_left = 1500
-                motors.time = time()
+                    # println(motors.front_left) 
+                    # motors.front_right = (1600 - MIN_THROTLE) * (sin(time() / 2 + π/2) + 1) + MIN_THROTLE 
+                    # motors.back_right = (1600 - MIN_THROTLE) * (sin(time() / 2 + π) + 1) + MIN_THROTLE 
+                    # motors.back_left = (1600 - MIN_THROTLE) * (sin(time() / 2 + 3π/2) + 1) + MIN_THROTLE 
 
-                msg_size = writeproto(pb, motors);
-                message(ard, take!(pb))
-
-                sleep(2)
-
-                # while true
-                for throt in ramp
-                    motors.front_left = throt
-                    motors.front_right = MIN_THROTLE
-                    motors.back_right = MIN_THROTLE
-                    motors.back_left = MIN_THROTLE
-                    motors.time = time()
+                    motors.front_left = 1500 #1650
+                    motors.front_right = 1500
+                    motors.back_right = 1500
+                    motors.back_left = 1500
 
                     msg_size = writeproto(pb, motors);
                     message(ard, take!(pb))
 
-                    # publish(motors_pub, motors, iob)
+                    publish(motors_pub, motors, iob)
 
                     sleep(rate)
                     GC.gc(false)
@@ -114,7 +109,7 @@ module LqrHoverControllerDebug
 
         fs_pub() = motor_commander(motors_state_ip, motors_state_port,
                                    serial_port, baud_rate;
-                                   freq=50, debug=false)
+                                   freq=20, debug=false)
         fs_thread = Task(fs_pub)
         schedule(fs_thread)
 
