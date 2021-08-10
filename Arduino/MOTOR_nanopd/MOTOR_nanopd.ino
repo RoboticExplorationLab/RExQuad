@@ -25,7 +25,7 @@ Servo front_left_esc, front_right_esc, back_right_esc, back_left_esc;
 // Build buffers and message types
 uint8_t motors_buffer[256];
 size_t motors_buffer_length = sizeof(motors_buffer);
-messaging_MOTORS MOTORS_input = messaging_MOTORS_init_zero;
+messaging_MOTORS MOTORS_input = {MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE};
 
 // Initialize packet serial ports
 PacketSerial jetsonPacketSerial;
@@ -62,7 +62,11 @@ void setup() {
 void loop() {
     jetsonPacketSerial.update();
 
-    if (DEBUG) { displayMessage(MOTORS_input); }
+    sendMessage(MOTORS_input);
+
+    if (DEBUG) {
+        displayMessage(MOTORS_input);
+    }
 
     if (jetsonPacketSerial.overflow()) {
         digitalWrite(LED_PIN, HIGH);
