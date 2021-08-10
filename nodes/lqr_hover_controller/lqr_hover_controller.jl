@@ -44,10 +44,7 @@ module LqrHoverController
                     # TODO: Run controller here
                     # controller()
 
-
-
-                    writeproto(iob, motors)
-                    ZMQ.send(motors_pub, take!(iob))
+                    publish(imu_pub, imu_vicon.imu)
 
                     state_time = state.time
                 end

@@ -5,6 +5,10 @@ module LqrHoverControllerDebug
     using TOML
     using ZMQ
     using ProtoBuf
+    using SerialCOBS
+
+    const MAX_THROTLE = 1832
+    const MIN_THROTLE = 1148
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -14,27 +18,45 @@ module LqrHoverControllerDebug
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
 
-    function motor_commander(motor_pub_ip::String, motor_pub_port::String;
+    function motor_commander(motor_pub_ip::String, motor_pub_port::String,
+                             serial_port::String, baud_rate::Int;                     
                              freq::Int64=100, debug::Bool=false)
         rate = 1/freq
         ctx = Context(1)
+        ard = Arduino(serial_port, baud_rate);
 
         # Setup Filtered state publisher
         motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
                         time=0.)
         motors_pub = create_pub(ctx, motor_pub_ip, motor_pub_port)
         iob = IOBuffer()
+        pb = PipeBuffer()
 
-        state_time = time()
+        len = 100
+        ramp = [MIN_THROTLE:(MAX_THROTLE-MIN_THROTLE)/len:MAX_THROTLE;]
+        ramp = convert.(Int32, floor.([ramp; reverse(ramp)]))
 
         try
-            while true
-                motors.front_left, motors.front_right, motors.back_right, motors.back_left = rand(4)
+            open(ard) do sp
 
-                publish(motors_pub, motors, iob)
+                # while true
+                for throt in ramp
+                    println(throt)
 
-                sleep(rate)
-                GC.gc(false)
+                    motors.front_left = throt
+                    motors.front_right = MIN_THROTLE
+                    motors.back_right = MIN_THROTLE
+                    motors.back_left = MIN_THROTLE
+                    motors.time = time()
+
+                    msg_size = writeproto(pb, motors);
+                    message(ard, take!(pb))
+
+                    publish(motors_pub, motors, iob)
+
+                    sleep(rate)
+                    GC.gc(false)
+                end
             end
         catch e
             close(motors_pub)
@@ -52,11 +74,15 @@ module LqrHoverControllerDebug
     function main()
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
+        serial_port = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
+        baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
+
         motors_state_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
         motors_state_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
 
-        fs_pub() = motor_commander(motors_state_ip, motors_state_port;
-                                   freq=100, debug=false)
+        fs_pub() = motor_commander(motors_state_ip, motors_state_port,
+                                   serial_port, baud_rate;
+                                   freq=50, debug=false)
         fs_thread = Task(fs_pub)
         schedule(fs_thread)
 

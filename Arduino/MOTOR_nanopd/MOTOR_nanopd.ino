@@ -19,12 +19,12 @@
 #define MAX_THROTLE     (1832)
 #define MIN_THROTLE     (1148)
 
+// Define the Motor ESC structs
 Servo front_left_esc, front_right_esc, back_right_esc, back_left_esc;
 
 // Build buffers and message types
 uint8_t motors_buffer[256];
 size_t motors_buffer_length = sizeof(motors_buffer);
-
 messaging_MOTORS MOTORS_input = messaging_MOTORS_init_zero;
 
 // Initialize packet serial ports
