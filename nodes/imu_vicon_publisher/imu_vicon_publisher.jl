@@ -36,7 +36,7 @@ module ImuViconPublisher
         vicon_time = time()
 
         imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
-        
+
         try
             open(ard) do sp
                 while true
@@ -89,9 +89,6 @@ module ImuViconPublisher
                                         imu_ip, imu_port,
                                         vicon_ip, vicon_port;
                                         freq=200, debug=debug)
-        imu_thread = Task(imu_pub)
-        schedule(imu_thread)
-
-        return imu_thread
+        return Threads.@spawn imu_pub()
     end
 end

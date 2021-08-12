@@ -2,6 +2,7 @@ begin
     using Pkg
     Pkg.activate("$(@__DIR__)/..")
 
+
     include("$(@__DIR__)/../nodes/imu_vicon_publisher/imu_vicon_publisher.jl")
     include("$(@__DIR__)/../nodes/filtered_state_publisher/filtered_state_publisher.jl")
     include("$(@__DIR__)/../nodes/lqr_hover_controller/lqr_hover_controller.jl")
@@ -9,10 +10,10 @@ begin
     include("$(@__DIR__)/../nodes/jetson_link/jetson_link.jl")
 
     # Launch Various thread
-    # imu_vicon_thread = ImuViconPublisher.main(; debug=true)
+    # imu_vicon_thread = ImuViconPublisher.main(; debug=false)
     # jetson_link_thread = JetsonLink.main(; debug=false)
-    # filter_thread = FilteredStatePublisher.main()
-    # lqr_thread = LqrHoverController.main()
+    # filter_thread = FilteredStatePublisher.main(; debug=false)
+    # lqr_thread = LqrHoverController.main(; debug=false)
     lqr_thread = LqrHoverControllerDebug.main()
 
     try

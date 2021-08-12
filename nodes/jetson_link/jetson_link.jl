@@ -114,9 +114,6 @@ module JetsonLink
                                vicon_ip, vicon_port,
                                quad_info_ip, quad_info_port;
                                freq=20, debug=debug)
-        link_thread = Task(link_pub)
-        schedule(link_thread)
-
-        return link_thread
+        return Threads.@spawn link_pub()
     end
 end

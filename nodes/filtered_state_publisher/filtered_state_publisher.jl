@@ -126,9 +126,6 @@ module FilteredStatePublisher
                                             vicon_ip, vicon_port,
                                             filtered_state_ip, filtered_state_port;
                                             freq=200, debug=debug)
-        fs_thread = Task(fs_pub)
-        schedule(fs_thread)
-
-        return fs_thread
+        return Threads.@spawn fs_pub()
     end
 end

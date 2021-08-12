@@ -70,11 +70,9 @@ module ViconRelay
         relay_baud_rate = setup_dict["serial"]["ground"]["telemetry_radio"]["baud_rate"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
-        vicon_thread = @task vicon_relay(zmq_vicon_ip, zmq_vicon_port,
-                                         relay_serial_port, relay_baud_rate;
-                                         debug=debug)
-        schedule(vicon_thread)
-
-        return vicon_thread
+        vr_pub() = vicon_relay(zmq_vicon_ip, zmq_vicon_port,
+                               relay_serial_port, relay_baud_rate;
+                               debug=debug)
+        return Threads.@spawn vr_pub()
     end
 end

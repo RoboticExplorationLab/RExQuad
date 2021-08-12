@@ -39,10 +39,10 @@ module LqrHoverControllerDebug
             open(ard) do sp
                 while true
                 # for throt in ramp
-                    motors.front_left = MIN_THROTLE + 1
-                    motors.front_right = MIN_THROTLE + 1
-                    motors.back_right = MIN_THROTLE + 1
-                    motors.back_left = MIN_THROTLE + 1
+                    motors.front_left = MIN_THROTLE + 10
+                    motors.front_right = MIN_THROTLE + 10
+                    motors.back_right = MIN_THROTLE + 10
+                    motors.back_left = MIN_THROTLE + 10
 
                     msg_size = writeproto(pb, motors);
                     message(ard, take!(pb))
@@ -73,12 +73,9 @@ module LqrHoverControllerDebug
         motors_state_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
         motors_state_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
 
-        fs_pub() = motor_commander(motors_state_ip, motors_state_port,
+        mc_pub() = motor_commander(motors_state_ip, motors_state_port,
                                    serial_port, baud_rate;
                                    freq=100, debug=false)
-        fs_thread = Task(fs_pub)
-        schedule(fs_thread)
-
-        return fs_thread
+        return Threads.@spawn mc_pub()
     end
 end

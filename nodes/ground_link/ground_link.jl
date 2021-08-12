@@ -107,9 +107,6 @@ module GroundLink
 
         # Launch the relay to send the Vicon data through the telemetry radio
         link_sub() = quad_link(quad_info_sub_ip, quad_info_sub_port; debug=debug)
-        link_thread = Task(link_sub)
-        schedule(link_thread)
-
-        return link_thread
+        return Threads.@spawn link_sub()
     end
 end
