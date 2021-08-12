@@ -69,13 +69,21 @@ void loop() {
 
     sendMessage(MOTORS_input);
 
-    if ((last_time - millis()) > 500) {
-        kill();
-    }
+    // if (abs(last_time - millis()) > 1000)
+    // { // Deadman kill switch the motor
+    //     digitalWrite(LED_PIN, LOW);
+    //     delay(10);
+    //     digitalWrite(LED_PIN, HIGH);
+
+    //     MOTORS_input.front_left = MIN_THROTLE;
+    //     MOTORS_input.front_right = MIN_THROTLE;
+    //     MOTORS_input.back_right = MIN_THROTLE;
+    //     MOTORS_input.back_left = MIN_THROTLE;
+    // }
 }
 
 /*
- * Relay the message over from Holybro to Jetson
+ * Callback function called when a packet comes in over serial port
  */
 void onMotorsRecieved(const uint8_t *buffer, size_t size) {
     pb_istream_t stream = pb_istream_from_buffer(buffer, size);
@@ -91,10 +99,14 @@ void onMotorsRecieved(const uint8_t *buffer, size_t size) {
             digitalWrite(LED_PIN, HIGH);
         }
         light_on = !light_on;
-        last_time = millis();
+
+        // last_time = millis();
     }
 }
 
+/*
+ * Command motors given a message
+ */
 void sendMessage(messaging_MOTORS &mes) {
     if (MIN_THROTLE <= mes.front_left && mes.front_left <= MAX_THROTLE) {
         front_left_esc.writeMicroseconds((int) mes.front_left);
@@ -110,19 +122,10 @@ void sendMessage(messaging_MOTORS &mes) {
     }
 }
 
+/*
+ * Calibrate the ESCs
+ */
 void calibration() {
-    // front_left_esc.writeMicroseconds(MAX_THROTLE);
-    // front_right_esc.writeMicroseconds(MAX_THROTLE);
-    // back_right_esc.writeMicroseconds(MAX_THROTLE);
-    // back_left_esc.writeMicroseconds(MAX_THROTLE);
-    // delay(3000);
-
-    // front_left_esc.writeMicroseconds(MIN_THROTLE);
-    // front_right_esc.writeMicroseconds(MIN_THROTLE);
-    // back_right_esc.writeMicroseconds(MIN_THROTLE);
-    // back_left_esc.writeMicroseconds(MIN_THROTLE);
-    // delay(8000);
-
     front_left_esc.writeMicroseconds(MAX_THROTLE);
     delay(3000);
     //Serial.println("throttle down 1");
@@ -155,6 +158,9 @@ void calibration() {
     }
 }
 
+/*
+ * Arm the ESCs
+ */
 void arm() {
     front_left_esc.writeMicroseconds(MAX_THROTLE);
     front_right_esc.writeMicroseconds(MAX_THROTLE);
@@ -173,6 +179,10 @@ void arm() {
     }
 }
 
+/*
+ * Kill the motors. This function is called if no message has been
+ * heard in more than 0.5 seconds.
+ */
 void kill() {
     front_left_esc.writeMicroseconds(MIN_THROTLE);
     front_right_esc.writeMicroseconds(MIN_THROTLE);
@@ -180,6 +190,9 @@ void kill() {
     back_left_esc.writeMicroseconds(MIN_THROTLE);
 }
 
+/*
+ * Blink LED 1 time
+ */
 void blink() {
     digitalWrite(LED_PIN, LOW);
     digitalWrite(LED_PIN, HIGH);

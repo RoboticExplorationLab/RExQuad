@@ -1,6 +1,5 @@
 # This node is run of the Jetson, it is a simple LQR controller to
 # stabilize the quadrotor around a hover
-
 module LqrHoverControllerDebug
     using TOML
     using ZMQ
@@ -76,7 +75,7 @@ module LqrHoverControllerDebug
 
         fs_pub() = motor_commander(motors_state_ip, motors_state_port,
                                    serial_port, baud_rate;
-                                   freq=50, debug=false)
+                                   freq=100, debug=false)
         fs_thread = Task(fs_pub)
         schedule(fs_thread)
 
