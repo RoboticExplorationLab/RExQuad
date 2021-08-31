@@ -7,8 +7,9 @@ begin
     vicon_relay_thread = SimulatedViconRelay.main(; debug=false)
 
     # include("$(@__DIR__)/../nodes/vicon_relay/vicon_relay.jl")
-    include("$(@__DIR__)/../nodes/ground_link/ground_link.jl")
     # vicon_relay_thread = ViconRelay.main(; debug=false)
+
+    include("$(@__DIR__)/../nodes/ground_link/ground_link.jl")
     ground_link_thread = GroundLink.main(; debug=true)
 
     try
