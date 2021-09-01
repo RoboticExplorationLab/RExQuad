@@ -37,20 +37,38 @@ module LqrHoverControllerDebug
 
         try
             open(ard) do sp
-                while true
+                # # while true
+                for i in 1:1000
                 # for throt in ramp
-                    motors.front_left = MIN_THROTLE + 10
-                    motors.front_right = MIN_THROTLE + 10
-                    motors.back_right = MIN_THROTLE + 10
-                    motors.back_left = MIN_THROTLE + 10
+                    motors.front_left = MIN_THROTLE + 25
+                    motors.front_right = MIN_THROTLE + 25
+                    motors.back_right = MIN_THROTLE + 25
+                    motors.back_left = MIN_THROTLE + 25
 
                     msg_size = writeproto(pb, motors);
                     message(ard, take!(pb))
 
+                    publish(motors_pub, motors)
+
+                    sleep(rate)
+                    GC.gc(false)
+                end
+
+                for i in 1:1000
+                    motors.front_left = MIN_THROTLE
+                    motors.front_right = MIN_THROTLE
+                    motors.back_right = MIN_THROTLE
+                    motors.back_left = MIN_THROTLE
+
+                    msg_size = writeproto(pb, motors);
+                    message(ard, take!(pb))
+
+                    publish(motors_pub, motors)
                     sleep(rate)
                     GC.gc(false)
                 end
             end
+
         catch e
             close(motors_pub)
             close(ctx)
@@ -64,7 +82,7 @@ module LqrHoverControllerDebug
     end
 
     # Launch IMU publisher
-    function main()
+    function main(; debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         serial_port = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
@@ -75,7 +93,7 @@ module LqrHoverControllerDebug
 
         mc_pub() = motor_commander(motors_state_ip, motors_state_port,
                                    serial_port, baud_rate;
-                                   freq=100, debug=false)
+                                   freq=100, debug=debug)
         return Threads.@spawn mc_pub()
     end
 end

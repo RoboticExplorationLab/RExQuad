@@ -7,14 +7,16 @@ begin
     include("$(@__DIR__)/../nodes/filtered_state_publisher/filtered_state_publisher.jl")
     include("$(@__DIR__)/../nodes/lqr_hover_controller/lqr_hover_controller.jl")
     include("$(@__DIR__)/../nodes/lqr_hover_controller/lqr_hover_controller_debug.jl")
+    # include("$(@__DIR__)/../nodes/lqr_hover_controller/mpc_hover_controller.jl")
+    # include("$(@__DIR__)/../nodes/lqr_hover_controller/mpc_hover_controller_debug.jl")
     include("$(@__DIR__)/../nodes/jetson_link/jetson_link.jl")
 
     # Launch Various thread
     imu_vicon_thread = ImuViconPublisher.main(; debug=false)
-    jetson_link_thread = JetsonLink.main(; debug=false)
+    jetson_link_thread = JetsonLink.main(; debug=true)
     filter_thread = FilteredStatePublisher.main(; debug=false)
+    # lqr_thread = LqrHoverControllerDebug.main(; debug=false)
     # lqr_thread = LqrHoverController.main(; debug=false)
-    # lqr_thread = LqrHoverControllerDebug.main()
 
     try
         while true

@@ -76,9 +76,9 @@ module JetsonLink
 
                 if pub
                     quad_info.time = time()
-                    if (debug) println("Published message") end
+                    if (debug) println("Published QuadInfo message to ground station") end
 
-                    publish(quad_pub, quad_info, iob)
+                    publish(quad_pub, quad_info)
                 end
                 sleep(rate)
                 GC.gc(false)
