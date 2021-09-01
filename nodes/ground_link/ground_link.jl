@@ -15,7 +15,46 @@ module GroundLink
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
 
-    function quad_link(quad_info_sub_ip::String, quad_info_sub_port::String;
+    function printQuadInfo(quad_info::QUAD_INFO)
+        run(`clear`);
+
+        println("Quad Info:")
+
+        println("\tFiltered State:")
+        @printf("\t\tPosition: [%1.3f, %1.3f, %1.3f]\n",
+                quad_info.state.pos_x,
+                quad_info.state.pos_y,
+                quad_info.state.pos_z)
+        @printf("\t\tQuaternion: [%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                quad_info.state.quat_w, quad_info.state.quat_x,
+                quad_info.state.quat_y, quad_info.state.quat_z)
+        @printf("\t\tLinear Vel: [%1.3f, %1.3f, %1.3f]\n",
+                quad_info.state.vel_x,
+                quad_info.state.vel_y,
+                quad_info.state.vel_z)
+        @printf("\t\tAngular Vel: [%1.3f, %1.3f, %1.3f]\n",
+                quad_info.state.ang_x,
+                quad_info.state.ang_y,
+                quad_info.state.ang_z)
+
+        println("\tMotor Command:")
+        @printf("\t\tCommands: [%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                quad_info.input.front_left, quad_info.input.front_right,
+                quad_info.input.back_right, quad_info.input.back_left)
+
+        println("\tVicon Measurement:")
+        @printf("\t\tPosition: [%1.3f, %1.3f, %1.3f]\n",
+                quad_info.measurement.pos_x,
+                quad_info.measurement.pos_y,
+                quad_info.measurement.pos_z)
+        @printf("\t\tQuaternion: [%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                quad_info.measurement.quat_w, quad_info.measurement.quat_x,
+                quad_info.measurement.quat_y, quad_info.measurement.quat_z)
+    end
+
+
+    function quad_link(quad_info_sub_ip::String, quad_info_sub_port::String,
+                       ground_info_sub_ip::String, ground_info_sub_port::String;
                        freq::Int64=200, debug::Bool=false)
         rate = 1 / freq
         ctx = Context(1)
@@ -42,52 +81,23 @@ module GroundLink
 
         quad_info_time = 0.
 
+        ground_info = GROUND_INFO(deadman=true,
+                                  time=time())
+        ground_pub = create_pub(ctx, ground_info_sub_ip, ground_info_sub_port)
+        iob = IOBuffer()
+
         try
             while true
                 if quad_info.time > quad_info_time
-                    run(`clear`);
-
-                    println("Quad Info:")
-
-                    println("\tFiltered State:")
-                    @printf("\t\tPosition: [%1.3f, %1.3f, %1.3f]\n",
-                            quad_info.state.pos_x,
-                            quad_info.state.pos_y,
-                            quad_info.state.pos_z)
-                    @printf("\t\tQuaternion: [%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                            quad_info.state.quat_w,
-                            quad_info.state.quat_x,
-                            quad_info.state.quat_y,
-                            quad_info.state.quat_z)
-                    @printf("\t\tLinear Vel: [%1.3f, %1.3f, %1.3f]\n",
-                            quad_info.state.vel_x,
-                            quad_info.state.vel_y,
-                            quad_info.state.vel_z)
-                    @printf("\t\tAngular Vel: [%1.3f, %1.3f, %1.3f]\n",
-                            quad_info.state.ang_x,
-                            quad_info.state.ang_y,
-                            quad_info.state.ang_z)
-
-                    println("\tMotor Command:")
-                    @printf("\t\tCommands: [%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                            quad_info.input.front_left,
-                            quad_info.input.front_right,
-                            quad_info.input.back_right,
-                            quad_info.input.back_left)
-
-                    println("\tVicon Measurement:")
-                    @printf("\t\tPosition: [%1.3f, %1.3f, %1.3f]\n",
-                            quad_info.measurement.pos_x,
-                            quad_info.measurement.pos_y,
-                            quad_info.measurement.pos_z)
-                    @printf("\t\tQuaternion: [%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                            quad_info.measurement.quat_w,
-                            quad_info.measurement.quat_x,
-                            quad_info.measurement.quat_y,
-                            quad_info.measurement.quat_z)
+                    printQuadInfo(quad_info)
 
                     quad_info_time = quad_info.time
                 end
+
+                ground_pub.deadman = true
+                ground_pub.time = time()
+                publish(ground_pub, ground_info, iob)
+
                 sleep(rate)
                 GC.gc(false)
             end

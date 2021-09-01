@@ -20,10 +20,9 @@ module ImuViconPublisher
                                  vicon_pub_ip::String, vicon_pub_port::String;
                                  freq::Int64=200, debug::Bool=false)
         rate = 1 / freq
-
         ard = Arduino(serial_port, baud_rate);
-
         ctx = Context(1)
+
         imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
                   gyr_x=0., gyr_y=0., gyr_z=0.,
                   time=time())

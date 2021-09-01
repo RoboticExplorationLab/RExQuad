@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package messaging;
+
+message GROUND_INFO {
+    bool deadman = 1;
+
+    double time = 2;
+}
