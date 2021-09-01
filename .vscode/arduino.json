@@ -1,4 +1,0 @@
-{
-    "board": "arduino:samd:mkrvidor4000",
-    "port": "/dev/tty.usbmodem14201"
-}
