@@ -4,12 +4,12 @@ begin
 
 
     include("$(@__DIR__)/../nodes/imu_vicon_publisher/imu_vicon_publisher.jl")
+    include("$(@__DIR__)/../nodes/jetson_link/jetson_link.jl")
     include("$(@__DIR__)/../nodes/filtered_state_publisher/filtered_state_publisher.jl")
-    include("$(@__DIR__)/../nodes/lqr_hover_controller/lqr_hover_controller.jl")
-    include("$(@__DIR__)/../nodes/lqr_hover_controller/lqr_hover_controller_debug.jl")
+    # include("$(@__DIR__)/../nodes/lqr_hover_controller/lqr_hover_controller.jl")
+    # include("$(@__DIR__)/../nodes/lqr_hover_controller/lqr_hover_controller_debug.jl")
     # include("$(@__DIR__)/../nodes/lqr_hover_controller/mpc_hover_controller.jl")
     # include("$(@__DIR__)/../nodes/lqr_hover_controller/mpc_hover_controller_debug.jl")
-    include("$(@__DIR__)/../nodes/jetson_link/jetson_link.jl")
 
     # Launch Various thread
     imu_vicon_thread = ImuViconPublisher.main(; debug=false)

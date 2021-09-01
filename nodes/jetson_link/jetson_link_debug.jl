@@ -1,5 +1,5 @@
 #
-module JetsonLink
+module JetsonLinkDebug
     using TOML
     using ZMQ
     using ProtoBuf
@@ -7,14 +7,17 @@ module JetsonLink
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
 
-    include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/quad_info_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/messaging.jl")
+    msgs = "$(@__DIR__)/../../msgs"
+    include("$(msgs)/filtered_state_msg_pb.jl")
+    include("$(msgs)/motors_msg_pb.jl")
+    include("$(msgs)/vicon_msg_pb.jl")
+    include("$(msgs)/quad_info_msg_pb.jl")
+    include("$(msgs)/ground_info_msg_pb.jl")
+    include("$(msgs)/messaging.jl")
 
 
-    function quad_link(quad_info_pub_ip::String, quad_info_pub_port::String;
+    function quad_link(quad_info_pub_ip::String, quad_info_pub_port::String,
+                       ground_info_pub_ip::String, ground_info_pub_port::String;
                        freq::Int64=20, debug::Bool=false)
         rate = 1 / freq
 
@@ -33,13 +36,25 @@ module JetsonLink
 
         quad_info = QUAD_INFO(state=state, input=motors, measurement=vicon, time=time())
         quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
-
-        # Setup initial times
         iob = IOBuffer()
+
+        ground_info = GROUND_INFO(deadman=true, time=0.)
+        ground_info_sub() = subscriber_thread(ctx, ground_info, ground_info_sub_ip, ground_info_sub_port)
+
+        # Setup and Schedule Subscriber Tasks
+        ground_info_thread = Task(ground_info_sub)
+        schedule(ground_info_thread)
+        ground_info_time = 0
 
         try
             while true
                 if (debug) println("Published QuadInfo message to ground station") end
+
+                # If haven't heard from ground in more than a second kill
+                if abs(ground_info.time - ground_info_time) > 1.0 
+                    return
+                end
+                ground_info_time = ground_info.time
 
                 publish(quad_pub, quad_info)
 

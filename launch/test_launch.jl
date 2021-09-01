@@ -6,7 +6,7 @@ begin
     node_dir = "$(@__DIR__)/../nodes"
     include("$(node_dir)/jetson_link/jetson_link.jl")
 
-    jetson_link_thread = JetsonLink.main(; debug=true)
+    jetson_link_thread = JetsonLinkDebug.main(; debug=true)
 
 
     try
