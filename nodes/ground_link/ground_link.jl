@@ -12,6 +12,7 @@ module GroundLink
     include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/quad_info_msg_pb.jl")
+    include("$(@__DIR__)/../../msgs/ground_info_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
 
@@ -94,8 +95,8 @@ module GroundLink
                     quad_info_time = quad_info.time
                 end
 
-                ground_pub.deadman = true
-                ground_pub.time = time()
+                ground_info.deadman = true
+                ground_info.time = time()
                 publish(ground_pub, ground_info, iob)
 
                 sleep(rate)
@@ -118,12 +119,12 @@ module GroundLink
 
         quad_info_sub_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
         quad_info_sub_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
-        ground_info_sub_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
-        ground_info_sub_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
+        ground_info_pub_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
+        ground_info_pub_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
         link_sub() = quad_link(quad_info_sub_ip, quad_info_sub_port,
-                               ground_info_sub_ip, ground_info_sub_port;
+                               ground_info_pub_ip, ground_info_pub_port;
                                debug=debug)
         return Threads.@spawn link_sub()
     end
