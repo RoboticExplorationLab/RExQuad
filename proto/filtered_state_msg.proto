@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package messaging;
+
+message FILTERED_STATE {
+    double pos_x=1;
+    double pos_y=2;
+    double pos_z=3;
+
+    double quat_w=4;
+    double quat_x=5;
+    double quat_y=6;
+    double quat_z=7;
+    
+    double vel_x=8;
+    double vel_y=9;
+    double vel_z=10;
+    
+    double ang_x=11;
+    double ang_y=12;
+    double ang_z=13;    
+
+    double time=14;
+}
+
+
