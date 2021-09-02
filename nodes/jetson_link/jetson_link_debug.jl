@@ -17,7 +17,7 @@ module JetsonLinkDebug
 
 
     function quad_link(quad_info_pub_ip::String, quad_info_pub_port::String,
-                       ground_info_pub_ip::String, ground_info_pub_port::String;
+                       ground_info_sub_ip::String, ground_info_sub_port::String;
                        freq::Int64=20, debug::Bool=false)
         rate = 1 / freq
 
@@ -80,9 +80,12 @@ module JetsonLinkDebug
 
         quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
         quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
+        ground_info_sub_ip = setup_dict
+        ground_info_sub_port = setup_dict
 
         # Launch the relay to send the Vicon data through the telemetry radio
-        link_pub() = quad_link(quad_info_ip, quad_info_port;
+        link_pub() = quad_link(quad_info_ip, quad_info_port,
+                               ground_info_sub_ip, ground_info_sub_port;
                                freq=20, debug=debug)
         return Threads.@spawn link_pub()
     end

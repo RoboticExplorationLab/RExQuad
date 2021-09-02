@@ -4,7 +4,7 @@ begin
     Pkg.activate("$(@__DIR__)/..")
 
     node_dir = "$(@__DIR__)/../nodes"
-    include("$(node_dir)/jetson_link/jetson_link.jl")
+    include("$(node_dir)/jetson_link/jetson_link_debug.jl")
 
     jetson_link_thread = JetsonLinkDebug.main(; debug=true)
 
