@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+import "vicon_msg.proto";
+
+package messaging;
+
+message IMU {
+    double acc_x=1;
+    double acc_y=2;
+    double acc_z=3;
+
+    double gyr_x=5;
+    double gyr_y=6;
+    double gyr_z=7;
+
+    double time=8;
+}
+
+message IMU_VICON {
+    IMU imu = 1;
+    VICON vicon = 2;
+}
+

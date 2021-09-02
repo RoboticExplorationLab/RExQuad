@@ -1,0 +1,3 @@
+[submodule "nodes/vicon_relay/RExLabVicon"]
+	path = nodes/vicon_relay/RExLabVicon
+	url = https://github.com/aabouman/RExLabVicon.git
