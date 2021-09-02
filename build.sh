@@ -43,5 +43,5 @@ protoc -I=. --plugin=$JL_PLUGIN     --proto_path=$SRC_DIR1 --proto_path=$SRC_DIR
 # QUAD INFO MESSAGE
 SRC_DIR1="proto"
 SRC_DIR2="nodes/vicon_relay/RExLabVicon/proto"
-MSG_NAME="quad_info_msg.proto"
+MSG_NAME="ground_info_msg.proto"
 protoc -I=. --plugin=$JL_PLUGIN     --proto_path=$SRC_DIR1 --proto_path=$SRC_DIR2 --julia_out=$JL_BUILD_DIR    $MSG_NAME
