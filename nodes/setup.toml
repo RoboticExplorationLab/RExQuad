@@ -27,8 +27,8 @@ title = "MocapZMQ"
             server = "127.0.0.2"
             port = "5002"
         # This should be the same thing as [zmq.jetson.link]
-        [zmq.ground.quad_info]
-            server = "192.168.3.191"
+        [zmq.ground.ground_info]
+            server = "192.168.3.150"
             port = "5010"
 
 [serial]

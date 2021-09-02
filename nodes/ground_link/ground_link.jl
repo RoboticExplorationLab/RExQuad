@@ -118,9 +118,13 @@ module GroundLink
 
         quad_info_sub_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
         quad_info_sub_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
+        ground_info_sub_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
+        ground_info_sub_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
-        link_sub() = quad_link(quad_info_sub_ip, quad_info_sub_port; debug=debug)
+        link_sub() = quad_link(quad_info_sub_ip, quad_info_sub_port,
+                               ground_info_sub_ip, ground_info_sub_port;
+                               debug=debug)
         return Threads.@spawn link_sub()
     end
 end
