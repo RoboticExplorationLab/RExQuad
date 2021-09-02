@@ -1,9 +1,12 @@
-# MocapTest
+# RExQuad
+This repo contains all of the information for building and flying the quadrotors for the [RoboticExplorationLab](https://roboticexplorationlab.org/) at CarnegieMellon University.
+
+## Build Instructions
 To build all relevant protocol buffers run the `build.sh` file from the projects root directory.
 
 ## Reposititory Structure
 ### `Arduino` Directory
-Set the Arduino app's `Sketchbook Location` to the `MocapTest/Arduino` directory.
+Set the Arduino app's `Sketchbook Location` to the `RExQuad/Arduino` directory.
 
 ### `launch` Directory
 Contains scripts to launch multiple nodes simultaneously.
