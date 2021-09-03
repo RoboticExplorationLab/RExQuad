@@ -18,7 +18,7 @@ open(vis)
 ##
 model = gen_quadrotormodel()
 generate_LQR_hover_gains([10,10,100, 10,10,10, 1,1,1, 1,1,1],fill(1e-2,4))
-# model = RobotZoo.Quadrotor()
+
 r0 = SA[0.0; 0; 1.0]
 q0 = SA[1.0; 0; 0; 0]
 v0 = @MVector zeros(3)
@@ -31,7 +31,7 @@ K = read_LQR_gain_from_file()
 x_init = zeros(model)[1]
 h = 1e-2
 times = range(0, 3, step=h)
-x = RobotDynamics.build_state(model, [0,1,1], RotX(deg2rad(-145)), zeros(3), zeros(3)) 
+x = RobotDynamics.build_state(model, [0,0,0], RotX(deg2rad(0)), zeros(3), zeros(3)) 
 visualize!(vis, x)
 X = [x for t in times]
 discrete_dynamics(RK4, model, x, uhover, 0.0, 0.1)
