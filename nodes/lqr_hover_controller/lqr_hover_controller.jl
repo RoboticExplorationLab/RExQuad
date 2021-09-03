@@ -59,7 +59,7 @@ module LqrHoverController
         v0 = @MVector zeros(3)
         ω0 = @MVector zeros(3)
         x0 = RobotDynamics.build_state(model, r0, q0, v0, ω0)
-        uhover = hovercontrols(model)
+        uhover = trim_controls(model)
 
         state_time = time()
 
