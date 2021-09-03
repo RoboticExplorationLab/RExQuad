@@ -26,7 +26,6 @@ title = "MocapZMQ"
         [zmq.ground.vicon]
             server = "127.0.0.2"
             port = "5002"
-        # This should be the same thing as [zmq.jetson.link]
         [zmq.ground.ground_info]
             server = "192.168.3.117"
             port = "5006"

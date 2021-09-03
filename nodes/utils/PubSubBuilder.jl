@@ -7,8 +7,13 @@ module PubSubBuilder
 
     function create_sub(ctx::ZMQ.Context, sub_ip::String, sub_port::String)::ZMQ.Socket
         s = Socket(ctx, SUB)
+        
+
+        # setsockopt(s, ZMQ_CONFLATE, &conflate, sizeof(conflate) )
+        
         ZMQ.subscribe(s)
         ZMQ.connect(s, "tcp://$sub_ip:$sub_port")
+
         return s
     end
 
@@ -23,14 +28,16 @@ module PubSubBuilder
     function subscriber_thread(ctx::ZMQ.Context, proto_msg::ProtoBuf.ProtoType,
                                sub_ip::String, sub_port::String)::Nothing
         sub = create_sub(ctx, sub_ip, sub_port)
-        ZMQ.set_rcvhwm(sub, 1)
+        # ZMQ.set_rcvhwm(sub, 1)
 
         try
             println("Listening for message type: $(typeof(proto_msg)), on: tcp://$sub_ip:$sub_port")
             while true
                 bin_data = ZMQ.recv(sub)
+                # lock
                 io = seek(convert(IOStream, bin_data), 0)
                 readproto(io, proto_msg)
+                # unlock
 
                 GC.gc(false)
             end

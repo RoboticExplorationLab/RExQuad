@@ -11,16 +11,26 @@ module JetsonLink
     include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/quad_info_msg_pb.jl")
+    include("$(@__DIR__)/../../msgs/ground_info_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
+
 
     function quad_link(state_sub_ip::String, state_sub_port::String,
                        motors_sub_ip::String, motors_sub_port::String,
                        vicon_sub_ip::String, vicon_sub_port::String,
-                       quad_info_pub_ip::String, quad_info_pub_port::String;
+                       quad_info_pub_ip::String, quad_info_pub_port::String,
+                       ground_info_sub_ip::String, ground_info_sub_port::String;
                        freq::Int64=20, debug::Bool=false)
         rate = 1 / freq
-
         ctx = Context(1)
+
+        ground_info = GROUND_INFO(deadman=true, time=0.)
+        ground_info_sub() = subscriber_thread(ctx, ground_info, ground_info_sub_ip, ground_info_sub_port)
+        # Setup and Schedule Subscriber Tasks
+        ground_info_thread = Task(ground_info_sub)
+        schedule(ground_info_thread)
+        ground_info_time = ground_info.time
+        first_loop = true
 
         state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
                                quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
@@ -31,7 +41,7 @@ module JetsonLink
         # Setup and Schedule Subscriber Tasks
         state_thread = Task(state_sub)
         schedule(state_thread)
-        state_time = time()
+        state_time = state.time
 
         motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
                         time=0.)
@@ -39,7 +49,7 @@ module JetsonLink
         # Setup and Schedule Subscriber Tasks
         motors_thread = Task(motors_sub)
         schedule(motors_thread)
-        motors_time = time()
+        motors_time = motors.time
 
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
@@ -48,7 +58,7 @@ module JetsonLink
         # Setup and Schedule Subscriber Tasks
         vicon_thread = Task(vicon_sub)
         schedule(vicon_thread)
-        vicon_time = time()
+        vicon_time = vicon.time
 
         quad_info = QUAD_INFO(state=state, input=motors, measurement=vicon, time=time())
         quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
@@ -57,9 +67,27 @@ module JetsonLink
         iob = IOBuffer()
 
         try
+            # Wait until we start hearing the heartbeat
+            while abs(ground_info.time - time()) > 2.0
+                sleep(0.1)
+            end
+            ground_info_time = time()
+
             while true
-                # pub = false
+                if (debug)
+                    println("Msg time: ", ground_info.time,
+                            "Current time: ", time(),
+                            "Time difference: ", abs(time() - ground_info_time))
+                end
+
+                if abs(time() - ground_info.time) > 2.0
+                    # If haven't heard from ground in more than a second kill
+                    error("\nDeadman switched off!!\n")
+                end
+                ground_info_time = ground_info.time
+
                 pub = true
+                # pub = false
 
                 if state.time > state_time
                     state_time = state.time
@@ -80,6 +108,7 @@ module JetsonLink
 
                     publish(quad_pub, quad_info)
                 end
+
                 sleep(rate)
                 GC.gc(false)
             end
@@ -107,12 +136,15 @@ module JetsonLink
         vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
         quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
         quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
+        ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
+        ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
 
         # Launch the relay to send the Vicon data through the telemetry radio
         link_pub() = quad_link(filtered_state_ip, filtered_state_port,
                                motors_ip, motors_port,
                                vicon_ip, vicon_port,
-                               quad_info_ip, quad_info_port;
+                               quad_info_ip, quad_info_port,
+                               ground_info_ip, ground_info_port;
                                freq=20, debug=debug)
         return Threads.@spawn link_pub()
     end
