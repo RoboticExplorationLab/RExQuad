@@ -68,19 +68,25 @@ module JetsonLink
 
         try
             # Wait until we start hearing the heartbeat
-            while abs(ground_info.time - time()) > 2.0
-                sleep(0.1)
+            cnt = 0
+            while cnt < 100
+                if (debug)
+                    println("Time since last heartbeat: ", abs(ground_info.time - ground_info_time))
+                end
+
+                while ground_info_time == ground_info.time
+                    sleep(0.1)
+                end
+                ground_info_time = ground_info.time
+                cnt += 1
             end
-            ground_info_time = time()
 
             while true
                 if (debug)
-                    println("Msg time: ", ground_info.time,
-                            "Current time: ", time(),
-                            "Time difference: ", abs(time() - ground_info_time))
+                    println("Time since last heartbeat: ", abs(ground_info_time - ground_info.time))
                 end
 
-                if abs(time() - ground_info.time) > 2.0
+                if abs(time() - ground_info.time) > 5.0
                     # If haven't heard from ground in more than a second kill
                     error("\nDeadman switched off!!\n")
                 end
@@ -145,7 +151,7 @@ module JetsonLink
                                vicon_ip, vicon_port,
                                quad_info_ip, quad_info_port,
                                ground_info_ip, ground_info_port;
-                               freq=20, debug=debug)
+                               freq=50, debug=debug)
         return Threads.@spawn link_pub()
     end
 end

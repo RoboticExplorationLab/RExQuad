@@ -8,6 +8,7 @@ module ImuViconPublisher
     using SerialCOBS
     using StaticArrays
     using Rotations: RotXYZ
+    using Printf
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -59,9 +60,10 @@ module ImuViconPublisher
                             imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
 
                             if debug
-                                println("IMU: ", imu_vicon.imu.acc_x, ", ", imu_vicon.imu.acc_y, ", ", imu_vicon.imu.acc_z)
-                                println("VICON: ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x)
-                                println()
+                                @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
+                                        imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z)
+                                @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                                        imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x)
                             end
 
                             if imu_vicon.vicon.time > vicon_time

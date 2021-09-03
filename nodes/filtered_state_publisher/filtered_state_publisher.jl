@@ -70,18 +70,6 @@ module FilteredStatePublisher
 
         try
             while true
-                # Prediction
-                # if debug
-                #     @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
-                #             imu.acc_x, imu.acc_y, imu.acc_z)
-                #     @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                #             vicon.pos_x, vicon.pos_y, vicon.pos_z)
-
-                #     @printf("IMU time: \t%1.3f\n", imu.time)
-                #     @printf("Vicon time: \t%1.3f\n", vicon.time)
-                # end
-
-
                 if imu.time > imu_time
                     dt = imu.time - imu_time
 
@@ -118,7 +106,6 @@ module FilteredStatePublisher
                                     state.quat_w, state.quat_x, state.quat_y, state.quat_z)
                         end
                     end
-
                 end
 
                 sleep(rate)
