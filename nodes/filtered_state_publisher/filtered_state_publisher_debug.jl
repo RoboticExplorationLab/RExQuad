@@ -32,10 +32,12 @@ module FilteredStatePublisher
         state_pub = create_pub(ctx, state_pub_ip, state_pub_port)
         iob = IOBuffer()
 
+        tinit = time()
         try
             while true
-                state.pos_x, state.pos_y, state.pos_z = rand(3)
-                state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(rand(UnitQuaternion))
+                t = time() - tinit
+                state.pos_x, state.pos_y, state.pos_z = [sin(t), cos(t), 2]
+                state.quat_w, state.quat_x, state.quat_y, state.quat_z = RotZ(deg2rad(10*t)) 
                 state.vel_x, state.vel_y, state.vel_z = rand(3)
                 state.ang_x, state.ang_y, state.ang_z = rand(3)
 

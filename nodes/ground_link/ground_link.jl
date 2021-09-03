@@ -6,6 +6,7 @@ module GroundLink
     using Printf
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
+    include("$(@__DIR__)/../visualizer.jl")
     using .PubSubBuilder
 
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
@@ -79,6 +80,12 @@ module GroundLink
         # Setup and Schedule Subscriber Tasks
         quad_thread = Task(quad_sub)
         schedule(quad_thread)
+
+        # Create a thread for the 3D visualizer (showing the state estimate)
+        vis = QuadVisualizer()
+        open(vis)
+        vis_task = @task visualize_filteredstate(vis)
+        schedule(vis_task)
 
         quad_info_time = 0.
 
