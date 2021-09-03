@@ -24,14 +24,12 @@ module JetsonLink
         rate = 1 / freq
         ctx = Context(1)
 
-        println("Hello")
-
         ground_info = GROUND_INFO(deadman=true, time=0.)
         ground_info_sub() = subscriber_thread(ctx, ground_info, ground_info_sub_ip, ground_info_sub_port)
         # Setup and Schedule Subscriber Tasks
         ground_info_thread = Task(ground_info_sub)
         schedule(ground_info_thread)
-        ground_info_time = 0
+        ground_info_time = ground_info.time
         first_loop = true
 
         state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
@@ -43,7 +41,7 @@ module JetsonLink
         # Setup and Schedule Subscriber Tasks
         state_thread = Task(state_sub)
         schedule(state_thread)
-        state_time = time()
+        state_time = state.time
 
         motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
                         time=0.)
@@ -51,7 +49,7 @@ module JetsonLink
         # Setup and Schedule Subscriber Tasks
         motors_thread = Task(motors_sub)
         schedule(motors_thread)
-        motors_time = time()
+        motors_time = motors.time
 
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
@@ -60,7 +58,7 @@ module JetsonLink
         # Setup and Schedule Subscriber Tasks
         vicon_thread = Task(vicon_sub)
         schedule(vicon_thread)
-        vicon_time = time()
+        vicon_time = vicon.time
 
         quad_info = QUAD_INFO(state=state, input=motors, measurement=vicon, time=time())
         quad_pub = create_pub(ctx, quad_info_pub_ip, quad_info_pub_port)
@@ -69,15 +67,28 @@ module JetsonLink
         iob = IOBuffer()
 
         try
+            # Wait until we start hearing the heartbeat
+            while abs(ground_info.time - time()) > 2.0
+                sleep(0.1)
+            end
+            ground_info_time = time()
+
             while true
-                if abs(ground_info.time - ground_info_time) > 1.0 && !first_loop
-                    # If haven't heard from ground in more than a second kill
-                    error("Deadman switched off!!\n")
+                if (debug)
+                    println("Msg time: ", ground_info.time,
+                            "Current time: ", time(),
+                            "Time difference: ", abs(time() - ground_info_time))
                 end
-                first_loop = false
+
+                if abs(time() - ground_info.time) > 2.0
+                    # If haven't heard from ground in more than a second kill
+                    error("\nDeadman switched off!!\n")
+                end
                 ground_info_time = ground_info.time
 
-                pub = false
+                pub = true
+                # pub = false
+
                 if state.time > state_time
                     state_time = state.time
                     pub = true
