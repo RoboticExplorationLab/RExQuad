@@ -38,17 +38,27 @@ estimate
 """
 function visualize_filteredstate(vis::QuadVisualizer)
     ctx = Context(1)
-    state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                            quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                            vel_x=0., vel_y=0., vel_z=0.,
-                            ang_x=0., ang_y=0., ang_z=0.)
-    state_sub() = PubSubBuilder.subscriber_thread(ctx, state, filtered_state_sub_ip, filtered_state_sub_port)
-    state_thread = Task(state_sub)
-    schedule(state_thread)
+    filtered_state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
+                                    quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                                    vel_x=0., vel_y=0., vel_z=0.,
+                                    ang_x=0., ang_y=0., ang_z=0.,
+                                    time=0.)
+    motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
+                    time=0.)
+    quad_info = QUAD_INFO(state=filtered_state,
+                            input=motors,
+                            measurement=vicon,
+                            time=0.)
+
+    vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
+                    quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                    time=0.)
+    quad_thread = @task subscriber_thread(ctx, quad_info, quad_info_sub_ip, quad_info_sub_port)
+    schedule(quad_thread)
     try
         while true
             # TODO: Run controller here
-            TrajOptPlots.visualize!(vis, state)
+            TrajOptPlots.visualize!(vis, quad_info.state)
         end
     catch e
         close(ctx)
