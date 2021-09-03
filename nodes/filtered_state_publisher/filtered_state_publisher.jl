@@ -1,8 +1,8 @@
 # This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon
 # data coming through the telemetry radio and the Arduino.
-
 module FilteredStatePublisher
     using TOML
+    using Printf
     using ZMQ
     using ProtoBuf
     using EKF
@@ -25,6 +25,8 @@ module FilteredStatePublisher
                                       freq::Int64=200, debug::Bool=false)
         rate = 1 / freq
         ctx = Context(1)
+
+        # pritnln(@__LINE__)
 
         # Initalize Subscriber threads
         imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
@@ -52,6 +54,8 @@ module FilteredStatePublisher
         state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
         iob = IOBuffer()
 
+        # pritnln(@__LINE__)
+
         # Setup the EKF filter
         est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
         est_cov = Matrix(2.2 * I(length(ImuError)))
@@ -67,35 +71,54 @@ module FilteredStatePublisher
         try
             while true
                 # Prediction
+                # if debug
+                #     @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
+                #             imu.acc_x, imu.acc_y, imu.acc_z)
+                #     @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                #             vicon.pos_x, vicon.pos_y, vicon.pos_z)
+
+                #     @printf("IMU time: \t%1.3f\n", imu.time)
+                #     @printf("Vicon time: \t%1.3f\n", vicon.time)
+                # end
+
+
                 if imu.time > imu_time
                     dt = imu.time - imu_time
 
                     input = ImuInput(imu.acc_x, imu.acc_y, imu.acc_z,
                                      imu.gyr_x, imu.gyr_y, imu.gyr_z)
 
-                    prediction!(ekf, input, dt=dt)
+                    prediction!(ekf, input, dt)
 
                     imu_time = imu.time
-                end
 
-                # Update & Publish
-                if vicon.time > vicon_time
-                    measurement = Vicon(vicon.pos_x, vicon.pos_y, vicon.pos_z,
-                                        vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
+                    # Update & Publish
+                    if vicon.time > vicon_time
+                        vicon_time = vicon.time
 
-                    update!(ekf, measurement)
+                        measurement = Vicon(vicon.pos_x, vicon.pos_y, vicon.pos_z,
+                                            vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
+                        update!(ekf, measurement)
 
-                    vicon_time = vicon.time
+                        _, ω = getComponents(input)
+                        p, q, v, α, β = getComponents(ImuState(ekf.est_state))
 
-                    v̇, ω = getComponents(input)
-                    p, q, v, α, β = getComponents(ekf.est_state)
-                    state.pos_x, state.pos_y, state.pos_z = p
-                    state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(q)
-                    state.vel_x, state.vel_y, state.vel_z = v
-                    state.ang_x, state.ang_y, state.ang_z = ω - β
-                    state.time = time()
+                        state.pos_x, state.pos_y, state.pos_z = p
+                        state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(q)
+                        state.vel_x, state.vel_y, state.vel_z = v
+                        state.ang_x, state.ang_y, state.ang_z = ω - β
+                        state.time = time()
 
-                    publish(state_pub, state, iob)
+                        publish(state_pub, state, iob)
+
+                        if (debug)
+                            @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
+                                    state.pos_x, state.pos_y, state.pos_z)
+                            @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                                    state.quat_w, state.quat_x, state.quat_y, state.quat_z)
+                        end
+                    end
+
                 end
 
                 sleep(rate)

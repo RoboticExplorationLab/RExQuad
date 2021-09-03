@@ -51,9 +51,10 @@ module ImuViconPublisher
                             iob = IOBuffer(recieve(ard))
                             readproto(iob, imu_vicon)
 
+                            imu_vicon.imu.time = time()
+
                             acc_vec = SA[imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z]
                             gyr_vec = SA[imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z]
-                            # println(Rot_imu_body * acc_vec)
                             imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z = Rot_imu_body * acc_vec
                             imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
 
@@ -69,8 +70,10 @@ module ImuViconPublisher
                             end
                             publish(imu_pub, imu_vicon.imu)
 
-                        catch InterruptException
-                            println("Shutting down IMU Vicon Publisher")
+                        catch e
+                            if e isa InterruptException  # clean up
+                                rethrow(e)
+                            end
                         end
                     end
 
@@ -102,11 +105,6 @@ module ImuViconPublisher
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
         vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
         vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
-
-        imu_vicon_publisher(imu_serial_port, imu_baud_rate,
-                            imu_ip, imu_port,
-                            vicon_ip, vicon_port;
-                            freq=200, debug=debug)
 
         imu_pub() = imu_vicon_publisher(imu_serial_port, imu_baud_rate,
                                         imu_ip, imu_port,
