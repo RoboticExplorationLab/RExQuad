@@ -10,6 +10,14 @@ using JSON
 
 include(joinpath(@__DIR__, "..", "constants.jl"))
 
+"""
+    generate_LQR_hover_gains([Qd, Rd; save_to_file])
+
+Generates the LQR gains for the diagonal cost weights `Qd` and `Rd`. Assumes the 
+quadrotor is linearized about equilibrium for level flight.
+
+The gains are returned and also saved to a file to be read in later.
+"""
 function generate_LQR_hover_gains(Qd = ones(12), Rd = fill(0.1, 4); save_to_file::Bool = true)
 
     #Quadrotor parameters
