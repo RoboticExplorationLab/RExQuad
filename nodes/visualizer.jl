@@ -10,6 +10,10 @@ include(joinpath(@__DIR__, "constants.jl"))
 include(joinpath(@__DIR__, "utils", "PubSubBuilder.jl"))
 include(joinpath(@__DIR__, "..", "msgs", "filtered_state_msg_pb.jl"))
 
+"""
+A type for facilitating the visualization of the quadrotor in a 3D MeshCat
+    environment
+"""
 struct QuadVisualizer
     vis::MeshCat.Visualizer
     model::RExQuad
@@ -20,11 +24,18 @@ function QuadVisualizer()
     QuadVisualizer(vis, model)
 end
 
+"""
+Opens the visualizer in a web browser with the quadrotor model loaded
+"""
 function Base.open(vis::QuadVisualizer)
     MeshCat.open(vis.vis)
     TrajOptPlots.set_mesh!(vis.vis, vis.model)
 end
 
+"""
+A blocking process that continually updates the visualizer with the latest output of the state
+estimate
+"""
 function visualize_filteredstate(vis::QuadVisualizer)
     ctx = Context(1)
     state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
@@ -49,6 +60,7 @@ function visualize_filteredstate(vis::QuadVisualizer)
     end
 end
 
+# Define visualization methods for the RExQuad model
 function TrajOptPlots.visualize!(vis::QuadVisualizer, x::AbstractVector)
     TrajOptPlots.visualize!(vis.vis, vis.model, x)
 end
