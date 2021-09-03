@@ -1,0 +1,1 @@
+const LQR_gain_file = joinpath(@__DIR__, "..", "data", "lqr_gain.json")

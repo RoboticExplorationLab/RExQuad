@@ -5,7 +5,9 @@ module LqrHoverController
     using TOML
     using ZMQ
     using ProtoBuf
+    using StaticArrays
 
+    include(joinpath(@__DIR__, "..", "constants.jl"))
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
 
@@ -13,6 +15,18 @@ module LqrHoverController
     include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
+    """
+        read_LQR_gain_from_file()
+    
+    Reads the hover LQR gain from the data file.
+    """
+    function read_LQR_gain_from_file()::SMatrix{4,12,Float64,48}
+        file = open(LQR_gain_file, "r")
+        data = JSON.parse(file)
+        close(file)
+        K = hcat(Vector{Float64}.(data)...)
+        return SMatrix{4,12}(K)
+    end
 
     function motor_commander(filtered_state_sub_ip::String, filtered_state_sub_port::String,
                              motor_pub_ip::String, motor_pub_port::String;
