@@ -1,4 +1,4 @@
-module SimulatedViconRelay
+module ViconRelayDebug
     using TOML
     using ZMQ
     using ProtoBuf
@@ -25,15 +25,12 @@ module SimulatedViconRelay
         try
             open(ard) do sp
                 while true
-                    vicon.pos_x, vicon.pos_y, vicon.pos_z = 1., 1., 1. #rand(3)
-                    vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z = 1., 1., 1., 1. #rand(4)
+                    vicon.pos_x, vicon.pos_y, vicon.pos_z = 0., 0., 0.
+                    vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z = 1., 0., 0., 0.
                     vicon.time = time()
                     msg_size = writeproto(iob, vicon);
 
-                    # TODO: make sure this works
-                    # print(iob.data[1:msg_size],"\r")
                     message(ard, take!(iob))
-
 
                     sleep(rate)
                     GC.gc(false)
@@ -55,9 +52,9 @@ module SimulatedViconRelay
 
         vicon_ip = setup_dict["zmq"]["ground"]["vicon"]["server"]
         vicon_port = setup_dict["zmq"]["ground"]["vicon"]["port"]
-
         serial_port = setup_dict["serial"]["ground"]["telemetry_radio"]["serial_port"]
         baud_rate = setup_dict["serial"]["ground"]["telemetry_radio"]["baud_rate"]
+
         # Launch the relay to send the Vicon data through the telemetry radio
         _vicon_relay() = vicon_relay(vicon_ip, vicon_port,
                                     serial_port, baud_rate;
