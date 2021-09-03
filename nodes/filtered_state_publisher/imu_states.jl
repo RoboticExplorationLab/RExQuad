@@ -57,6 +57,22 @@ struct ViconError{T} <: ErrorMeasurement{6, T}
 end
 
 
+function getComponents(x::ImuState)
+    p = @SVector [x.p𝑥, x.p𝑦, x.p𝑧]
+    q = UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
+    v = @SVector [x.v𝑥, x.v𝑦, x.v𝑧]
+    α = @SVector [x.α𝑥, x.α𝑦, x.α𝑧]
+    β = @SVector [x.β𝑥, x.β𝑦, x.β𝑧]
+    return p, q, v, α, β
+end
+
+
+function getComponents(u::ImuInput)
+    v̇ = @SVector [u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
+    ω = @SVector [u.ω𝑥, u.ω𝑦, u.ω𝑧]
+    return v̇, ω
+end
+
 # Add an error state to another state to create a new state
 function EKF.state_composition(x::ImuState, dx::ImuError)::ImuState
     p = @SVector [x.p𝑥, x.p𝑦, x.p𝑧]

@@ -3,23 +3,25 @@ begin
     using Pkg
     Pkg.activate("$(@__DIR__)/..")
 
-    node_dir = "$(@__DIR__)/../nodes"
-    include("$(node_dir)/jetson_link/jetson_link.jl")
+    include("$(@__DIR__)/../nodes/imu_vicon_publisher/imu_vicon_publisher.jl")
+    include("$(@__DIR__)/../nodes/filtered_state_publisher/filtered_state_publisher.jl")
 
-    jetson_link_thread = JetsonLink.main(; debug=true)
-
+    imu_vicon_thread = ImuViconPublisher.main(; debug=false)
+    filter_thread = FilteredStatePublisher.main(; debug=true)
 
     try
         while true
-            if istaskdone(jetson_link_thread)
-                fetch(jetson_link_thread); break
+            sleep(0.1)
+
+            if istaskdone(imu_vicon_thread)
+                fetch(imu_vicon_thread); break
+            end
+            if istaskdone(filter_thread)
+                fetch(filter_thread); break
             end
         end
     catch e
-        if e isa InterruptException  # clean up
-            println("Process terminated by you")
-        end
-
-        schedule(jetson_link_thread, InterruptException(), error=true)
+        schedule(imu_vicon_thread, InterruptException(), error=true)
+        schedule(filter_thread, InterruptException(), error=true)
     end
 end
