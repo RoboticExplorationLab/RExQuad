@@ -1,4 +1,4 @@
-using Pkg; Pkg.activate(joinpath(@__DIR__, "..",".."))
+using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using LinearAlgebra
 using ForwardDiff
 using BlockDiagonals
@@ -9,6 +9,7 @@ using ControlSystems
 using JSON
 
 include(joinpath(@__DIR__, "..", "constants.jl"))
+include(joinpath(@__DIR__, "..", "quadrotor_model.jl"))
 
 """
     generate_LQR_hover_gains([Qd, Rd; save_to_file])
@@ -20,33 +21,19 @@ The gains are returned and also saved to a file to be read in later.
 """
 function generate_LQR_hover_gains(Qd = ones(12), Rd = fill(0.1, 4); save_to_file::Bool = true)
 
-    #Quadrotor parameters
-    m = 0.5     # mass
-    ℓ = 0.1750  # distance between motors
-    J = [0.01566089 0.00000318037 0; 0.00000318037 0.01562078 0; 0 0 0.02226868]
-    g = 9.81    # gravity
-    kt=1.0      # motor force cosntant
-    km=0.0245   # motor torque constant
-    h = 0.02    # time step (50 Hz)
-
-    model = RobotZoo.Quadrotor(
-        mass = m,
-        motor_dist = ℓ,
-        J = J,
-        gravity = SA[0,0,-g],
-        km = km,
-        kf = kt
-    )
-    fieldnames(RobotZoo.Quadrotor)
+    model = gen_quadrotormodel() 
+    h = 0.02 # time step (s)
 
     #Initial Conditions
-    uhover = (m*g/4)* @SVector ones(4)
+    Nx = state_dim(model)
+    Nx̃ = RobotDynamics.state_diff_size(model)
     r0 = SA[0.0; 0; 1.0]
     q0 = SA[1.0; 0; 0; 0]
     v0 = @MVector zeros(3)
     ω0 = @MVector zeros(3)
     x0 = [r0; q0; v0; ω0]
     x̃0 = [r0; SA[0; 0; 0]; v0; ω0];
+    uhover = trim_controls(model)
 
     # With RobotZoo
     linmodel = RobotDynamics.LinearizedModel(model, KnotPoint(x0, uhover, h, 0.0), dt=h, integration=RobotDynamics.Exponential)
@@ -72,3 +59,4 @@ function generate_LQR_hover_gains(Qd = ones(12), Rd = fill(0.1, 4); save_to_file
     end
     return K
 end
+generate_LQR_hover_gains()
