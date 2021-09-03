@@ -87,7 +87,7 @@ module FilteredStatePublisher
 
                     vicon_time = vicon.time
 
-                    v̇, ω = getComponents(input)
+                    ., ω = getComponents(input)
                     p, q, v, α, β = getComponents(ekf.est_state)
                     state.pos_x, state.pos_y, state.pos_z = p
                     state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(q)
@@ -99,7 +99,7 @@ module FilteredStatePublisher
                 end
 
                 sleep(rate)
-                GC.gc(false) # TODO: hopefully get rid of this
+                GC.gc(false)
             end
         catch e
             close(state_pub)

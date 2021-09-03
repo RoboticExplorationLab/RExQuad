@@ -90,7 +90,7 @@ module GroundLink
         try
             while true
                 if quad_info.time > quad_info_time
-                    printQuadInfo(quad_info)
+                    # printQuadInfo(quad_info)
 
                     quad_info_time = quad_info.time
                 end
@@ -103,6 +103,7 @@ module GroundLink
                 GC.gc(false)
             end
         catch e
+            close(ground_pub)
             close(ctx)
 
             if e isa InterruptException
