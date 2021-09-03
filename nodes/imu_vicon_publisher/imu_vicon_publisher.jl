@@ -6,6 +6,8 @@ module ImuViconPublisher
     using ZMQ
     using ProtoBuf
     using SerialCOBS
+    using StaticArrays
+    using Rotations: RotXYZ
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -36,29 +38,46 @@ module ImuViconPublisher
 
         imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
 
+        iob = IOBuffer()
+        msg_size = writeproto(iob, imu_vicon)
+
+        Rot_imu_body = RotXYZ(0, 0, -π/2)
+
         try
             open(ard) do sp
                 while true
-                    if bytesavailable(ard) > 0
-                        iob = IOBuffer(recieve(ard))
-                        readproto(iob, imu_vicon)
+                    if bytesavailable(ard) > 0 # >= msg_size
+                        try
+                            iob = IOBuffer(recieve(ard))
+                            readproto(iob, imu_vicon)
 
-                        if debug
-                            println("IMU: ", imu_vicon.imu.acc_x, ", ", imu_vicon.imu.acc_y, ", ", imu_vicon.imu.acc_z)
-                            println("VICON: ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x)
-                            println()
-                        end
+                            acc_vec = SA[imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z]
+                            gyr_vec = SA[imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z]
+                            # println(Rot_imu_body * acc_vec)
+                            imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z = Rot_imu_body * acc_vec
+                            imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
 
-                        if imu_vicon.vicon.time > vicon_time
-                            vicon_time = imu_vicon.vicon.time
-                            publish(vicon_pub, imu_vicon.vicon)
+                            if debug
+                                println("IMU: ", imu_vicon.imu.acc_x, ", ", imu_vicon.imu.acc_y, ", ", imu_vicon.imu.acc_z)
+                                println("VICON: ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x)
+                                println()
+                            end
+
+                            if imu_vicon.vicon.time > vicon_time
+                                vicon_time = imu_vicon.vicon.time
+                                publish(vicon_pub, imu_vicon.vicon)
+                            end
+                            publish(imu_pub, imu_vicon.imu)
+
+                        catch InterruptException
+                            println("Shutting down IMU Vicon Publisher")
                         end
-                        publish(imu_pub, imu_vicon.imu)
                     end
 
                     sleep(rate)
                     GC.gc(false)
                 end
+
             end
         catch e
             close(imu_pub)
@@ -83,6 +102,11 @@ module ImuViconPublisher
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
         vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
         vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+
+        imu_vicon_publisher(imu_serial_port, imu_baud_rate,
+                            imu_ip, imu_port,
+                            vicon_ip, vicon_port;
+                            freq=200, debug=debug)
 
         imu_pub() = imu_vicon_publisher(imu_serial_port, imu_baud_rate,
                                         imu_ip, imu_port,
