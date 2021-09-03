@@ -2,6 +2,7 @@ using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using RobotDynamics
 using Rotations
 using StaticArrays
+using LinearAlgebra
 
 include(joinpath(@__DIR__, "..", "msgs", "filtered_state_msg_pb.jl"))
 
@@ -54,7 +55,7 @@ end
 @inline RobotDynamics.velocity_frame(model::RExQuad) = model.bodyframe ? :body : :world
 
 function trim_controls(model::RExQuad)
-    @SVector fill(-model.gravity[3]*model.mass/4.0, size(model)[2])
+    @SVector fill(-model.gravity[3]*model.mass/4.0/model.kf, size(model)[2])
 end
 
 function RobotDynamics.forces(model::RExQuad, x, u)
