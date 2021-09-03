@@ -1354,7 +1354,9 @@ version = "1.1.0"
 
 [[SerialCOBS]]
 deps = ["LibSerialPort"]
-path = "/home/brian/.julia/dev/SerialCOBS"
+git-tree-sha1 = "4b2c70e00270b5b599f00c0b6b44678b4f0326a0"
+repo-rev = "master"
+repo-url = "https://github.com/aabouman/SerialCOBS.jl.git"
 uuid = "1231247b-bb7d-4e8c-b1d4-28105a5a5152"
 version = "0.1.0"
 
