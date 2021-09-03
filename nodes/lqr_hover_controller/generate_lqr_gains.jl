@@ -1,13 +1,16 @@
-begin
-    using Pkg; Pkg.activate(joinpath(@__DIR__, "..",".."))
-    using LinearAlgebra
-    using ForwardDiff
-    using BlockDiagonals
-    using RobotDynamics
-    using RobotZoo
-    using StaticArrays
-    using ControlSystems
-    using JSON
+using Pkg; Pkg.activate(joinpath(@__DIR__, "..",".."))
+using LinearAlgebra
+using ForwardDiff
+using BlockDiagonals
+using RobotDynamics
+using RobotZoo
+using StaticArrays
+using ControlSystems
+using JSON
+
+include(joinpath(@__DIR__, "..", "constants.jl"))
+
+function generate_LQR_hover_gains(Qd = ones(12), Rd = fill(0.1, 4); save_to_file::Bool = true)
 
     #Quadrotor parameters
     m = 0.5     # mass
@@ -47,15 +50,17 @@ begin
     B̃ = E2'B
 
     # Cost weights
-    Q = Array(I(Nx̃));
-    R = Array(.1*I(Nu));
+    Q = Array(Diagonal(Qd));
+    R = Array(Diagonal(Rd));
 
     # LQR Gain
-    S = dare(Ã,B̃,Q,R) #cost-to-go
     K = dlqr(Ã,B̃,Q,R);
 
-    # Write gain to file
-    file = open(LQR_gain_file, "w")
-    JSON.print(file, K)
-    close(file)
+    if (save_to_file)
+        # Write gain to file
+        file = open(LQR_gain_file, "w")
+        JSON.print(file, K)
+        close(file)
+    end
+    return K
 end
