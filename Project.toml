@@ -1,3 +1,8 @@
+name = "RExQuad"
+uuid = "3d33ec56-8eef-480f-a035-130d29640e08"
+authors = ["Brian Jackson <bjack205@gmail.com>", "Alexander Bouman"]
+version = "0.1.0"
+
 [deps]
 BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"

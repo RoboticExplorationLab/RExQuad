@@ -1,0 +1,3 @@
+module RExQuad
+
+end  # module
