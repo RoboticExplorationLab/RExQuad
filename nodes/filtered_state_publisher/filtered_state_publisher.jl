@@ -81,6 +81,13 @@ module FilteredStatePublisher
 
                     imu_time = imu.time
 
+                    if cnt % 100 == 0
+                        loop_run_rate = 100 / (time() - last_time)
+                        println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
+                        last_time = time()
+                    end
+                    cnt += 1
+
                     # Update & Publish
                     if vicon.time > vicon_time
                         vicon_time = vicon.time
@@ -100,12 +107,12 @@ module FilteredStatePublisher
 
                         publish(state_pub, state, iob)
                         
-                        if cnt % 100 == 0
-                            loop_run_rate = 100 / (time() - last_time)
-                            println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
-                            last_time = time()
-                        end
-                        cnt += 1
+                        # if cnt % 100 == 0
+                        #     loop_run_rate = 100 / (time() - last_time)
+                        #     println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
+                        #     last_time = time()
+                        # end
+                        # cnt += 1
 
                         if (debug)
                             @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
