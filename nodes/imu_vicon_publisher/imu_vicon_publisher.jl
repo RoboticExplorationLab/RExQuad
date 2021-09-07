@@ -46,6 +46,10 @@ module ImuViconPublisher
 
         try
             open(ard) do sp
+                
+                cnt = 0
+                last_time = time()
+
                 while true
                     if bytesavailable(ard) > 0 # >= msg_size
                         try
@@ -71,6 +75,13 @@ module ImuViconPublisher
                                 publish(vicon_pub, imu_vicon.vicon)
                             end
                             publish(imu_pub, imu_vicon.imu)
+
+                            if cnt % 100 == 0
+                                loop_run_rate = 100 / (time() - last_time)
+                                println("imu_vicon_publisher Frequency (Hz): ", loop_run_rate)
+                                last_time = time()
+                            end
+                            cnt += 1
 
                         catch e
                             if e isa InterruptException  # clean up

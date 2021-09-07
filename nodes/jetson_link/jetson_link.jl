@@ -67,29 +67,36 @@ module JetsonLink
         iob = IOBuffer()
 
         try
-            # Wait until we start hearing the heartbeat
-            cnt = 0
-            while cnt < 100
-                if (debug)
-                    println("Time since last heartbeat: ", abs(ground_info.time - ground_info_time))
-                end
-
-                while ground_info_time == ground_info.time
-                    sleep(0.1)
-                end
-                ground_info_time = ground_info.time
-                cnt += 1
+            if (debug)
+                println("Waiting for consitstent Heartbeat")
             end
+
+            # Wait until we've heard 100
+            # cnt = 0
+            # while cnt < 500
+            #     while ground_info_time == ground_info.time
+            #         sleep(0.1)
+            #     end
+            #     ground_info_time = ground_info.time
+            #     cnt += 1
+            # end
+
+            if (debug)
+                println("Consistent Heartbeat established")
+            end
+
+            cnt = 0
+            last_time = time()
 
             while true
                 if (debug)
                     println("Time since last heartbeat: ", abs(ground_info_time - ground_info.time))
                 end
 
-                if abs(time() - ground_info.time) > 5.0
-                    # If haven't heard from ground in more than a second kill
-                    error("\nDeadman switched off!!\n")
-                end
+                # if abs(time() - ground_info.time) > 5.0
+                #     # If haven't heard from ground in more than a second kill
+                #     error("\nDeadman switched off!!\n")
+                # end
                 ground_info_time = ground_info.time
 
                 pub = true
@@ -113,6 +120,13 @@ module JetsonLink
                     if (debug) println("Published QuadInfo message to ground station") end
 
                     publish(quad_pub, quad_info)
+
+                    if cnt % 100 == 0
+                        loop_run_rate = 100 / (time() - last_time)
+                        println("jetson_link Frequency (Hz): ", loop_run_rate)
+                        last_time = time()
+                    end
+                    cnt += 1
                 end
 
                 sleep(rate)

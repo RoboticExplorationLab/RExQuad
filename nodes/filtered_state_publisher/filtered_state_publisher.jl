@@ -54,13 +54,11 @@ module FilteredStatePublisher
         state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
         iob = IOBuffer()
 
-        # pritnln(@__LINE__)
-
         # Setup the EKF filter
         est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
         est_cov = Matrix(2.2 * I(length(ImuError)))
-        process_cov = Matrix(2.2 * I(length(ImuError)))
-        measure_cov = Matrix(2.2 * I(length(ViconError)))
+        process_cov = Matrix(0.5 * I(length(ImuError)))
+        measure_cov = Matrix(0.005 * I(length(ViconError)))
 
         ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov,
                                                                                 process_cov, measure_cov)
@@ -69,6 +67,9 @@ module FilteredStatePublisher
         filtering = false
 
         try
+            cnt = 0
+            last_time = time()
+
             while true
                 if imu.time > imu_time
                     dt = imu.time - imu_time
@@ -98,6 +99,13 @@ module FilteredStatePublisher
                         state.time = time()
 
                         publish(state_pub, state, iob)
+                        
+                        if cnt % 100 == 0
+                            loop_run_rate = 100 / (time() - last_time)
+                            println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
+                            last_time = time()
+                        end
+                        cnt += 1
 
                         if (debug)
                             @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
