@@ -23,7 +23,7 @@ module ViconRelay
 
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                      time=0)
+                      time=0.)
         vicon_sub() = subscriber_thread(ctx, vicon, vicon_sub_ip, vicon_sub_port)
 
         # Setup and Schedule Subscriber Tasks

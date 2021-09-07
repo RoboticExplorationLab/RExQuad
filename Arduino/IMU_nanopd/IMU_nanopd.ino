@@ -14,7 +14,7 @@
 // #define DEBUG (true)
 #define DEBUG (false)
 
-#define MAX_FREQ (100)
+#define MAX_FREQ (125)
 
 // #define FORCE_CALI (true)
 #define FORCE_CALI (false)

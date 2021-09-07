@@ -27,7 +27,7 @@ function meta(::Type{VICON})
     ProtoBuf.metalock() do
         if !isassigned(__meta_VICON)
             __meta_VICON[] = target = ProtoMeta(VICON)
-            allflds = Pair{Symbol,Union{Type,String}}[:pos_x => Float64, :pos_y => Float64, :pos_z => Float64, :quat_w => Float64, :quat_x => Float64, :quat_y => Float64, :quat_z => Float64, :time => Float64]
+            allflds = Pair{Symbol,Union{Type,String}}[:pos_x => Float32, :pos_y => Float32, :pos_z => Float32, :quat_w => Float32, :quat_x => Float32, :quat_y => Float32, :quat_z => Float32, :time => Float64]
             meta(target, VICON, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
         end
         __meta_VICON[]
@@ -35,19 +35,19 @@ function meta(::Type{VICON})
 end
 function Base.getproperty(obj::VICON, name::Symbol)
     if name === :pos_x
-        return (obj.__protobuf_jl_internal_values[name])::Float64
+        return (obj.__protobuf_jl_internal_values[name])::Float32
     elseif name === :pos_y
-        return (obj.__protobuf_jl_internal_values[name])::Float64
+        return (obj.__protobuf_jl_internal_values[name])::Float32
     elseif name === :pos_z
-        return (obj.__protobuf_jl_internal_values[name])::Float64
+        return (obj.__protobuf_jl_internal_values[name])::Float32
     elseif name === :quat_w
-        return (obj.__protobuf_jl_internal_values[name])::Float64
+        return (obj.__protobuf_jl_internal_values[name])::Float32
     elseif name === :quat_x
-        return (obj.__protobuf_jl_internal_values[name])::Float64
+        return (obj.__protobuf_jl_internal_values[name])::Float32
     elseif name === :quat_y
-        return (obj.__protobuf_jl_internal_values[name])::Float64
+        return (obj.__protobuf_jl_internal_values[name])::Float32
     elseif name === :quat_z
-        return (obj.__protobuf_jl_internal_values[name])::Float64
+        return (obj.__protobuf_jl_internal_values[name])::Float32
     elseif name === :time
         return (obj.__protobuf_jl_internal_values[name])::Float64
     else

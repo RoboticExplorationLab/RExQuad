@@ -95,6 +95,9 @@ module GroundLink
         iob = IOBuffer()
 
         try
+            cnt = 0
+            last_time = time()
+
             while true
                 if quad_info.time > quad_info_time
                     # printQuadInfo(quad_info)
@@ -108,6 +111,14 @@ module GroundLink
 
                 sleep(rate)
                 GC.gc(false)
+
+
+                if cnt % 100 == 0
+                    loop_run_rate = 100 / (time() - last_time)
+                    println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
+                    last_time = time()
+                end
+                cnt += 1
             end
         catch e
             close(ground_pub)

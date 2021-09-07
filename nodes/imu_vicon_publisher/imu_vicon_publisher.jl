@@ -90,10 +90,9 @@ module ImuViconPublisher
                         end
                     end
 
-                    sleep(rate)
+                    sleep(0.0001)
                     GC.gc(false)
                 end
-
             end
         catch e
             close(imu_pub)
