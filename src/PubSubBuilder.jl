@@ -137,7 +137,7 @@ module PubSubBuilder
     Base.isopen(sub::Subscriber) = Base.isopen(sub.socket)
     Base.close(sub::Subscriber) = Base.close(sub.socket)
 
-    function subscribe(sub::Subscriber, proto_msg::ProtoBuf.ProtoType)
+    function subscribe(sub::Subscriber, proto_msg::ProtoBuf.ProtoType, write_lock = ReentrantLock())
         @info "Listening for message type: $(typeof(proto_msg)), on: tcp://$sub_ip:$sub_port"
         try
             while true
@@ -145,7 +145,9 @@ module PubSubBuilder
                 # lock
                 # Why not just call IOBuffer(bin_data)?
                 io = seek(convert(IOStream, bin_data), 0)
-                readproto(io, proto_msg)
+                lock(write_lock) do
+                    readproto(io, proto_msg)
+                end
                 # unlock
 
                 GC.gc(false)

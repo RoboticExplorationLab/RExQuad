@@ -2,15 +2,48 @@
 
 abstract type Node end
 
-startup(::Node) = throw(ErrorException("Startup hasn't been implemented on your node yet!"))
+startup(::Node) = nothing 
 compute(::Node) = throw(ErrorException("Compute hasn't been implemented on your node yet!"))
-publishers(::Node) = throw(ErrorException("publishers method hasn't been implemented on your node yet!"))
-subscribers(::Node) = throw(ErrorException("subscribers method hasn't been implemented on your node yet!"))
-frequency(::Node) = 200  # Hz
+getdata(node::Node)::NoteData = node.data
+
+struct PublishedMessage 
+    msg::ProtoBuf.ProtoType
+    pub::PubSubBuilder.Publisher
+end
+
+struct SubscribedMessage 
+    msg::ProtoBuf.ProtoType
+    sub::PubSubBuilder.Subscriber
+end
+
+mutable struct NodeData
+    publishers::Vector{PublishedMessage}
+    subscribers::Vector{SubscribedMessage}
+    sub_locks::Vector{ReentrantLock}
+    frequency::Float64  # Hz
+end
+add_publisher!(data::NodeData, msg::ProtoBuf.ProtoType, args...) = 
+    push!(data.publishers, PublishedMessage(msg, PubSubBuilder.Publisher(args...)))
+
+function add_subscriber!(data::NodeData, msg::ProtoBuf.ProtoType, args...)
+    push!(data.sub_locks, ReentrantLock())
+    push!(data.subscribers, SubscribedMessage(msg, PubSubBuilder.Subscriber(args...)))
+end
 
 function run(node::Node)
     rate = 1 / frequency(node)
+
+    # Launch the subscriber tasks asynchronously
+    nodedata = getdata(node)
+    for (i,sub_msg) in enumerate(nodedata.subscribers)
+        sub_task = @task PubSubBuilder.subscribe(sub_msg.sub, sub_msg.msg, nodedata.sub_locks[i]) 
+        schedule(sub_task)
+    end
+
+    # Run any necessary startup
     startup(node)
+
+    # Loop over the compute method at a fixed rate
     try
         while true
             compute(node)
@@ -27,56 +60,4 @@ function run(node::Node)
 
         rethrow(e)
     end
-end
-
-struct FilterNode
-    pubs::Vector{Publisher}
-    subs::Vector{Subscriber}
-    imu_msg::IMU
-    vicon_msg::VICON
-    state_msg::FILTERED_STATE
-    est_state::ImuState
-    est_cov::Matrix{Float64}
-    process_cov::Matrix{Float64}
-    measure_cov::Matrix{Float64}
-end
-publishers(node::FilterNode) = node.pubs
-subscribers(node::FilterNode) = node.subs
-
-function FilterNode(ctx = ZMQ.Context(1))
-    setup = get_node_setup()
-    imu_subscriber = PubSubBuilder.Subscriber(ctx, setup["zmq"]["jetson"]["imu"]["server"], 
-                                                   setup["zmq"]["jetson"]["imu"]["port"])
-    imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
-                gyr_x=0., gyr_y=0., gyr_z=0.,
-                time=0.)
-
-    vicon_subscriber = PubSubBuilder.Subscriber(ctx, setup["zmq"]["jetson"]["vicon"]["server"], 
-                                                     setup["zmq"]["jetson"]["vicon"]["port"])
-    vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
-                    quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                    time=0.)
-    
-    
-    state_publisher = PubSubBuilder.Publisher(ctx, setup["zmq"]["jetson"]["filtered_state"]["server"],
-                                                   setup["zmq"]["jetson"]["filtered_state"]["port"])
-    state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                            quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                            vel_x=0., vel_y=0., vel_z=0.,
-                            ang_x=0., ang_y=0., ang_z=0.,
-                            time=0.)
-
-    FilterNode([state_publisher], [imu_subscriber, vicon_subscriber])
-end
-
-function setup(node::FilterNode)
-    PubSubBuilder.publish(node.pubs[1], node.state_msg)
-    imu_task = @task PubSubBuilder.subscribe(node.subs[1], node.imu_msg)
-    vicon_task = @task PubSubBuilder.subscribe(node.subs[2], node.vicon_msg)
-    schedule(imu_task)
-    schedule(vicon_task)
-end
-
-function compute(node::FilterNode)
-
 end

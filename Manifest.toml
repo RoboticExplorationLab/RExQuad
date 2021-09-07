@@ -265,6 +265,14 @@ version = "0.8.5"
 deps = ["ArgTools", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
+[[EKF]]
+deps = ["LinearAlgebra", "StaticArrays"]
+git-tree-sha1 = "dd834bba85bf9e1e76f12aba5c44fe791242ce60"
+repo-rev = "main"
+repo-url = "https://github.com/ChiyenLee/EKF.jl.git"
+uuid = "d5e0a3f0-3bda-4115-8460-3cc1075ba414"
+version = "0.1.0"
+
 [[EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "3f3a2501fa7236e9b911e0f7a588c657e822bb6d"
