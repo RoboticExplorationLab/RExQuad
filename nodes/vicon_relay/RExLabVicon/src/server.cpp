@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 
 	if (argc != 5) {
 		std::cerr << "You need to supply four arguments to this program!\n"
-					 "(rigid body name, publisher ip, subscriber ip, subscriber port #)"
+					 "(subscriber ip, rigid body name, publisher ip, publisher port #)"
 				  << std::endl;
 		return -1;
 	}
@@ -28,10 +28,8 @@ int main(int argc, char *argv[]) {
 	char *rigid_body = argv[2];
 	char *pub_ip = argv[3];
 	char *pub_port = argv[4];
-	// char *pub_port = argv[4];
 
-	if (!viconZMQ.initialize(sub_ip, rigid_body, pub_ip, pub_port))
-	{
+	if (!viconZMQ.initialize(sub_ip, rigid_body, pub_ip, pub_port)) {
 		std::cerr << "Failed to init driver" << std::endl;
 	}
 	std::signal(SIGINT, signal_handler);
