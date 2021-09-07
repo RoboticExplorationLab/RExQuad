@@ -1,5 +1,33 @@
 
+"""
+    Node
 
+A independent process that communicates with other processes via pub/sub ZMQ channels.
+The process is assumed to run indefinately.
+
+# Defining a new Node
+Each node should contain a `NodeData` element, which stores a list of the publishers 
+and subscribers and some other associated data.
+
+The publisher and subscribers for the node should be "registered" with the `NodeData` 
+using the `add_publisher!` and `add_subscriber!` methods. This allows the subscribers to 
+be automatically launched as separate tasks when launching the nodes.
+
+The constructor for the node should initialize any variables and register the needed
+publishers and subscribers with `NodeData`.
+
+Each loop of the process will call the `compute` method once, which needs to be 
+implemented by the user. A lock for each subscriber task is created in `NodeData.sub_locks`.
+It's recommended that the user obtains the lock and copies the data into a local variable 
+for internal use by the `compute` function.
+
+# Launching the node
+The blocking process that runs the node indefinately is called via `run(node)`. It's 
+recommended that this is launched asynchronously via
+
+    node_task = @task run(node)
+    schedule(node_task)
+"""
 abstract type Node end
 
 startup(::Node) = nothing 
