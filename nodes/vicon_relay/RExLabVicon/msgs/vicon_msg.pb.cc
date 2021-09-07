@@ -92,9 +92,9 @@ void AddDescriptorsImpl() {
   InitDefaults();
   static const char descriptor[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
       "\n\017vicon_msg.proto\022\tmessaging\"\202\001\n\005VICON\022\r"
-      "\n\005pos_x\030\001 \001(\001\022\r\n\005pos_y\030\002 \001(\001\022\r\n\005pos_z\030\003 "
-      "\001(\001\022\016\n\006quat_w\030\004 \001(\001\022\016\n\006quat_x\030\005 \001(\001\022\016\n\006q"
-      "uat_y\030\006 \001(\001\022\016\n\006quat_z\030\007 \001(\001\022\014\n\004time\030\010 \001("
+      "\n\005pos_x\030\001 \001(\002\022\r\n\005pos_y\030\002 \001(\002\022\r\n\005pos_z\030\003 "
+      "\001(\002\022\016\n\006quat_w\030\004 \001(\002\022\016\n\006quat_x\030\005 \001(\002\022\016\n\006q"
+      "uat_y\030\006 \001(\002\022\016\n\006quat_z\030\007 \001(\002\022\014\n\004time\030\010 \001("
       "\001b\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
@@ -143,15 +143,15 @@ VICON::VICON(const VICON& from)
       _internal_metadata_(NULL) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
   ::memcpy(&pos_x_, &from.pos_x_,
-    static_cast<size_t>(reinterpret_cast<char*>(&time_) -
-    reinterpret_cast<char*>(&pos_x_)) + sizeof(time_));
+    static_cast<size_t>(reinterpret_cast<char*>(&quat_z_) -
+    reinterpret_cast<char*>(&pos_x_)) + sizeof(quat_z_));
   // @@protoc_insertion_point(copy_constructor:messaging.VICON)
 }
 
 void VICON::SharedCtor() {
   ::memset(&pos_x_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&time_) -
-      reinterpret_cast<char*>(&pos_x_)) + sizeof(time_));
+      reinterpret_cast<char*>(&quat_z_) -
+      reinterpret_cast<char*>(&pos_x_)) + sizeof(quat_z_));
 }
 
 VICON::~VICON() {
@@ -183,8 +183,8 @@ void VICON::Clear() {
   (void) cached_has_bits;
 
   ::memset(&pos_x_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&time_) -
-      reinterpret_cast<char*>(&pos_x_)) + sizeof(time_));
+      reinterpret_cast<char*>(&quat_z_) -
+      reinterpret_cast<char*>(&pos_x_)) + sizeof(quat_z_));
   _internal_metadata_.Clear();
 }
 
@@ -198,13 +198,13 @@ bool VICON::MergePartialFromCodedStream(
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // double pos_x = 1;
+      // float pos_x = 1;
       case 1: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(9u /* 9 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(13u /* 13 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                   float, ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>(
                  input, &pos_x_)));
         } else {
           goto handle_unusual;
@@ -212,13 +212,13 @@ bool VICON::MergePartialFromCodedStream(
         break;
       }
 
-      // double pos_y = 2;
+      // float pos_y = 2;
       case 2: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(17u /* 17 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(21u /* 21 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                   float, ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>(
                  input, &pos_y_)));
         } else {
           goto handle_unusual;
@@ -226,13 +226,13 @@ bool VICON::MergePartialFromCodedStream(
         break;
       }
 
-      // double pos_z = 3;
+      // float pos_z = 3;
       case 3: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(25u /* 25 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(29u /* 29 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                   float, ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>(
                  input, &pos_z_)));
         } else {
           goto handle_unusual;
@@ -240,13 +240,13 @@ bool VICON::MergePartialFromCodedStream(
         break;
       }
 
-      // double quat_w = 4;
+      // float quat_w = 4;
       case 4: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(33u /* 33 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(37u /* 37 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                   float, ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>(
                  input, &quat_w_)));
         } else {
           goto handle_unusual;
@@ -254,13 +254,13 @@ bool VICON::MergePartialFromCodedStream(
         break;
       }
 
-      // double quat_x = 5;
+      // float quat_x = 5;
       case 5: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(41u /* 41 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(45u /* 45 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                   float, ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>(
                  input, &quat_x_)));
         } else {
           goto handle_unusual;
@@ -268,13 +268,13 @@ bool VICON::MergePartialFromCodedStream(
         break;
       }
 
-      // double quat_y = 6;
+      // float quat_y = 6;
       case 6: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(49u /* 49 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(53u /* 53 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                   float, ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>(
                  input, &quat_y_)));
         } else {
           goto handle_unusual;
@@ -282,13 +282,13 @@ bool VICON::MergePartialFromCodedStream(
         break;
       }
 
-      // double quat_z = 7;
+      // float quat_z = 7;
       case 7: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(57u /* 57 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(61u /* 61 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                   float, ::google::protobuf::internal::WireFormatLite::TYPE_FLOAT>(
                  input, &quat_z_)));
         } else {
           goto handle_unusual;
@@ -336,39 +336,39 @@ void VICON::SerializeWithCachedSizes(
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // double pos_x = 1;
+  // float pos_x = 1;
   if (this->pos_x() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(1, this->pos_x(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteFloat(1, this->pos_x(), output);
   }
 
-  // double pos_y = 2;
+  // float pos_y = 2;
   if (this->pos_y() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(2, this->pos_y(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteFloat(2, this->pos_y(), output);
   }
 
-  // double pos_z = 3;
+  // float pos_z = 3;
   if (this->pos_z() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(3, this->pos_z(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteFloat(3, this->pos_z(), output);
   }
 
-  // double quat_w = 4;
+  // float quat_w = 4;
   if (this->quat_w() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(4, this->quat_w(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteFloat(4, this->quat_w(), output);
   }
 
-  // double quat_x = 5;
+  // float quat_x = 5;
   if (this->quat_x() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(5, this->quat_x(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteFloat(5, this->quat_x(), output);
   }
 
-  // double quat_y = 6;
+  // float quat_y = 6;
   if (this->quat_y() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(6, this->quat_y(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteFloat(6, this->quat_y(), output);
   }
 
-  // double quat_z = 7;
+  // float quat_z = 7;
   if (this->quat_z() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(7, this->quat_z(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteFloat(7, this->quat_z(), output);
   }
 
   // double time = 8;
@@ -390,39 +390,39 @@ void VICON::SerializeWithCachedSizes(
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // double pos_x = 1;
+  // float pos_x = 1;
   if (this->pos_x() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(1, this->pos_x(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteFloatToArray(1, this->pos_x(), target);
   }
 
-  // double pos_y = 2;
+  // float pos_y = 2;
   if (this->pos_y() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(2, this->pos_y(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteFloatToArray(2, this->pos_y(), target);
   }
 
-  // double pos_z = 3;
+  // float pos_z = 3;
   if (this->pos_z() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(3, this->pos_z(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteFloatToArray(3, this->pos_z(), target);
   }
 
-  // double quat_w = 4;
+  // float quat_w = 4;
   if (this->quat_w() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(4, this->quat_w(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteFloatToArray(4, this->quat_w(), target);
   }
 
-  // double quat_x = 5;
+  // float quat_x = 5;
   if (this->quat_x() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(5, this->quat_x(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteFloatToArray(5, this->quat_x(), target);
   }
 
-  // double quat_y = 6;
+  // float quat_y = 6;
   if (this->quat_y() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(6, this->quat_y(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteFloatToArray(6, this->quat_y(), target);
   }
 
-  // double quat_z = 7;
+  // float quat_z = 7;
   if (this->quat_z() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(7, this->quat_z(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteFloatToArray(7, this->quat_z(), target);
   }
 
   // double time = 8;
@@ -447,44 +447,44 @@ size_t VICON::ByteSizeLong() const {
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()));
   }
-  // double pos_x = 1;
+  // float pos_x = 1;
   if (this->pos_x() != 0) {
-    total_size += 1 + 8;
+    total_size += 1 + 4;
   }
 
-  // double pos_y = 2;
+  // float pos_y = 2;
   if (this->pos_y() != 0) {
-    total_size += 1 + 8;
+    total_size += 1 + 4;
   }
 
-  // double pos_z = 3;
+  // float pos_z = 3;
   if (this->pos_z() != 0) {
-    total_size += 1 + 8;
+    total_size += 1 + 4;
   }
 
-  // double quat_w = 4;
+  // float quat_w = 4;
   if (this->quat_w() != 0) {
-    total_size += 1 + 8;
+    total_size += 1 + 4;
   }
 
-  // double quat_x = 5;
+  // float quat_x = 5;
   if (this->quat_x() != 0) {
-    total_size += 1 + 8;
+    total_size += 1 + 4;
   }
 
-  // double quat_y = 6;
+  // float quat_y = 6;
   if (this->quat_y() != 0) {
-    total_size += 1 + 8;
-  }
-
-  // double quat_z = 7;
-  if (this->quat_z() != 0) {
-    total_size += 1 + 8;
+    total_size += 1 + 4;
   }
 
   // double time = 8;
   if (this->time() != 0) {
     total_size += 1 + 8;
+  }
+
+  // float quat_z = 7;
+  if (this->quat_z() != 0) {
+    total_size += 1 + 4;
   }
 
   int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
@@ -532,11 +532,11 @@ void VICON::MergeFrom(const VICON& from) {
   if (from.quat_y() != 0) {
     set_quat_y(from.quat_y());
   }
-  if (from.quat_z() != 0) {
-    set_quat_z(from.quat_z());
-  }
   if (from.time() != 0) {
     set_time(from.time());
+  }
+  if (from.quat_z() != 0) {
+    set_quat_z(from.quat_z());
   }
 }
 
@@ -570,8 +570,8 @@ void VICON::InternalSwap(VICON* other) {
   swap(quat_w_, other->quat_w_);
   swap(quat_x_, other->quat_x_);
   swap(quat_y_, other->quat_y_);
-  swap(quat_z_, other->quat_z_);
   swap(time_, other->time_);
+  swap(quat_z_, other->quat_z_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
 }
 

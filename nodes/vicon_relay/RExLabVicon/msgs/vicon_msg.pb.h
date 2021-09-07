@@ -146,47 +146,41 @@ class VICON : public ::google::protobuf::Message /* @@protoc_insertion_point(cla
 
   // accessors -------------------------------------------------------
 
-  // double pos_x = 1;
+  // float pos_x = 1;
   void clear_pos_x();
   static const int kPosXFieldNumber = 1;
-  double pos_x() const;
-  void set_pos_x(double value);
+  float pos_x() const;
+  void set_pos_x(float value);
 
-  // double pos_y = 2;
+  // float pos_y = 2;
   void clear_pos_y();
   static const int kPosYFieldNumber = 2;
-  double pos_y() const;
-  void set_pos_y(double value);
+  float pos_y() const;
+  void set_pos_y(float value);
 
-  // double pos_z = 3;
+  // float pos_z = 3;
   void clear_pos_z();
   static const int kPosZFieldNumber = 3;
-  double pos_z() const;
-  void set_pos_z(double value);
+  float pos_z() const;
+  void set_pos_z(float value);
 
-  // double quat_w = 4;
+  // float quat_w = 4;
   void clear_quat_w();
   static const int kQuatWFieldNumber = 4;
-  double quat_w() const;
-  void set_quat_w(double value);
+  float quat_w() const;
+  void set_quat_w(float value);
 
-  // double quat_x = 5;
+  // float quat_x = 5;
   void clear_quat_x();
   static const int kQuatXFieldNumber = 5;
-  double quat_x() const;
-  void set_quat_x(double value);
+  float quat_x() const;
+  void set_quat_x(float value);
 
-  // double quat_y = 6;
+  // float quat_y = 6;
   void clear_quat_y();
   static const int kQuatYFieldNumber = 6;
-  double quat_y() const;
-  void set_quat_y(double value);
-
-  // double quat_z = 7;
-  void clear_quat_z();
-  static const int kQuatZFieldNumber = 7;
-  double quat_z() const;
-  void set_quat_z(double value);
+  float quat_y() const;
+  void set_quat_y(float value);
 
   // double time = 8;
   void clear_time();
@@ -194,18 +188,24 @@ class VICON : public ::google::protobuf::Message /* @@protoc_insertion_point(cla
   double time() const;
   void set_time(double value);
 
+  // float quat_z = 7;
+  void clear_quat_z();
+  static const int kQuatZFieldNumber = 7;
+  float quat_z() const;
+  void set_quat_z(float value);
+
   // @@protoc_insertion_point(class_scope:messaging.VICON)
  private:
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  double pos_x_;
-  double pos_y_;
-  double pos_z_;
-  double quat_w_;
-  double quat_x_;
-  double quat_y_;
-  double quat_z_;
+  float pos_x_;
+  float pos_y_;
+  float pos_z_;
+  float quat_w_;
+  float quat_x_;
+  float quat_y_;
   double time_;
+  float quat_z_;
   mutable ::google::protobuf::internal::CachedSize _cached_size_;
   friend struct ::protobuf_vicon_5fmsg_2eproto::TableStruct;
 };
@@ -220,99 +220,99 @@ class VICON : public ::google::protobuf::Message /* @@protoc_insertion_point(cla
 #endif  // __GNUC__
 // VICON
 
-// double pos_x = 1;
+// float pos_x = 1;
 inline void VICON::clear_pos_x() {
   pos_x_ = 0;
 }
-inline double VICON::pos_x() const {
+inline float VICON::pos_x() const {
   // @@protoc_insertion_point(field_get:messaging.VICON.pos_x)
   return pos_x_;
 }
-inline void VICON::set_pos_x(double value) {
+inline void VICON::set_pos_x(float value) {
   
   pos_x_ = value;
   // @@protoc_insertion_point(field_set:messaging.VICON.pos_x)
 }
 
-// double pos_y = 2;
+// float pos_y = 2;
 inline void VICON::clear_pos_y() {
   pos_y_ = 0;
 }
-inline double VICON::pos_y() const {
+inline float VICON::pos_y() const {
   // @@protoc_insertion_point(field_get:messaging.VICON.pos_y)
   return pos_y_;
 }
-inline void VICON::set_pos_y(double value) {
+inline void VICON::set_pos_y(float value) {
   
   pos_y_ = value;
   // @@protoc_insertion_point(field_set:messaging.VICON.pos_y)
 }
 
-// double pos_z = 3;
+// float pos_z = 3;
 inline void VICON::clear_pos_z() {
   pos_z_ = 0;
 }
-inline double VICON::pos_z() const {
+inline float VICON::pos_z() const {
   // @@protoc_insertion_point(field_get:messaging.VICON.pos_z)
   return pos_z_;
 }
-inline void VICON::set_pos_z(double value) {
+inline void VICON::set_pos_z(float value) {
   
   pos_z_ = value;
   // @@protoc_insertion_point(field_set:messaging.VICON.pos_z)
 }
 
-// double quat_w = 4;
+// float quat_w = 4;
 inline void VICON::clear_quat_w() {
   quat_w_ = 0;
 }
-inline double VICON::quat_w() const {
+inline float VICON::quat_w() const {
   // @@protoc_insertion_point(field_get:messaging.VICON.quat_w)
   return quat_w_;
 }
-inline void VICON::set_quat_w(double value) {
+inline void VICON::set_quat_w(float value) {
   
   quat_w_ = value;
   // @@protoc_insertion_point(field_set:messaging.VICON.quat_w)
 }
 
-// double quat_x = 5;
+// float quat_x = 5;
 inline void VICON::clear_quat_x() {
   quat_x_ = 0;
 }
-inline double VICON::quat_x() const {
+inline float VICON::quat_x() const {
   // @@protoc_insertion_point(field_get:messaging.VICON.quat_x)
   return quat_x_;
 }
-inline void VICON::set_quat_x(double value) {
+inline void VICON::set_quat_x(float value) {
   
   quat_x_ = value;
   // @@protoc_insertion_point(field_set:messaging.VICON.quat_x)
 }
 
-// double quat_y = 6;
+// float quat_y = 6;
 inline void VICON::clear_quat_y() {
   quat_y_ = 0;
 }
-inline double VICON::quat_y() const {
+inline float VICON::quat_y() const {
   // @@protoc_insertion_point(field_get:messaging.VICON.quat_y)
   return quat_y_;
 }
-inline void VICON::set_quat_y(double value) {
+inline void VICON::set_quat_y(float value) {
   
   quat_y_ = value;
   // @@protoc_insertion_point(field_set:messaging.VICON.quat_y)
 }
 
-// double quat_z = 7;
+// float quat_z = 7;
 inline void VICON::clear_quat_z() {
   quat_z_ = 0;
 }
-inline double VICON::quat_z() const {
+inline float VICON::quat_z() const {
   // @@protoc_insertion_point(field_get:messaging.VICON.quat_z)
   return quat_z_;
 }
-inline void VICON::set_quat_z(double value) {
+inline void VICON::set_quat_z(float value) {
   
   quat_z_ = value;
   // @@protoc_insertion_point(field_set:messaging.VICON.quat_z)

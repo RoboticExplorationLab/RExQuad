@@ -78,7 +78,7 @@ extern const pb_msgdesc_t messaging_IMU_VICON_msg;
 #define messaging_IMU_VICON_fields &messaging_IMU_VICON_msg
 
 /* Maximum encoded size of messages (where known) */
-#define messaging_IMU_VICON_size                 139
+#define messaging_IMU_VICON_size                 111
 #define messaging_IMU_size                       63
 
 #ifdef __cplusplus
