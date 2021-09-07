@@ -1,4 +1,6 @@
 module RExQuad
+using TOML
+using ProtoBuf
 
 NUM_PUBS::Int64 = 1;
 function genpublishername()
@@ -13,6 +15,9 @@ function gensubscribername()
     return name
 end
 
+get_node_setup() = TOML.tryparsefile(joinpath("..","nodes","setup.toml"))
+
 include("PubSubBuilder.jl")
+include("node.jl")
 
 end  # module

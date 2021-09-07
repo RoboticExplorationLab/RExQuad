@@ -49,6 +49,8 @@ module PubSubBuilder
     function Publisher(ctx::ZMQ.Context, ipaddr, port::AbstractString; name=genpublishername())
         Publisher(ctx, IPv4(ipaddr), parse(Int, port))
     end
+    Base.isopen(pub::Publisher) = Base.isopen(pub.socket)
+    Base.close(pub::Publisher) = Base.close(pub.socket)
 
     function publish(pub::Publisher, proto_msg::ProtoBuf.ProtoType)
         # Encode the message with protobuf
@@ -132,6 +134,8 @@ module PubSubBuilder
     function Subscriber(ctx::ZMQ.Context, ipaddr, port::AbstractString; name=gensubscribername())
         Subscriber(ctx, IPv4(ipaddr), parse(Int, port))
     end
+    Base.isopen(sub::Subscriber) = Base.isopen(sub.socket)
+    Base.close(sub::Subscriber) = Base.close(sub.socket)
 
     function subscribe(sub::Subscriber, proto_msg::ProtoBuf.ProtoType)
         @info "Listening for message type: $(typeof(proto_msg)), on: tcp://$sub_ip:$sub_port"
