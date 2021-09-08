@@ -8,6 +8,7 @@ module ImuViconPublisher
     using SerialCOBS
     using StaticArrays
     using Rotations: RotXYZ
+    using Printf
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -45,6 +46,10 @@ module ImuViconPublisher
 
         try
             open(ard) do sp
+
+                cnt = 0
+                last_time = time()
+
                 while true
                     if bytesavailable(ard) > 0 # >= msg_size
                         try
@@ -59,9 +64,17 @@ module ImuViconPublisher
                             imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
 
                             if debug
-                                println("IMU: ", imu_vicon.imu.acc_x, ", ", imu_vicon.imu.acc_y, ", ", imu_vicon.imu.acc_z)
-                                println("VICON: ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x, ", ", imu_vicon.vicon.pos_x)
-                                println()
+                                @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
+                                        imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z)
+                                @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                                        imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x)
+
+                                if cnt % 100 == 0
+                                    loop_run_rate = 100 / (time() - last_time)
+                                    println("imu_vicon_publisher Frequency (Hz): ", loop_run_rate)
+                                    last_time = time()
+                                end
+                                cnt += 1
                             end
 
                             if imu_vicon.vicon.time > vicon_time
@@ -77,10 +90,9 @@ module ImuViconPublisher
                         end
                     end
 
-                    sleep(rate)
+                    sleep(0.0001)
                     GC.gc(false)
                 end
-
             end
         catch e
             close(imu_pub)

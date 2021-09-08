@@ -67,23 +67,36 @@ module JetsonLink
         iob = IOBuffer()
 
         try
-            # Wait until we start hearing the heartbeat
-            while abs(ground_info.time - time()) > 2.0
-                sleep(0.1)
+            if (debug)
+                println("Waiting for consitstent Heartbeat")
             end
-            ground_info_time = time()
+
+            # Wait until we've heard 100
+            # cnt = 0
+            # while cnt < 500
+            #     while ground_info_time == ground_info.time
+            #         sleep(0.1)
+            #     end
+            #     ground_info_time = ground_info.time
+            #     cnt += 1
+            # end
+
+            if (debug)
+                println("Consistent Heartbeat established")
+            end
+
+            cnt = 0
+            last_time = time()
 
             while true
                 if (debug)
-                    println("Msg time: ", ground_info.time,
-                            "Current time: ", time(),
-                            "Time difference: ", abs(time() - ground_info_time))
+                    println("Time since last heartbeat: ", abs(ground_info_time - ground_info.time))
                 end
 
-                if abs(time() - ground_info.time) > 2.0
-                    # If haven't heard from ground in more than a second kill
-                    error("\nDeadman switched off!!\n")
-                end
+                # if abs(time() - ground_info.time) > 5.0
+                #     # If haven't heard from ground in more than a second kill
+                #     error("\nDeadman switched off!!\n")
+                # end
                 ground_info_time = ground_info.time
 
                 pub = true
@@ -104,7 +117,16 @@ module JetsonLink
 
                 if pub
                     quad_info.time = time()
-                    if (debug) println("Published QuadInfo message to ground station") end
+                    if (debug)
+                        println("Published QuadInfo message to ground station")
+
+                        if cnt % 100 == 0
+                            loop_run_rate = 100 / (time() - last_time)
+                            println("jetson_link Frequency (Hz): ", loop_run_rate)
+                            last_time = time()
+                        end
+                        cnt += 1
+                    end
 
                     publish(quad_pub, quad_info)
                 end
@@ -145,7 +167,7 @@ module JetsonLink
                                vicon_ip, vicon_port,
                                quad_info_ip, quad_info_port,
                                ground_info_ip, ground_info_port;
-                               freq=20, debug=debug)
+                               freq=50, debug=debug)
         return Threads.@spawn link_pub()
     end
 end

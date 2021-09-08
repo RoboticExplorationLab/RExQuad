@@ -11,13 +11,13 @@
 
 /* Struct definitions */
 typedef struct _messaging_VICON { 
-    double pos_x; 
-    double pos_y; 
-    double pos_z; 
-    double quat_w; 
-    double quat_x; 
-    double quat_y; 
-    double quat_z; 
+    float pos_x; 
+    float pos_y; 
+    float pos_z; 
+    float quat_w; 
+    float quat_x; 
+    float quat_y; 
+    float quat_z; 
     double time; 
 } messaging_VICON;
 
@@ -42,13 +42,13 @@ extern "C" {
 
 /* Struct field encoding specification for nanopb */
 #define messaging_VICON_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, DOUBLE,   pos_x,             1) \
-X(a, STATIC,   SINGULAR, DOUBLE,   pos_y,             2) \
-X(a, STATIC,   SINGULAR, DOUBLE,   pos_z,             3) \
-X(a, STATIC,   SINGULAR, DOUBLE,   quat_w,            4) \
-X(a, STATIC,   SINGULAR, DOUBLE,   quat_x,            5) \
-X(a, STATIC,   SINGULAR, DOUBLE,   quat_y,            6) \
-X(a, STATIC,   SINGULAR, DOUBLE,   quat_z,            7) \
+X(a, STATIC,   SINGULAR, FLOAT,    pos_x,             1) \
+X(a, STATIC,   SINGULAR, FLOAT,    pos_y,             2) \
+X(a, STATIC,   SINGULAR, FLOAT,    pos_z,             3) \
+X(a, STATIC,   SINGULAR, FLOAT,    quat_w,            4) \
+X(a, STATIC,   SINGULAR, FLOAT,    quat_x,            5) \
+X(a, STATIC,   SINGULAR, FLOAT,    quat_y,            6) \
+X(a, STATIC,   SINGULAR, FLOAT,    quat_z,            7) \
 X(a, STATIC,   SINGULAR, DOUBLE,   time,              8)
 #define messaging_VICON_CALLBACK NULL
 #define messaging_VICON_DEFAULT NULL
@@ -59,7 +59,7 @@ extern const pb_msgdesc_t messaging_VICON_msg;
 #define messaging_VICON_fields &messaging_VICON_msg
 
 /* Maximum encoded size of messages (where known) */
-#define messaging_VICON_size                     72
+#define messaging_VICON_size                     44
 
 #ifdef __cplusplus
 } /* extern "C" */

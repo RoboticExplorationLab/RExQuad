@@ -54,13 +54,11 @@ module FilteredStatePublisher
         state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
         iob = IOBuffer()
 
-        # pritnln(@__LINE__)
-
         # Setup the EKF filter
         est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
         est_cov = Matrix(2.2 * I(length(ImuError)))
-        process_cov = Matrix(2.2 * I(length(ImuError)))
-        measure_cov = Matrix(2.2 * I(length(ViconError)))
+        process_cov = Matrix(0.5 * I(length(ImuError)))
+        measure_cov = Matrix(0.005 * I(length(ViconError)))
 
         ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov,
                                                                                 process_cov, measure_cov)
@@ -69,19 +67,10 @@ module FilteredStatePublisher
         filtering = false
 
         try
+            cnt = 0
+            last_time = time()
+
             while true
-                # Prediction
-                # if debug
-                #     @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
-                #             imu.acc_x, imu.acc_y, imu.acc_z)
-                #     @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                #             vicon.pos_x, vicon.pos_y, vicon.pos_z)
-
-                #     @printf("IMU time: \t%1.3f\n", imu.time)
-                #     @printf("Vicon time: \t%1.3f\n", vicon.time)
-                # end
-
-
                 if imu.time > imu_time
                     dt = imu.time - imu_time
 
@@ -112,17 +101,23 @@ module FilteredStatePublisher
                         publish(state_pub, state, iob)
 
                         if (debug)
+                            if cnt % 100 == 0
+                                loop_run_rate = 100 / (time() - last_time)
+                                println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
+                                last_time = time()
+                            end
+                            cnt += 1
+
                             @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
                                     state.pos_x, state.pos_y, state.pos_z)
                             @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
                                     state.quat_w, state.quat_x, state.quat_y, state.quat_z)
                         end
                     end
-
                 end
 
-                sleep(rate)
-                GC.gc(false) # TODO: hopefully get rid of this
+                sleep(0.0001)
+                GC.gc(false)
             end
         catch e
             close(state_pub)

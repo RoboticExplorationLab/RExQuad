@@ -1,8 +1,8 @@
 title = "MocapZMQ"
 
 [vicon]
-    server = "192.168.3.194"
-    subject = "UnitreeA1"
+    server = "192.168.3.249"
+    subject = "rex1"
 
 [zmq]
     [zmq.jetson]
@@ -24,8 +24,8 @@ title = "MocapZMQ"
 
     [zmq.ground]
         [zmq.ground.vicon]
-            server = "127.0.0.2"
-            port = "5002"
+            server = "127.0.0.1"
+            port = "5001"
         [zmq.ground.ground_info]
             server = "192.168.3.117"
             port = "5006"

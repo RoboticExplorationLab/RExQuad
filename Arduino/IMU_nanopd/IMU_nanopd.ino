@@ -14,6 +14,8 @@
 // #define DEBUG (true)
 #define DEBUG (false)
 
+#define MAX_FREQ (125)
+
 // #define FORCE_CALI (true)
 #define FORCE_CALI (false)
 
@@ -41,9 +43,14 @@ PacketSerial viconPacketSerial;
 
 void onViconRecieved(const uint8_t *buffer, size_t size);
 
-void sendMessage(PacketSerial &myPacketSerial, messaging_IMU &mes);
-void sendMessage(PacketSerial &myPacketSerial, messaging_VICON &mes);
+// void sendMessage(PacketSerial &myPacketSerial, messaging_IMU &mes);
+// void sendMessage(PacketSerial &myPacketSerial, messaging_VICON &mes);
 void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON &mes);
+
+long cnt = 0;
+unsigned long last_time = micros(); 
+unsigned long start_time = micros(); 
+
 
 
 void setup() {
@@ -74,24 +81,32 @@ void setup() {
 }
 
 void loop() {
+    start_time = micros();
+
     jetsonPacketSerial.update();
     viconPacketSerial.update();
-
-    bno.getEvent(&imu_event);
-    
-    if (DEBUG) { displaySensorReading(bno); }
-
-    getImuInput(bno, IMU_input);
-
-    IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
-    sendMessage(jetsonPacketSerial, IMU_VICON_message);
     
     if (jetsonPacketSerial.overflow() || viconPacketSerial.overflow()) {
-    // if (jetsonPacketSerial.overflow()) {
         digitalWrite(LED_PIN, HIGH);
     }
     else {
         digitalWrite(LED_PIN, LOW);
+    }
+
+    // Delay if we are going faster than the target frequency
+    float target_loop_time = 1 / (double) MAX_FREQ;
+    float actual_loop_time = ((micros() - start_time) * 1e-6);
+
+    // Serial.print("Actual loop time: ");
+    // Serial.print(actual_loop_time);
+    // Serial.print(", Target loop time: ");
+    // Serial.println(target_loop_time);
+
+    if (actual_loop_time < target_loop_time) {
+        int slow_down = (int) ((target_loop_time - actual_loop_time) * 1000.0);
+        // Serial.print("Delayed by (Micro): ");
+        // Serial.println(slow_down);
+        delay(slow_down);
     }
 }
 
@@ -99,26 +114,44 @@ void loop() {
  * Relay the message over from Holybro to Jetson
  */
 void onViconRecieved(const uint8_t *buffer, size_t size) {
+    // Read in Vicon measurement
     pb_istream_t stream = pb_istream_from_buffer(buffer, size);
     int status = pb_decode(&stream, messaging_VICON_fields, &VICON_measurement);
     if (!status) {
-        Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
+        if (DEBUG) { Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream)); };
     }
+
+    // Read in IMU measurement 
+    bno.getEvent(&imu_event);
+    
+    if (DEBUG) { displaySensorReading(bno); }
+    getImuInput(bno, IMU_input);
+
+    // Send IMU/Vicon Message 
+    IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
+    sendJetsonMessage(IMU_VICON_message);
 }
 
 /*
  * Relay the message over from Holybro to Jetson
  */
-void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON & mes) {
+void sendJetsonMessage(messaging_IMU_VICON & mes) {
     /* Create a stream that will write to our buffer. */
     pb_ostream_t stream = pb_ostream_from_buffer(imu_vicon_buffer, imu_vicon_buffer_length);
 
     int status = pb_encode(&stream, messaging_IMU_VICON_fields, &mes);
     if (!status) {
-        Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream));
+        if (DEBUG) { Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream)); };
     }
     else {
         int message_length = stream.bytes_written;
-        myPacketSerial.send(imu_vicon_buffer, message_length);
+        jetsonPacketSerial.send(imu_vicon_buffer, message_length);
     }
+
+    // if (cnt % 100 == 0) {
+    //     Serial.print("Loop frequency: ");
+    //     Serial.println(100.0 / ((micros() - last_time) * 1e-6));
+    //     last_time = micros();
+    // }   
+    // cnt += 1;
 }

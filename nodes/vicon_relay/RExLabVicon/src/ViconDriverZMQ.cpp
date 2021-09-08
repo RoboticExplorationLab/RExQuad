@@ -49,8 +49,6 @@ void ViconDriverZMQ::vicon_callback(vicon_result_t res) {
 			vicon_.set_quat_x(vicon_pose.quat[1]);
 			vicon_.set_quat_y(vicon_pose.quat[2]);
 			vicon_.set_quat_z(vicon_pose.quat[3]);
-
-			std::cout << "Position x: " << vicon_pose.pos[0] << "\n";
 		}
 	}
 	vicon_.set_time(res.time);

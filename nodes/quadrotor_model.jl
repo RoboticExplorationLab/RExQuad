@@ -1,4 +1,3 @@
-using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using RobotDynamics
 using Rotations
 using StaticArrays
@@ -141,8 +140,8 @@ function gen_quadrotormodel()
 end
 
 function statemsg2vector(x::FILTERED_STATE)
-   SA[state.pos_x, state.pos_y, state.pos_z, 
-      state.quat_w, state.quat_x, state.quat_y, state_.quat_z,
-      state.vel_x, state.vel_y, state.vel_z,
-      state.ang_x, state.ang_y, state.ang_z]
+   SA[x.pos_x, x.pos_y, x.pos_z,
+      x.quat_w, x.quat_x, x.quat_y, x.quat_z,
+      x.vel_x, x.vel_y, x.vel_z,
+      x.ang_x, x.ang_y, x.ang_z]
 end

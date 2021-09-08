@@ -7,10 +7,7 @@ module PubSubBuilder
 
     function create_sub(ctx::ZMQ.Context, sub_ip::String, sub_port::String)::ZMQ.Socket
         s = Socket(ctx, SUB)
-        
 
-        # setsockopt(s, ZMQ_CONFLATE, &conflate, sizeof(conflate) )
-        
         ZMQ.subscribe(s)
         ZMQ.connect(s, "tcp://$sub_ip:$sub_port")
 
