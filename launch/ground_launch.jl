@@ -3,14 +3,11 @@ begin
     using Pkg
     Pkg.activate("$(@__DIR__)/..")
 
-    # include("$(@__DIR__)/../nodes/vicon_relay/vicon_relay_debug.jl")
-    # vicon_relay_thread = ViconRelayDebug.main(; debug=false)
-
     include("$(@__DIR__)/../nodes/vicon_relay/vicon_relay.jl")
     vicon_relay_thread = ViconRelay.main(; debug=false)
 
     include("$(@__DIR__)/../nodes/ground_link/ground_link.jl")
-    ground_link_thread = GroundLink.main(; debug=false)
+    ground_link_thread = GroundLink.main(; debug=true)
 
     try
         while true

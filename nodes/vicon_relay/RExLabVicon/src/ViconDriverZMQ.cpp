@@ -40,8 +40,6 @@ void ViconDriverZMQ::finalize() {
 
 void ViconDriverZMQ::vicon_callback(vicon_result_t res) {
 	for (const auto& vicon_pose : res.data) {
-		std::cout << vicon_pose.subject << "\n";
-
 		if (! (vicon_pose.subject).compare(rigid_body_name_)) {
 			vicon_.set_pos_x(vicon_pose.pos[0]);
 			vicon_.set_pos_y(vicon_pose.pos[1]);

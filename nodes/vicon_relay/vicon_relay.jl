@@ -34,6 +34,9 @@ module ViconRelay
         iob = PipeBuffer();
 
         try
+            cnt = 0
+            last_time = time()
+
             open(ard) do sp
                 while true
                     if vicon.time > vicon_time
@@ -46,9 +49,19 @@ module ViconRelay
 
                         writeproto(iob, vicon);
                         message(ard, take!(iob))
+
+                        if (debug)
+                            if cnt % 100 == 0
+                                loop_run_rate = 100 / (time() - last_time)
+                                println("vicon_relay Frequency (Hz): ", loop_run_rate)
+                                last_time = time()
+                            end
+                            cnt += 1
+                        end
                     end
 
                     sleep(rate)
+                    GC.gc(false)
                 end
             end
         catch e
@@ -71,7 +84,9 @@ module ViconRelay
         zmq_vicon_ip = setup_dict["zmq"]["ground"]["vicon"]["server"]
         zmq_vicon_port = setup_dict["zmq"]["ground"]["vicon"]["port"]
 
-        println("$(@__DIR__)/RExLabVicon/build/vicon_pub $vicon_ip $vicon_subject $zmq_vicon_ip $zmq_vicon_port")
+        if (debug)
+            println("$(@__DIR__)/RExLabVicon/build/vicon_pub $vicon_ip $vicon_subject $zmq_vicon_ip $zmq_vicon_port")
+        end
 
         # Run the CPP ViconDriverZMQ file
         vicon_process = run(`$(@__DIR__)/RExLabVicon/build/vicon_pub $vicon_ip $vicon_subject $zmq_vicon_ip $zmq_vicon_port`, wait=false)
