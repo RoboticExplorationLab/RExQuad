@@ -46,7 +46,7 @@ module ImuViconPublisher
 
         try
             open(ard) do sp
-                
+
                 cnt = 0
                 last_time = time()
 
@@ -68,6 +68,13 @@ module ImuViconPublisher
                                         imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z)
                                 @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
                                         imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x)
+
+                                if cnt % 100 == 0
+                                    loop_run_rate = 100 / (time() - last_time)
+                                    println("imu_vicon_publisher Frequency (Hz): ", loop_run_rate)
+                                    last_time = time()
+                                end
+                                cnt += 1
                             end
 
                             if imu_vicon.vicon.time > vicon_time
@@ -75,13 +82,6 @@ module ImuViconPublisher
                                 publish(vicon_pub, imu_vicon.vicon)
                             end
                             publish(imu_pub, imu_vicon.imu)
-
-                            if cnt % 100 == 0
-                                loop_run_rate = 100 / (time() - last_time)
-                                println("imu_vicon_publisher Frequency (Hz): ", loop_run_rate)
-                                last_time = time()
-                            end
-                            cnt += 1
 
                         catch e
                             if e isa InterruptException  # clean up

@@ -99,15 +99,15 @@ module FilteredStatePublisher
                         state.time = time()
 
                         publish(state_pub, state, iob)
-                        
-                        if cnt % 100 == 0
-                            loop_run_rate = 100 / (time() - last_time)
-                            println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
-                            last_time = time()
-                        end
-                        cnt += 1
 
                         if (debug)
+                            if cnt % 100 == 0
+                                loop_run_rate = 100 / (time() - last_time)
+                                println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
+                                last_time = time()
+                            end
+                            cnt += 1
+
                             @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
                                     state.pos_x, state.pos_y, state.pos_z)
                             @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",

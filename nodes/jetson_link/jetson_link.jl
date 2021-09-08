@@ -117,16 +117,18 @@ module JetsonLink
 
                 if pub
                     quad_info.time = time()
-                    if (debug) println("Published QuadInfo message to ground station") end
+                    if (debug)
+                        println("Published QuadInfo message to ground station")
+
+                        if cnt % 100 == 0
+                            loop_run_rate = 100 / (time() - last_time)
+                            println("jetson_link Frequency (Hz): ", loop_run_rate)
+                            last_time = time()
+                        end
+                        cnt += 1
+                    end
 
                     publish(quad_pub, quad_info)
-
-                    if cnt % 100 == 0
-                        loop_run_rate = 100 / (time() - last_time)
-                        println("jetson_link Frequency (Hz): ", loop_run_rate)
-                        last_time = time()
-                    end
-                    cnt += 1
                 end
 
                 sleep(rate)
