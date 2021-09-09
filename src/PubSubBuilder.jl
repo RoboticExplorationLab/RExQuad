@@ -5,6 +5,8 @@ module PubSubBuilder
     using Sockets
     using Logging
 
+    using RExQuad: genpublishername, gensubscribername
+
     export create_sub, create_pub, subscriber_thread, publish
 
     """
@@ -37,17 +39,20 @@ module PubSubBuilder
         buffer::IOBuffer
         name::String
         function Publisher(ctx::ZMQ.Context, ipaddr::IPv4, port::Integer; name=genpublishername())
-            socket = ZMQ.Socket(ctx, ZMQ.SUB)
+            socket = ZMQ.Socket(ctx, ZMQ.PUB)
             ZMQ.bind(socket, "tcp://$ipaddr:$port")
-            @info "Publishing $name on: tcp://$ipaddr:$port"
-            new(socket, port, ipaddr, IOBuffer, name)
+            @info "Publishing $name on: tcp://$ipaddr:$port, isopen = $(isopen(socket))"
+            new(socket, port, ipaddr, IOBuffer(), name)
         end
     end
     function Publisher(ctx::ZMQ.Context, ipaddr, port::Integer; name=genpublishername())
-        Publisher(ctx, IPv4(ipaddr), port)
+        Publisher(ctx, IPv4(ipaddr), port, name=name)
     end
     function Publisher(ctx::ZMQ.Context, ipaddr, port::AbstractString; name=genpublishername())
-        Publisher(ctx, IPv4(ipaddr), parse(Int, port))
+        Publisher(ctx, IPv4(ipaddr), parse(Int, port), name=name)
+    end
+    function Publisher(pub::Publisher)
+        return pub
     end
     Base.isopen(pub::Publisher) = Base.isopen(pub.socket)
     Base.close(pub::Publisher) = Base.close(pub.socket)
@@ -121,24 +126,27 @@ module PubSubBuilder
         buffer::IOBuffer
         name::String
         function Subscriber(ctx::ZMQ.Context, ipaddr::IPv4, port::Integer; name=gensubscribername())
-            socket = ZMQ.Socket(ctx, ZMQ.PUB)
+            socket = ZMQ.Socket(ctx, ZMQ.SUB)
             ZMQ.subscribe(socket)
             ZMQ.connect(socket, "tcp://$ipaddr:$port")
             @info "Subscribing $name to: tcp://$ipaddr:$port"
-            new(socket, port, ipaddr, IOBuffer, name)
+            new(socket, port, ipaddr, IOBuffer(), name)
         end
     end
     function Subscriber(ctx::ZMQ.Context, ipaddr, port::Integer; name=gensubscribername())
-        Subscriber(ctx, IPv4(ipaddr), port)
+        Subscriber(ctx, IPv4(ipaddr), port, name=name)
     end
     function Subscriber(ctx::ZMQ.Context, ipaddr, port::AbstractString; name=gensubscribername())
-        Subscriber(ctx, IPv4(ipaddr), parse(Int, port))
+        Subscriber(ctx, IPv4(ipaddr), parse(Int, port), name=name)
+    end
+    function Subscriber(sub::Subscriber)
+        return sub
     end
     Base.isopen(sub::Subscriber) = Base.isopen(sub.socket)
     Base.close(sub::Subscriber) = Base.close(sub.socket)
 
     function subscribe(sub::Subscriber, proto_msg::ProtoBuf.ProtoType, write_lock = ReentrantLock())
-        @info "Listening for message type: $(typeof(proto_msg)), on: tcp://$sub_ip:$sub_port"
+        @info "Listening for message type: $(typeof(proto_msg)), on: tcp://$(string(sub.ipaddr)):$(sub.port)"
         try
             while true
                 bin_data = ZMQ.recv(sub)

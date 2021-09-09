@@ -32,7 +32,7 @@ abstract type Node end
 
 startup(::Node) = nothing 
 compute(::Node) = throw(ErrorException("Compute hasn't been implemented on your node yet!"))
-getdata(node::Node)::NoteData = node.data
+getdata(node::Node)::NodeData = node.data
 
 struct PublishedMessage 
     msg::ProtoBuf.ProtoType
@@ -50,8 +50,15 @@ mutable struct NodeData
     sub_locks::Vector{ReentrantLock}
     frequency::Float64  # Hz
 end
-add_publisher!(data::NodeData, msg::ProtoBuf.ProtoType, args...) = 
+function NodeData(; frequency = 200)
+    NodeData(PublishedMessage[], SubscribedMessage[], ReentrantLock[], frequency)
+end
+
+
+function add_publisher!(data::NodeData, msg::ProtoBuf.ProtoType, args...) 
     push!(data.publishers, PublishedMessage(msg, PubSubBuilder.Publisher(args...)))
+    @show isopen(data.publishers[end].pub)
+end
 
 function add_subscriber!(data::NodeData, msg::ProtoBuf.ProtoType, args...)
     push!(data.sub_locks, ReentrantLock())
@@ -59,10 +66,10 @@ function add_subscriber!(data::NodeData, msg::ProtoBuf.ProtoType, args...)
 end
 
 function run(node::Node)
-    rate = 1 / frequency(node)
+    nodedata = getdata(node)
+    rate = 1 /  nodedata.frequency
 
     # Launch the subscriber tasks asynchronously
-    nodedata = getdata(node)
     for (i,sub_msg) in enumerate(nodedata.subscribers)
         sub_task = @task PubSubBuilder.subscribe(sub_msg.sub, sub_msg.msg, nodedata.sub_locks[i]) 
         schedule(sub_task)
@@ -79,13 +86,17 @@ function run(node::Node)
             GC.gc(false)
         end
     catch e
-        for pub in publishers(node)
+        for pub in nodedata.publishers
             close(pub)
         end
-        for sub in subscribers(node)
+        for sub in nodedata.subscribers 
             close(sub)
         end
 
-        rethrow(e)
+        if e isa InterruptException
+            println("Closing thread")
+        else
+            rethrow(e)
+        end
     end
 end
