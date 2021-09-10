@@ -59,3 +59,12 @@ function TrajOptPlots.visualize!(vis, model::RobotZoo.Quadrotor, x::StaticVector
     end
     TrajOptPlots.visualize!(vis, xbar, addrobot)
 end
+
+function add_copy!(vis::QuadVisualizer)
+    TrajOptPlots.set_mesh!(vis.vis["copy"], vis.model, color=colorant"blue")
+end
+
+function TrajOptPlots.visualize!(vis::QuadVisualizer, x::AbstractVector, x2::AbstractVector)
+    TrajOptPlots.visualize!(vis.vis, vis.model, x)
+    TrajOptPlots.visualize!(vis.vis["copy"], vis.model, x2)
+end

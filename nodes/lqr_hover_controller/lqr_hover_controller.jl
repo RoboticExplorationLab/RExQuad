@@ -19,7 +19,7 @@ module LqrHoverController
 
     """
         read_LQR_gain_from_file()
-    
+
     Reads the hover LQR gain from the data file.
     """
     function read_LQR_gain_from_file()::SMatrix{4,12,Float64,48}
@@ -35,7 +35,7 @@ module LqrHoverController
                              freq::Int64=200, debug::Bool=false)
         ctx = Context(1)
 
-        # Subscribe to the filtered state 
+        # Subscribe to the filtered state
         state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
                                quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                                vel_x=0., vel_y=0., vel_z=0.,
@@ -68,12 +68,12 @@ module LqrHoverController
                 # Prediction
                 if state.time > state_time
                     # TODO: Run controller here
-                    x = SA[state.pos_x, state.pos_y, state.pos_z, 
+                    x = SA[state.pos_x, state.pos_y, state.pos_z,
                            state.quat_w, state.quat_x, state.quat_y, state_.quat_z,
                            state.vel_x, state.vel_y, state.vel_z,
                            state.ang_x, state.ang_y, state.ang_z]
                     dx = RobotDynamics.state_diff(model, x, x0) # uses Cayley map by default
-                    du = K*dx
+                    du = K * dx
                     u = du + uhover
                     # controller()
 

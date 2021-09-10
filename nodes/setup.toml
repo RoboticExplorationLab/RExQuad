@@ -7,7 +7,7 @@ title = "MocapZMQ"
 [zmq]
     [zmq.jetson]
         [zmq.jetson.vicon]
-            server = "127.0.0.1"
+            server = "192.168.3.116" # "127.0.0.1"
             port = "5002"
         [zmq.jetson.imu]
             server = "127.0.0.1"
@@ -19,12 +19,12 @@ title = "MocapZMQ"
             server = "127.0.0.1"
             port = "5005"
         [zmq.jetson.quad_info]
-            server = "192.168.3.116"
+            server = "192.168.3.150"
             port = "5006"
 
     [zmq.ground]
         [zmq.ground.vicon]
-            server = "127.0.0.1"
+            server = "192.168.3.117" # "127.0.0.1"
             port = "5001"
         [zmq.ground.ground_info]
             server = "192.168.3.117"
