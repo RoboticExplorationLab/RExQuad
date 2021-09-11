@@ -3,6 +3,7 @@ module ViconRelayDebug
     using ZMQ
     using ProtoBuf
     using SerialCOBS
+    using Printf
 
     include("$(@__DIR__)/../utils/PubSubBuilder.jl")
     using .PubSubBuilder
@@ -14,7 +15,7 @@ module ViconRelayDebug
                          serial_port::String, baud_rate::Int;
                          freq::Int64=200, debug::Bool=false)
         ctx = Context(1)
-        rate = 1/freq
+        # rate = 1/freq
         ard = Arduino(serial_port, baud_rate);
 
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
@@ -22,22 +23,41 @@ module ViconRelayDebug
                       time=time())
         iob = PipeBuffer()
 
+        cnt = 0
+        start_time = time()
+
+        open(ard)
         try
-            open(ard) do sp
-                while true
-                    vicon.pos_x, vicon.pos_y, vicon.pos_z = 0., 0., 0.
-                    vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z = 1., 0., 0., 0.
-                    vicon.time = time()
-                    msg_size = writeproto(iob, vicon);
+            # while true
+                vicon.pos_x, vicon.pos_y, vicon.pos_z = 0., 0., 0.
+                vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z = 1., 0., 0., 0.
+                vicon.time = time()
 
-                    message(ard, take!(iob))
+                message(ard, vicon)
+                println(time())
 
-                    sleep(rate)
-                    GC.gc(false)
-                end
-            end
+                # if (debug)
+                #     @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
+                #             vicon.pos_x, vicon.pos_y, vicon.pos_z)
+                #     @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                #             vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
+                # end
+
+                # cnt += 1
+                # if cnt % 200 == 0
+                #     end_time = time()
+
+                #     println(200 / (start_time - end_time))
+                #     start_time = time()
+                # end
+
+                # sleep(rate)
+                GC.gc(false)
+            # end
         catch e
+            close(ard)
             close(ctx)
+
             if e isa InterruptException
                 println("Process terminated by you")
             else

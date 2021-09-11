@@ -51,44 +51,55 @@ module ImuViconPublisher
                 last_time = time()
 
                 while true
-                    if bytesavailable(ard) > 0 # >= msg_size
-                        try
-                            iob = IOBuffer(recieve(ard))
-                            readproto(iob, imu_vicon)
+                    if bytesavailable(ard) >= msg_size
+                        @printf("Bytes Avaliable: \t%d \t Msg Size: \t%d\n",
+                                bytesavailable(ard), msg_size)
 
-                            imu_vicon.imu.time = time()
-
-                            acc_vec = SA[imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z]
-                            gyr_vec = SA[imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z]
-                            imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z = Rot_imu_body * acc_vec
-                            imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
-
-                            if debug
-                                @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
-                                        imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z)
-                                @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                                        imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x)
-
-                                if cnt % 100 == 0
-                                    loop_run_rate = 100 / (time() - last_time)
-                                    println("imu_vicon_publisher Frequency (Hz): ", loop_run_rate)
-                                    last_time = time()
-                                end
-                                cnt += 1
-                            end
-
-                            if imu_vicon.vicon.time > vicon_time
-                                vicon_time = imu_vicon.vicon.time
-                                publish(vicon_pub, imu_vicon.vicon)
-                            end
-                            publish(imu_pub, imu_vicon.imu)
-
-                        catch e
-                            if e isa InterruptException  # clean up
-                                rethrow(e)
-                            end
-                        end
                     end
+                        # try
+                            # println(bytesavailable(ard))
+                            # println(recieve(ard))
+
+                            # println(@__LINE__)
+                            # msg = recieve(ard)
+                            # write(iob, msg)
+                            # readproto(iob, imu_vicon)
+                            # println(@__LINE__)
+                            # println(imu_vicon.imu.acc_x)
+
+                            # iob = IOBuffer(recieve(ard))
+                            # readproto(iob, imu_vicon)
+
+
+                            # println(imu_vicon)
+
+
+                            # imu_vicon.imu.time = time()
+
+                            # acc_vec = SA[imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z]
+                            # gyr_vec = SA[imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z]
+                            # imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z = Rot_imu_body * acc_vec
+                            # imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
+
+                            # if debug
+                            #     @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
+                            #             imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z)
+                            #     @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                            #             imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x, imu_vicon.vicon.pos_x)
+                            # end
+
+                            # if imu_vicon.vicon.time > vicon_time
+                            #     vicon_time = imu_vicon.vicon.time
+                            #     publish(vicon_pub, imu_vicon.vicon)
+                            # end
+                            # publish(imu_pub, imu_vicon.imu)
+
+                        # catch e
+                        #     if e isa InterruptException  # clean up
+                        #         rethrow(e)
+                        #     end
+                        # end
+                    # end
 
                     sleep(0.0001)
                     GC.gc(false)
@@ -111,12 +122,13 @@ module ImuViconPublisher
     function main(; debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
-        imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
-        imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
-        imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
-        vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
-        vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+        imu_serial_port = setup_dict["serial"]["ground"]["imu_arduino"]["serial_port"]
+        imu_baud_rate = setup_dict["serial"]["ground"]["imu_arduino"]["baud_rate"]
+
+        imu_ip = setup_dict["zmq"]["ground_arduino"]["imu"]["server"]
+        imu_port = setup_dict["zmq"]["ground_arduino"]["imu"]["port"]
+        vicon_ip = setup_dict["zmq"]["ground_arduino"]["vicon"]["server"]
+        vicon_port = setup_dict["zmq"]["ground_arduino"]["vicon"]["port"]
 
         imu_pub() = imu_vicon_publisher(imu_serial_port, imu_baud_rate,
                                         imu_ip, imu_port,

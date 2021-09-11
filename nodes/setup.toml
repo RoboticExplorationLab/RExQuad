@@ -7,7 +7,7 @@ title = "MocapZMQ"
 [zmq]
     [zmq.jetson]
         [zmq.jetson.vicon]
-            server = "192.168.3.116" # "127.0.0.1"
+            server = "127.0.0.1"
             port = "5002"
         [zmq.jetson.imu]
             server = "127.0.0.1"
@@ -25,10 +25,17 @@ title = "MocapZMQ"
     [zmq.ground]
         [zmq.ground.vicon]
             server = "192.168.3.117" # "127.0.0.1"
-            port = "5001"
+            port = "5002"
         [zmq.ground.ground_info]
             server = "192.168.3.117"
             port = "5006"
+        [zmq.ground_arduino.vicon]
+            server = "127.0.0.1"
+            port = "5101"
+        [zmq.ground_arduino.imu]
+            server = "127.0.0.1"
+            port = "5102"
+
 
 [serial]
     [serial.jetson]
@@ -36,10 +43,12 @@ title = "MocapZMQ"
             serial_port = "/dev/ttyACM0"
             baud_rate = 57600
         [serial.jetson.motors_arduino]
-            # serial_port = "/dev/tty.usbmodem14201"
             serial_port = "/dev/ttyACM1"
             baud_rate = 57600
     [serial.ground]
         [serial.ground.telemetry_radio]
             serial_port = "/dev/tty.usbmodem14201"
+            baud_rate = 57600
+        [serial.ground.imu_arduino]
+            serial_port = "/dev/tty.usbmodem92225501"
             baud_rate = 57600
