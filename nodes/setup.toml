@@ -47,7 +47,9 @@ title = "MocapZMQ"
             baud_rate = 57600
     [serial.ground]
         [serial.ground.telemetry_radio]
-            serial_port = "/dev/tty.usbmodem14201"
+            serial_port = "/dev/tty.usbserial-D309D5SC"
+            # serial_port = "/dev/tty.usbmodem92222901"
+            # serial_port = "/dev/tty.usbmodem14201"
             baud_rate = 57600
         [serial.ground.imu_arduino]
             serial_port = "/dev/tty.usbmodem92225501"

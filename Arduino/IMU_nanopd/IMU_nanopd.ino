@@ -11,10 +11,7 @@
 
 #define HOLYBRO_BAUDRATE (57600)
 
-// #define DEBUG (true)
 #define DEBUG (false)
-
-#define MAX_FREQ (125)
 
 // #define FORCE_CALI (true)
 #define FORCE_CALI (false)
@@ -48,8 +45,8 @@ void onViconRecieved(const uint8_t *buffer, size_t size);
 void sendMessage(PacketSerial &myPacketSerial, messaging_IMU_VICON &mes);
 
 long cnt = 0;
-unsigned long last_time = micros(); 
-unsigned long start_time = micros(); 
+unsigned long last_time = micros();
+unsigned long start_time = micros();
 
 
 
@@ -85,28 +82,20 @@ void loop() {
 
     jetsonPacketSerial.update();
     viconPacketSerial.update();
-    
+
+    // Read in IMU measurement
+    bno.getEvent(&imu_event);
+    getImuInput(bno, IMU_input);
+
+    // Send IMU/Vicon Message
+    IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
+    sendJetsonMessage(IMU_VICON_message);
+
     if (jetsonPacketSerial.overflow() || viconPacketSerial.overflow()) {
         digitalWrite(LED_PIN, HIGH);
     }
     else {
         digitalWrite(LED_PIN, LOW);
-    }
-
-    // Delay if we are going faster than the target frequency
-    float target_loop_time = 1 / (double) MAX_FREQ;
-    float actual_loop_time = ((micros() - start_time) * 1e-6);
-
-    // Serial.print("Actual loop time: ");
-    // Serial.print(actual_loop_time);
-    // Serial.print(", Target loop time: ");
-    // Serial.println(target_loop_time);
-
-    if (actual_loop_time < target_loop_time) {
-        int slow_down = (int) ((target_loop_time - actual_loop_time) * 1000.0);
-        // Serial.print("Delayed by (Micro): ");
-        // Serial.println(slow_down);
-        delay(slow_down);
     }
 }
 
@@ -120,16 +109,6 @@ void onViconRecieved(const uint8_t *buffer, size_t size) {
     if (!status) {
         if (DEBUG) { Serial.printf("\nDecoding failed: %s\n", PB_GET_ERROR(&stream)); };
     }
-
-    // Read in IMU measurement 
-    bno.getEvent(&imu_event);
-    
-    if (DEBUG) { displaySensorReading(bno); }
-    getImuInput(bno, IMU_input);
-
-    // Send IMU/Vicon Message 
-    IMU_VICON_message = {true, IMU_input, true, VICON_measurement};
-    sendJetsonMessage(IMU_VICON_message);
 }
 
 /*
@@ -147,11 +126,4 @@ void sendJetsonMessage(messaging_IMU_VICON & mes) {
         int message_length = stream.bytes_written;
         jetsonPacketSerial.send(imu_vicon_buffer, message_length);
     }
-
-    // if (cnt % 100 == 0) {
-    //     Serial.print("Loop frequency: ");
-    //     Serial.println(100.0 / ((micros() - last_time) * 1e-6));
-    //     last_time = micros();
-    // }   
-    // cnt += 1;
 }
