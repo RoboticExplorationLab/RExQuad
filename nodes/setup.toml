@@ -24,10 +24,12 @@ title = "MocapZMQ"
 
     [zmq.ground]
         [zmq.ground.vicon]
-            server = "192.168.3.117" # "127.0.0.1"
+            server = "127.0.0.1"
+            # server = "192.168.3.117"
             port = "5002"
         [zmq.ground.ground_info]
-            server = "192.168.3.117"
+            server = "127.0.0.1"
+            # server = "192.168.3.117"
             port = "5006"
         [zmq.ground_arduino.vicon]
             server = "127.0.0.1"
