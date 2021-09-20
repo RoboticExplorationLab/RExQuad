@@ -31,9 +31,11 @@ module FilteredStatePublisher
 
         # Specific to GroundLinkNode
         # ProtoBuf Messages
-        vicon::VICON
         imu::IMU
+        vicon::VICON
         state::FILTERED_STATE
+
+        last_imu_time::Float64
 
         # EKF type
         ekf::ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}
@@ -44,7 +46,7 @@ module FilteredStatePublisher
         function FilterNode(imu_sub_ip::String, imu_sub_port::String,
                             vicon_sub_ip::String, vicon_sub_port::String,
                             state_pub_ip::String, state_pub_port::String,
-                            rate::Int64, debug::Bool)
+                            rate::Float64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
             filterNodeIO = Hg.NodeIO(Context(1))
             rate = rate
@@ -55,13 +57,13 @@ module FilteredStatePublisher
                       gyr_x=0., gyr_y=0., gyr_z=0.,
                       time=0.)
             imu_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, imu_sub_ip, imu_sub_port)
-            Hg.add_subscriber!(groundLinkNodeIO, imu, imu_sub)
+            Hg.add_subscriber!(filterNodeIO, imu, imu_sub)
 
             vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                           quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                           time=0.)
             vicon_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, vicon_sub_ip, vicon_sub_port)
-            Hg.add_subscriber!(groundLinkNodeIO, vicon, vicon_sub)
+            Hg.add_subscriber!(filterNodeIO, vicon, vicon_sub)
 
             state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
                                    quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
@@ -69,7 +71,9 @@ module FilteredStatePublisher
                                    ang_x=0., ang_y=0., ang_z=0.,
                                    time=0.)
             state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port)
-            Hg.add_publisher!(groundLinkNodeIO, state, state_pub)
+            Hg.add_publisher!(filterNodeIO, state, state_pub)
+
+            last_imu_time = imu.time
 
             # Setup the EKF filter
             est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
@@ -83,185 +87,89 @@ module FilteredStatePublisher
             debug = debug
 
             return new(filterNodeIO, rate, should_finish,
-                       vicon, imu, state,
+                       imu, vicon, state, last_imu_time,
                        ekf,
                        debug)
         end
     end
 
-    function Hg.compute(node::GroundLinkNode)
-        if node.imu.time > imu_time
-            dt = imu.time - imu_time
+    function Hg.compute(node::FilterNode)
+        filterNodeIO = Hg.getIO(node)
 
-            input = ImuInput(imu.acc_x, imu.acc_y, imu.acc_z,
-                             imu.gyr_x, imu.gyr_y, imu.gyr_z)
+        # On recieving a new IMU message
+        Hg.on_new(filterNodeIO.subs[1]) do imu_msg
+            dt = imu_msg.time - last_imu_time
 
-            prediction!(ekf, input, dt)
+            input = ImuInput(imu_msg.acc_x, imu_msg.acc_y, imu_msg.acc_z,
+                             imu_msg.gyr_x, imu_msg.gyr_y, imu_msg.gyr_z)
+            # Run prediciton step on EKF
+            prediction!(node.ekf, input, dt)
 
-            imu_time = imu.time
+            node.imu_time = imu_msg.time
 
-            # Update & Publish
-            if vicon.time > vicon_time
-                vicon_time = vicon.time
+            # On recieving a new VICON message
+            Hg.on_new(filterNodeIO.subs[2]) do vicon_msg
+                # Update EKF
+                measurement = Vicon(vicon_msg.pos_x, vicon_msg.pos_y, vicon_msg.pos_z,
+                                    vicon_msg.quat_w, vicon_msg.quat_x, vicon_msg.quat_y, vicon_msg.quat_z)
+                update!(node.ekf, measurement)
 
-                measurement = Vicon(vicon.pos_x, vicon.pos_y, vicon.pos_z,
-                                    vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
-                update!(ekf, measurement)
-
+                # Update the filtered state message and publish it
                 _, ω = getComponents(input)
-                p, q, v, α, β = getComponents(ImuState(ekf.est_state))
+                p, q, v, α, β = getComponents(ImuState(node.ekf.est_state))
 
-                state.pos_x, state.pos_y, state.pos_z = p
-                state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(q)
-                state.vel_x, state.vel_y, state.vel_z = v
-                state.ang_x, state.ang_y, state.ang_z = ω - β
-                state.time = time()
+                node.state.pos_x, node.state.pos_y, node.state.pos_z = p
+                node.state.quat_w, node.state.quat_x, node.state.quat_y, node.state.quat_z = params(q)
+                node.state.vel_x, node.state.vel_y, node.state.vel_z = v
+                node.state.ang_x, node.state.ang_y, node.state.ang_z = ω - β
+                node.state.time = time()
 
-                Hg.Publishers.publish(state_pub, state)
+                Hg.publish.(nodeio.pubs)
 
                 if (debug)
                     @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
-                            state.pos_x, state.pos_y, state.pos_z)
+                            node.state.pos_x, node.state.pos_y, node.state.pos_z)
                     @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                            state.quat_w, state.quat_x, state.quat_y, state.quat_z)
+                            node.state.quat_w, node.state.quat_x, node.state.quat_y, node.state.quat_z)
                 end
-            end
-        end
-
-        # TrajOptPlots.visualize!(node.vis,
-        #     SA[node.ground_vicon.pos_x, node.ground_vicon.pos_y, node.ground_vicon.pos_z,
-        #        node.ground_vicon.quat_w, node.ground_vicon.quat_x, node.ground_vicon.quat_y, node.ground_vicon.quat_z,
-        #        0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        #     SA[node.jetson_vicon.pos_x, node.jetson_vicon.pos_y, node.jetson_vicon.pos_z,
-        #        node.jetson_vicon.quat_w, node.jetson_vicon.quat_x, node.jetson_vicon.quat_y, node.jetson_vicon.quat_z,
-        #        0.0, 0.0, 0.0, 0.0, 0.0, 0.0],)
-
-        # if (node.debug)
-        #     @printf("Jetson Vicon:\n")
-        #     @printf("\tPosition: \t[%1.3f, %1.3f, %1.3f]\n",
-        #             node.jetson_vicon.pos_x, node.jetson_vicon.pos_y, node.jetson_vicon.pos_z)
-        #     @printf("\tQuaternion: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-        #             node.jetson_vicon.quat_w, node.jetson_vicon.quat_x, node.jetson_vicon.quat_y, node.jetson_vicon.quat_z)
-
-        #     @printf("Ground Vicon:\n")
-        #     @printf("\tPosition: \t[%1.3f, %1.3f, %1.3f]\n",
-        #             node.ground_vicon.pos_x, node.ground_vicon.pos_y, node.ground_vicon.pos_z)
-        #     @printf("\tQuaternion: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-        #             node.ground_vicon.quat_w, node.ground_vicon.quat_x, node.ground_vicon.quat_y, node.ground_vicon.quat_z)
-        # end
-    end
-
-
-    function filtered_state_publisher(imu_sub_ip::String, imu_sub_port::String,
-                                      vicon_sub_ip::String, vicon_sub_port::String,
-                                      state_pub_ip::String, state_pub_port::String;
-                                      freq::Int64=200, debug::Bool=false)
-        ctx = Context(1)
-        imu_sub = Hg.ZmqSubscriber(ctx, imu_sub_ip, imu_sub_port)
-        vicon_sub = Hg.ZmqSubscriber(ctx, vicon_sub_ip, vicon_sub_port)
-        state_pub = Hg.ZmqPublisher(ctx, state_pub_ip, state_pub_port)
-
-        lrl = Hg.LoopRateLimiter(freq)
-
-        # Setup ProtoBuf messages
-        imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
-                  gyr_x=0., gyr_y=0., gyr_z=0.,
-                  time=0.)
-        vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
-                      quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                      time=0.)
-        state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                               quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                               vel_x=0., vel_y=0., vel_z=0.,
-                               ang_x=0., ang_y=0., ang_z=0.,
-                               time=0.)
-
-        imu_sub_task = @task Hg.Subscribers.subscribe(imu_sub, imu)
-        schedule(imu_sub_task)
-        vicon_sub_task = @task Hg.Subscribers.subscribe(vicon_sub, vicon)
-        schedule(vicon_sub_task)
-
-        # Setup the EKF filter
-        est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
-        est_cov = Matrix(2.2 * I(length(ImuError)))
-        process_cov = Matrix(0.5 * I(length(ImuError)))
-        measure_cov = Matrix(0.005 * I(length(ViconError)))
-
-        ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov,
-                                                                                process_cov, measure_cov)
-
-        try
-            Hg.@rate while true
-                if imu.time > imu_time
-                    dt = imu.time - imu_time
-
-                    input = ImuInput(imu.acc_x, imu.acc_y, imu.acc_z,
-                                     imu.gyr_x, imu.gyr_y, imu.gyr_z)
-
-                    prediction!(ekf, input, dt)
-
-                    imu_time = imu.time
-
-                    # Update & Publish
-                    if vicon.time > vicon_time
-                        vicon_time = vicon.time
-
-                        measurement = Vicon(vicon.pos_x, vicon.pos_y, vicon.pos_z,
-                                            vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
-                        update!(ekf, measurement)
-
-                        _, ω = getComponents(input)
-                        p, q, v, α, β = getComponents(ImuState(ekf.est_state))
-
-                        state.pos_x, state.pos_y, state.pos_z = p
-                        state.quat_w, state.quat_x, state.quat_y, state.quat_z = params(q)
-                        state.vel_x, state.vel_y, state.vel_z = v
-                        state.ang_x, state.ang_y, state.ang_z = ω - β
-                        state.time = time()
-
-                        Hg.Publishers.publish(state_pub, state)
-
-                        if (debug)
-                            @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
-                                    state.pos_x, state.pos_y, state.pos_z)
-                            @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                                    state.quat_w, state.quat_x, state.quat_y, state.quat_z)
-                        end
-                    end
-                end
-
-                GC.gc(false)
-            end lrl
-        catch e
-            close(state_pub)
-            close(ctx)
-
-            if e isa InterruptException
-                println("Process terminated by you")
-            else
-                rethrow(e)
             end
         end
     end
 
     # Launch IMU publisher
-    function main(; debug=false)
+    function main(; rate=100.0, debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
+
         vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
         vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+
         filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
         filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-        fs_pub() = filtered_state_publisher(imu_ip, imu_port,
-                                            vicon_ip, vicon_port,
-                                            filtered_state_ip, filtered_state_port;
-                                            freq=200, debug=debug)
-        return Threads.@spawn fs_pub()
+        node = FilterNode(imu_ip, imu_port,
+                          vicon_ip, vicon_port,
+                          filtered_state_ip, filtered_state_port,
+                          rate, debug)
+
+        return node
     end
 end
 
 # %%
-FilteredStatePublisher.main()
+import Mercury as Hg
+
+filter_node = FilteredStatePublisher.main(; rate=100.0, debug=true);
+
+# %%
+filter_node_task = Threads.@spawn Hg.launch(filter_node)
+
+# %%
+Hg.closeall(filter_node)
+
+# %%
+Base.throwto(filter_node_task, InterruptException())
+
+

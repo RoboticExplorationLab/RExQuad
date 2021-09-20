@@ -110,8 +110,6 @@ module GroundLink
                               rate, debug)
 
         return node
-
-        # return Hg.launch(GroundLinkNode)
     end
 end
 
