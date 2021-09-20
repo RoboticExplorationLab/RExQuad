@@ -132,6 +132,7 @@ pub_node_task = @async Hg.launch(pub_node)
 
 # %%
 Base.throwto(sub_node_task, InterruptException())
+# %%
 Base.throwto(pub_node_task, InterruptException())
 
 # %%
