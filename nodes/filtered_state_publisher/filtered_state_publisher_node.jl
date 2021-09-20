@@ -46,24 +46,21 @@ module FilteredStatePublisher
                             state_pub_ip::String, state_pub_port::String,
                             rate::Int64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
-            filterNodeIO = Hg.NodeIO()
+            filterNodeIO = Hg.NodeIO(Context(1))
             rate = rate
             should_finish = false
-
-            # Initialize the ZMQ Context
-            ctx = Context(1)
 
             # Adding the Quad Info Subscriber to the Node
             imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
                       gyr_x=0., gyr_y=0., gyr_z=0.,
                       time=0.)
-            imu_sub = Hg.ZmqSubscriber(ctx, imu_sub_ip, imu_sub_port)
+            imu_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, imu_sub_ip, imu_sub_port)
             Hg.add_subscriber!(groundLinkNodeIO, imu, imu_sub)
 
             vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                           quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                           time=0.)
-            vicon_sub = Hg.ZmqSubscriber(ctx, vicon_sub_ip, vicon_sub_port)
+            vicon_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, vicon_sub_ip, vicon_sub_port)
             Hg.add_subscriber!(groundLinkNodeIO, vicon, vicon_sub)
 
             state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
@@ -71,7 +68,7 @@ module FilteredStatePublisher
                                    vel_x=0., vel_y=0., vel_z=0.,
                                    ang_x=0., ang_y=0., ang_z=0.,
                                    time=0.)
-            state_pub = Hg.ZmqPublisher(ctx, state_pub_ip, state_pub_port)
+            state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port)
             Hg.add_publisher!(groundLinkNodeIO, state, state_pub)
 
             # Setup the EKF filter
@@ -92,13 +89,12 @@ module FilteredStatePublisher
         end
     end
 
-
     function Hg.compute(node::GroundLinkNode)
         if node.imu.time > imu_time
             dt = imu.time - imu_time
 
             input = ImuInput(imu.acc_x, imu.acc_y, imu.acc_z,
-                                imu.gyr_x, imu.gyr_y, imu.gyr_z)
+                             imu.gyr_x, imu.gyr_y, imu.gyr_z)
 
             prediction!(ekf, input, dt)
 

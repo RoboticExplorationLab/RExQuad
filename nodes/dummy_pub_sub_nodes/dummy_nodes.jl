@@ -49,8 +49,7 @@ module DummyNodes
     function Hg.compute(node::PubNode)
         nodeio = Hg.getIO(node)
 
-        node.vicon.pos_x += 0.1
-        # println("Published")
+        # node.vicon.pos_x += 0.1
 
         Hg.publish.(nodeio.pubs)
     end
@@ -97,9 +96,10 @@ module DummyNodes
     end
 
     function Hg.compute(node::SubNode)
-        if node.last_x != node.vicon.pos_x
-            node.last_x = node.vicon.pos_x
-            println(node.last_x)
+        nodeio = Hg.getIO(node)
+
+        Hg.on_new(nodeio.subs[1]) do msg
+            println(msg.pos_x)
         end
     end
 
@@ -107,7 +107,7 @@ module DummyNodes
     vicon_ground_port = "5556"
 
     # Launch IMU publisher
-    function pub(; rate=100.0, debug=false)
+    function pub(; rate=10.0, debug=false)
         pub_node = PubNode(vicon_ground_ip, vicon_ground_port,
                            rate, debug)
         return pub_node
@@ -123,6 +123,7 @@ end
 # %%
 import Mercury as Hg
 
+# %%
 sub_node = DummyNodes.sub();
 sub_node_task = @async Hg.launch(sub_node)
 
@@ -132,106 +133,6 @@ pub_node_task = @async Hg.launch(pub_node)
 
 # %%
 Base.throwto(sub_node_task, InterruptException())
+
 # %%
 Base.throwto(pub_node_task, InterruptException())
-
-# %%
-
-# %%
-# sub_node_task = @async Hg.subscribe(sub_node.nodeio.subs[1])
-
-# %%
-
-
-# %%
-Hg.launch(sub_node)
-
-# %%
-Hg.closeall(sub_node)
-
-# %%
-wait(sub_node_task)
-
-# %%
-Base.throwto(sub_node_task, InterruptException())
-
-# %%
-println(Hg.node_sockets_are_open(sub_node))
-
-# %%
-Hg.launch(sub_node)
-
-# %%
-Hg.node_sockets_are_open(sub_node)
-
-# %%
-Hg.subscribe(sub_node.nodeio.subs[1])
-
-# %%
-Base.throwto(sub_node_task, InterruptException())
-
-# %%
-sub_node_task = @async Hg.launch(sub_node)
-
-# %%
-Hg.node_sockets_are_open(pub_node) && Hg.node_sockets_are_open(sub_node)
-
-
-# %%
-sub_node_task = @async Hg.launch(sub_node)
-
-# %%
-pub_node_task = @async Hg.launch(pub_node)
-
-# schedule(sub_node_task)
-# %%
-
-
-# %%
-rate = Hg.getrate(sub_node)
-lrl = Hg.LoopRateLimiter(rate)
-
-Hg.start_subscribers(sub_node)
-
-Hg.startup(sub_node)
-
-Hg.isnodedone(sub_node)
-Hg.compute(sub_node)
-
-
-# %%
-pub_node_task = @task Hg.launch(pub_node)
-schedule(pub_node_task)
-
-
-
-# %%
-sub_node_task = @task Hg.launch(sub_node)
-schedule(sub_node_task)
-
-# %%
-Hg.closeall(pub_node)
-Hg.closeall(sub_node)
-
-# %%
-pub_node_task = @task Hg.launch(pub_node)
-schedule(pub_node_task)
-
-# %%
-Hg.closeall(pub_node)
-Hg.closeall(sub_node)
-
-# %%
-Base.throwto(sub_node_task, InterruptException())
-# %%
-Base.throwto(pub_node_task, InterruptException())
-
-# %%
-if all([isopen(submsg.sub) for submsg in node.nodeio.subs])
-    Hg.launch(node)
-else
-    Hg.closeall(node)
-end
-
-# %%
-Hg.closeall(node)

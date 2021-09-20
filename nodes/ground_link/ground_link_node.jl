@@ -40,16 +40,15 @@ module GroundLink
                                 quad_info_sub_ip::String, quad_info_sub_port::String,
                                 ground_info_pub_ip::String, ground_info_pub_port::String,
                                 rate::Float64, debug::Bool)
-
-            ctx = Context(1)
-
             # Adding the Ground Vicon Subscriber to the Node
-            groundLinkNodeIO = Hg.NodeIO()
+            groundLinkNodeIO = Hg.NodeIO(Context(1))
+            rate = rate
+            should_finish = false
 
             ground_vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                                 quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                                 time=0.)
-            ground_vicon_sub = Hg.ZmqSubscriber(ctx, vicon_ground_sub_ip, vicon_ground_sub_port)
+            ground_vicon_sub = Hg.ZmqSubscriber(groundLinkNodeIO.ctx, vicon_ground_sub_ip, vicon_ground_sub_port)
             Hg.add_subscriber!(groundLinkNodeIO, ground_vicon, ground_vicon_sub)
 
             # Adding the Quad Info Subscriber to the Node
@@ -65,17 +64,16 @@ module GroundLink
                                 time=0.)
             quad_info = QUAD_INFO(state=filtered_state, input=motors,
                                   measurement=jetson_vicon, time=0.)
-            quad_info_sub = Hg.ZmqSubscriber(ctx, quad_info_sub_ip, quad_info_sub_port)
+            quad_info_sub = Hg.ZmqSubscriber(groundLinkNodeIO.ctx, quad_info_sub_ip, quad_info_sub_port)
             Hg.add_subscriber!(groundLinkNodeIO, quad_info, quad_info_sub)
 
             # Adding the Ground Info Publisher to the Node
             ground_info = GROUND_INFO(deadman=true, time=time())
-            ground_info_pub = Hg.ZmqPublisher(ctx, ground_info_pub_ip, ground_info_pub_port)
+            ground_info_pub = Hg.ZmqPublisher(groundLinkNodeIO.ctx, ground_info_pub_ip, ground_info_pub_port)
             Hg.add_publisher!(groundLinkNodeIO, ground_info, ground_info_pub)
 
-            should_finish = false
-
             vis = QuadVisualizer()
+            debug = debug
 
             return new(groundLinkNodeIO, rate, should_finish,
                        ground_vicon, filtered_state, motors, jetson_vicon, quad_info, ground_info,
@@ -91,31 +89,7 @@ module GroundLink
         nodeio = Hg.getIO(node)
 
         Hg.publish.(nodeio.pubs)
-        sleep(0.001)
-
-        # TrajOptPlots.visualize!(node.vis,
-        #     SA[node.ground_vicon.pos_x, node.ground_vicon.pos_y, node.ground_vicon.pos_z,
-        #        node.ground_vicon.quat_w, node.ground_vicon.quat_x, node.ground_vicon.quat_y, node.ground_vicon.quat_z,
-        #        0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        #     SA[node.jetson_vicon.pos_x, node.jetson_vicon.pos_y, node.jetson_vicon.pos_z,
-        #        node.jetson_vicon.quat_w, node.jetson_vicon.quat_x, node.jetson_vicon.quat_y, node.jetson_vicon.quat_z,
-        #        0.0, 0.0, 0.0, 0.0, 0.0, 0.0],)
-
-        # if (node.debug)
-        #     @printf("Jetson Vicon:\n")
-        #     @printf("\tPosition: \t[%1.3f, %1.3f, %1.3f]\n",
-        #             node.jetson_vicon.pos_x, node.jetson_vicon.pos_y, node.jetson_vicon.pos_z)
-        #     @printf("\tQuaternion: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-        #             node.jetson_vicon.quat_w, node.jetson_vicon.quat_x, node.jetson_vicon.quat_y, node.jetson_vicon.quat_z)
-
-        #     @printf("Ground Vicon:\n")
-        #     @printf("\tPosition: \t[%1.3f, %1.3f, %1.3f]\n",
-        #             node.ground_vicon.pos_x, node.ground_vicon.pos_y, node.ground_vicon.pos_z)
-        #     @printf("\tQuaternion: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-        #             node.ground_vicon.quat_w, node.ground_vicon.quat_x, node.ground_vicon.quat_y, node.ground_vicon.quat_z)
-        # end
     end
-
 
     # Launch IMU publisher
     function main(; rate=100.0, debug=false)
@@ -145,6 +119,9 @@ end
 import Mercury as Hg
 
 node = GroundLink.main();
+
+# %%
+Hg.launch(node)
 
 # %%
 if all([isopen(submsg.sub) for submsg in node.nodeio.subs])
