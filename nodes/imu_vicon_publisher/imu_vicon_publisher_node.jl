@@ -24,6 +24,7 @@ module ImuViconPublisher
         # ProtoBuf Messages
         imu::IMU
         vicon::VICON
+        imu_vicon::IMU_VICON
 
         last_imu_time::Float64
 
@@ -56,12 +57,12 @@ module ImuViconPublisher
             # sp = LibSerialPort.SerialPort(teensy_port, teensy_baud)
             # imu_vicon_pub = Hg.SerialSubscriber(sp)
             imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud);
-            Hg.add_subscriber!(imuimuViconNodeIO, imu_vicon, imu_vicon_sub)
+            Hg.add_subscriber!(imuViconNodeIO, imu_vicon, imu_vicon_sub)
 
             debug = debug
 
             return new(imuViconNodeIO, rate, should_finish,
-                       imu, vicon,
+                       imu, vicon, imu_vicon,
                        debug)
         end
     end
@@ -81,7 +82,7 @@ module ImuViconPublisher
             node.imu_vicon.imu.gyr_x, node.imu_vicon.imu.gyr_y, node.imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
             node.imu_vicon.imu.time = time()
 
-            if debug
+            if node.debug
                 @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
                         node.imu_vicon.imu.acc_x, node.imu_vicon.imu.acc_y, node.imu_vicon.imu.acc_z)
                 @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
@@ -89,21 +90,21 @@ module ImuViconPublisher
             end
         end
         # Publish on all topics in NodeIO
-        Hg.publish.(nodeio.pubs)
+        Hg.publish.(imuViconNodeIO.pubs)
     end
 
     # Launch IMU publisher
     function main(; rate=100.0, debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        imu_serial_port = setup_dict["serial"]["ground"]["imu_arduino"]["serial_port"]
-        imu_baud_rate = setup_dict["serial"]["ground"]["imu_arduino"]["baud_rate"]
+        imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
+        imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
 
-        imu_ip = setup_dict["zmq"]["ground_arduino"]["imu"]["server"]
-        imu_port = setup_dict["zmq"]["ground_arduino"]["imu"]["port"]
+        imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
 
-        vicon_ip = setup_dict["zmq"]["ground_arduino"]["vicon"]["server"]
-        vicon_port = setup_dict["zmq"]["ground_arduino"]["vicon"]["port"]
+        vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
+        vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
 
         node = ImuViconNode(imu_serial_port, imu_baud_rate,
                             imu_ip, imu_port,
@@ -113,18 +114,18 @@ module ImuViconPublisher
     end
 end
 
-# %%
-import Mercury as Hg
+# # %%
+# import Mercury as Hg
 
-filter_node = ImuViconPublisher.main(; rate=100.0, debug=true);
+# filter_node = ImuViconPublisher.main(; rate=100.0, debug=true);
 
-# %%
-filter_node_task = Threads.@spawn Hg.launch(filter_node)
+# # %%
+# filter_node_task = Threads.@spawn Hg.launch(filter_node)
 
-# %%
-Hg.closeall(filter_node)
+# # %%
+# Hg.closeall(filter_node)
 
-# %%
-Base.throwto(filter_node_task, InterruptException())
+# # %%
+# Base.throwto(filter_node_task, InterruptException())
 
 
