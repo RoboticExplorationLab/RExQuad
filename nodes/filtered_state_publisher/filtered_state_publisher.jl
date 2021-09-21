@@ -1,58 +1,54 @@
 # This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon
 # data coming through the telemetry radio and the Arduino.
 module FilteredStatePublisher
-    using TOML
-    using Printf
+    import Mercury as Hg
     using ZMQ
-    using ProtoBuf
     using EKF
+    using StaticArrays
+    using SparseArrays
     using LinearAlgebra: I
+    using ForwardDiff: jacobian
+    using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
+    using Rotations: rotation_error, params, ∇differential, kinematics, RotZ
+    using Printf
+    using TOML
 
-    include("$(@__DIR__)/../utils/PubSubBuilder.jl")
-    using .PubSubBuilder
-
-    include("$(@__DIR__)/imu_states.jl")
-
+    # Import Protobuf Messages
     include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
-
+    # EKF helper functions
+    include("$(@__DIR__)/imu_states.jl")
 
     function filtered_state_publisher(imu_sub_ip::String, imu_sub_port::String,
                                       vicon_sub_ip::String, vicon_sub_port::String,
-                                      filtered_state_pub_ip::String, filtered_state_pub_port::String;
+                                      state_pub_ip::String, state_pub_port::String;
                                       freq::Int64=200, debug::Bool=false)
-        rate = 1 / freq
         ctx = Context(1)
+        imu_sub = Hg.ZmqSubscriber(ctx, imu_sub_ip, imu_sub_port)
+        vicon_sub = Hg.ZmqSubscriber(ctx, vicon_sub_ip, vicon_sub_port)
+        state_pub = Hg.ZmqPublisher(ctx, state_pub_ip, state_pub_port)
 
-        # pritnln(@__LINE__)
+        lrl = Hg.LoopRateLimiter(freq)
 
-        # Initalize Subscriber threads
+        # Setup ProtoBuf messages
         imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
                   gyr_x=0., gyr_y=0., gyr_z=0.,
                   time=0.)
-        imu_sub() = subscriber_thread(ctx, imu, imu_sub_ip, imu_sub_port)
-
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                       time=0.)
-        vicon_sub() = subscriber_thread(ctx, vicon, vicon_sub_ip, vicon_sub_port)
-
-        # Setup and Schedule Subscriber Tasks
-        imu_thread = Task(imu_sub)
-        schedule(imu_thread)
-        vicon_thread = Task(vicon_sub)
-        schedule(vicon_thread)
-
-        # Setup Filtered state publisher
         state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
                                quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                                vel_x=0., vel_y=0., vel_z=0.,
                                ang_x=0., ang_y=0., ang_z=0.,
                                time=0.)
-        state_pub = create_pub(ctx, filtered_state_pub_ip, filtered_state_pub_port)
-        iob = IOBuffer()
+
+        imu_sub_task = @task Hg.Subscribers.subscribe(imu_sub, imu)
+        schedule(imu_sub_task)
+        vicon_sub_task = @task Hg.Subscribers.subscribe(vicon_sub, vicon)
+        schedule(vicon_sub_task)
 
         # Setup the EKF filter
         est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
@@ -62,15 +58,9 @@ module FilteredStatePublisher
 
         ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov,
                                                                                 process_cov, measure_cov)
-        vicon_time = 0.
-        imu_time = 0.
-        filtering = false
 
         try
-            cnt = 0
-            last_time = time()
-
-            while true
+            Hg.@rate while true
                 if imu.time > imu_time
                     dt = imu.time - imu_time
 
@@ -98,16 +88,9 @@ module FilteredStatePublisher
                         state.ang_x, state.ang_y, state.ang_z = ω - β
                         state.time = time()
 
-                        publish(state_pub, state, iob)
+                        Hg.Publishers.publish(state_pub, state)
 
                         if (debug)
-                            if cnt % 100 == 0
-                                loop_run_rate = 100 / (time() - last_time)
-                                println("filtered_state_publisher Frequency (Hz): ", loop_run_rate)
-                                last_time = time()
-                            end
-                            cnt += 1
-
                             @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
                                     state.pos_x, state.pos_y, state.pos_z)
                             @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
@@ -116,9 +99,8 @@ module FilteredStatePublisher
                     end
                 end
 
-                sleep(0.0001)
                 GC.gc(false)
-            end
+            end lrl
         catch e
             close(state_pub)
             close(ctx)
@@ -149,3 +131,6 @@ module FilteredStatePublisher
         return Threads.@spawn fs_pub()
     end
 end
+
+# %%
+FilteredStatePublisher.main()

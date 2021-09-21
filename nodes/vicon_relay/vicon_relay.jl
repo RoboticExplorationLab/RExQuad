@@ -23,7 +23,7 @@ module ViconRelay
 
         vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                       quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                      time=0.)
+                      time=0)
         vicon_sub() = subscriber_thread(ctx, vicon, vicon_sub_ip, vicon_sub_port)
 
         # Setup and Schedule Subscriber Tasks
@@ -33,38 +33,23 @@ module ViconRelay
         vicon_time = vicon.time
         iob = PipeBuffer();
 
+        open(ard)
         try
-            cnt = 0
-            last_time = time()
-
-            open(ard) do sp
-                while true
-                    if vicon.time > vicon_time
-                        if (debug)
-                            @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
-                                    vicon.pos_x, vicon.pos_y, vicon.pos_z)
-                            @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                                    vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
-                        end
-
-                        writeproto(iob, vicon);
-                        message(ard, take!(iob))
-
-                        if (debug)
-                            if cnt % 100 == 0
-                                loop_run_rate = 100 / (time() - last_time)
-                                println("vicon_relay Frequency (Hz): ", loop_run_rate)
-                                last_time = time()
-                            end
-                            cnt += 1
-                        end
+            while true
+                if vicon.time > vicon_time
+                    if (debug)
+                        @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
+                                vicon.pos_x, vicon.pos_y, vicon.pos_z)
+                        @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                                vicon.quat_w, vicon.quat_x, vicon.quat_y, vicon.quat_z)
                     end
 
-                    sleep(rate)
-                    GC.gc(false)
+                    message(ard, vicon)
                 end
+                sleep(rate)
             end
         catch e
+            close(ard)
             close(ctx)
             if e isa InterruptException
                 println("Shutting Down Vicon Relay")
@@ -81,6 +66,7 @@ module ViconRelay
 
         vicon_ip = setup_dict["vicon"]["server"]
         vicon_subject = setup_dict["vicon"]["subject"]
+
         zmq_vicon_ip = setup_dict["zmq"]["ground"]["vicon"]["server"]
         zmq_vicon_port = setup_dict["zmq"]["ground"]["vicon"]["port"]
 

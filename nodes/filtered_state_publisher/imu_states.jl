@@ -1,11 +1,3 @@
-using EKF
-using StaticArrays
-using SparseArrays
-using ForwardDiff: jacobian
-using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
-using Rotations: rotation_error, params, ∇differential, kinematics
-
-
 ###############################################################################
 #
 ###############################################################################

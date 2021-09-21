@@ -6,7 +6,6 @@ using Colors
 
 include(joinpath(@__DIR__, "..", "quadrotor_model.jl"))
 include(joinpath(@__DIR__, "..", "constants.jl"))
-include(joinpath(@__DIR__, "..", "utils", "PubSubBuilder.jl"))
 include(joinpath(@__DIR__, "..", "..", "msgs", "filtered_state_msg_pb.jl"))
 
 """
