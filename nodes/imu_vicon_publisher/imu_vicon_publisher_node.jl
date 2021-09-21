@@ -34,7 +34,7 @@ module ImuViconPublisher
                               vicon_pub_ip::String, vicon_pub_port::String,
                               rate::Float64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
-            imuViconNodeIO = Hg.NodeIO(Context(1))
+            imuViconNodeIO = Hg.NodeIO(ZMQ.Context(1))
             should_finish = false
 
             # Adding the Quad Info Subscriber to the Node
