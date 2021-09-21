@@ -97,14 +97,13 @@ module FilteredStatePublisher
 
         # On recieving a new IMU message
         Hg.on_new(filterNodeIO.subs[1]) do imu_msg
-            dt = imu_msg.time - last_imu_time
+            dt = imu_msg.time - node.last_imu_time
+            node.last_imu_time = imu_msg.time
 
             input = ImuInput(imu_msg.acc_x, imu_msg.acc_y, imu_msg.acc_z,
                              imu_msg.gyr_x, imu_msg.gyr_y, imu_msg.gyr_z)
             # Run prediciton step on EKF
             prediction!(node.ekf, input, dt)
-
-            node.imu_time = imu_msg.time
 
             # On recieving a new VICON message
             Hg.on_new(filterNodeIO.subs[2]) do vicon_msg
@@ -123,9 +122,9 @@ module FilteredStatePublisher
                 node.state.ang_x, node.state.ang_y, node.state.ang_z = ω - β
                 node.state.time = time()
 
-                Hg.publish.(nodeio.pubs)
+                Hg.publish.(filterNodeIO.pubs)
 
-                if (debug)
+                if (node.debug)
                     @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
                             node.state.pos_x, node.state.pos_y, node.state.pos_z)
                     @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
@@ -157,18 +156,18 @@ module FilteredStatePublisher
     end
 end
 
-# %%
-import Mercury as Hg
+# # %%
+# import Mercury as Hg
 
-filter_node = FilteredStatePublisher.main(; rate=100.0, debug=true);
+# filter_node = FilteredStatePublisher.main(; rate=100.0, debug=true);
 
-# %%
-filter_node_task = Threads.@spawn Hg.launch(filter_node)
+# # %%
+# filter_node_task = Threads.@spawn Hg.launch(filter_node)
 
-# %%
-Hg.closeall(filter_node)
+# # %%
+# Hg.closeall(filter_node)
 
-# %%
-Base.throwto(filter_node_task, InterruptException())
+# # %%
+# Base.throwto(filter_node_task, InterruptException())
 
 

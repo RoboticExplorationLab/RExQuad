@@ -113,20 +113,20 @@ module GroundLink
     end
 end
 
-# %%
-import Mercury as Hg
+# # %%
+# import Mercury as Hg
 
-node = GroundLink.main();
+# node = GroundLink.main();
 
-# %%
-Hg.launch(node)
+# # %%
+# Hg.launch(node)
 
-# %%
-if all([isopen(submsg.sub) for submsg in node.nodeio.subs])
-    Hg.launch(node)
-else
-    Hg.closeall(node)
-end
+# # %%
+# if all([isopen(submsg.sub) for submsg in node.nodeio.subs])
+#     Hg.launch(node)
+# else
+#     Hg.closeall(node)
+# end
 
-# %%
-Hg.closeall(node)
+# # %%
+# Hg.closeall(node)
