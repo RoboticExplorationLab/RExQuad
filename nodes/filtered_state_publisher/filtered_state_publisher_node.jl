@@ -21,7 +21,6 @@ module FilteredStatePublisher
     include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/messaging.jl")
 
     mutable struct FilterNode <: Hg.Node
         # Required by Abstract Node type
