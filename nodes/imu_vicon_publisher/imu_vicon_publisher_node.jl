@@ -24,8 +24,7 @@ module ImuViconPublisher
         # ProtoBuf Messages
         imu::IMU
         vicon::VICON
-
-        last_imu_time::Float64
+        imu_vicon::IMU_VICON
 
         # Random
         debug::Bool
@@ -36,7 +35,6 @@ module ImuViconPublisher
                               rate::Float64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
             imuViconNodeIO = Hg.NodeIO(Context(1))
-            rate = rate
             should_finish = false
 
             # Adding the Quad Info Subscriber to the Node
@@ -52,16 +50,20 @@ module ImuViconPublisher
             vicon_sub = Hg.ZmqPublisher(imuViconNodeIO.ctx, vicon_pub_ip, vicon_pub_port)
             Hg.add_publisher!(imuViconNodeIO, vicon, vicon_sub)
 
-            imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
+            imu2 = IMU(acc_x=0., acc_y=0., acc_z=0.,
+                       gyr_x=0., gyr_y=0., gyr_z=0.,
+                       time=0.)
+            vicon2 = VICON(pos_x=0., pos_y=0., pos_z=0.,
+                           quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                           time=0.)
+            imu_vicon = IMU_VICON(imu=imu2, vicon=vicon2)
             # sp = LibSerialPort.SerialPort(teensy_port, teensy_baud)
             # imu_vicon_pub = Hg.SerialSubscriber(sp)
             imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud);
-            Hg.add_subscriber!(imuimuViconNodeIO, imu_vicon, imu_vicon_sub)
-
-            debug = debug
+            Hg.add_subscriber!(imuViconNodeIO, imu_vicon, imu_vicon_sub)
 
             return new(imuViconNodeIO, rate, should_finish,
-                       imu, vicon,
+                       imu, vicon, imu_vicon,
                        debug)
         end
     end
@@ -73,37 +75,46 @@ module ImuViconPublisher
         Rot_imu_body = RotXYZ(0, 0, -π/2)
 
         # On recieving a new IMU_VICON message
-        Hg.on_new(imuViconNodeIO.subs[1]) do imu_vicon_msg
+        Hg.on_new(imuViconNodeIO.subs[1]) do imu_vicon
             # Rotate the IMU frame to match the VICON frame
-            acc_vec = SA[node.imu_vicon.imu.acc_x, node.imu_vicon.imu.acc_y, node.imu_vicon.imu.acc_z]
-            gyr_vec = SA[node.imu_vicon.imu.gyr_x, node.imu_vicon.imu.gyr_y, node.imu_vicon.imu.gyr_z]
-            node.imu_vicon.imu.acc_x, node.imu_vicon.imu.acc_y, node.imu_vicon.imu.acc_z = Rot_imu_body * acc_vec
-            node.imu_vicon.imu.gyr_x, node.imu_vicon.imu.gyr_y, node.imu_vicon.imu.gyr_z = Rot_imu_body * gyr_vec
-            node.imu_vicon.imu.time = time()
+            acc_vec = SA[imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z]
+            gyr_vec = SA[imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z]
 
-            if debug
+            node.imu.acc_x, node.imu.acc_y, node.imu.acc_z = Rot_imu_body * acc_vec
+            node.imu.gyr_x, node.imu.gyr_y, node.imu.gyr_z = Rot_imu_body * gyr_vec
+            node.imu.time = time()
+
+            if node.debug
                 @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.imu_vicon.imu.acc_x, node.imu_vicon.imu.acc_y, node.imu_vicon.imu.acc_z)
+                        node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
                 @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.imu_vicon.vicon.pos_x, node.imu_vicon.vicon.pos_x, node.imu_vicon.vicon.pos_x)
+                        node.vicon.pos_x, node.vicon.pos_x, node.vicon.pos_x)
             end
         end
+
         # Publish on all topics in NodeIO
-        Hg.publish.(nodeio.pubs)
+        Hg.publish.(imuViconNodeIO.pubs)
     end
 
     # Launch IMU publisher
-    function main(; rate=100.0, debug=false)
+    function main(; rate::Float64=100.0, debug::Bool=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        imu_serial_port = setup_dict["serial"]["ground"]["imu_arduino"]["serial_port"]
-        imu_baud_rate = setup_dict["serial"]["ground"]["imu_arduino"]["baud_rate"]
+        imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
+        imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
 
-        imu_ip = setup_dict["zmq"]["ground_arduino"]["imu"]["server"]
-        imu_port = setup_dict["zmq"]["ground_arduino"]["imu"]["port"]
+        imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
+        imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
 
-        vicon_ip = setup_dict["zmq"]["ground_arduino"]["vicon"]["server"]
-        vicon_port = setup_dict["zmq"]["ground_arduino"]["vicon"]["port"]
+        vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
+        vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
+
+        imu_serial_port = "/dev/tty.usbmodem92225501"
+        imu_baud_rate = 57600
+        imu_ip = "127.0.0.1"
+        imu_port = "5555"
+        vicon_ip = "127.0.0.1"
+        vicon_port = "5556"
 
         node = ImuViconNode(imu_serial_port, imu_baud_rate,
                             imu_ip, imu_port,
@@ -116,7 +127,10 @@ end
 # %%
 import Mercury as Hg
 
-filter_node = ImuViconPublisher.main(; rate=100.0, debug=true);
+filter_node = ImuViconPublisher.main(; rate=100.0, debug=false);
+
+# %%
+filter_node_task = Hg.launch(filter_node)
 
 # %%
 filter_node_task = Threads.@spawn Hg.launch(filter_node)
