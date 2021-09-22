@@ -19,24 +19,22 @@ title = "MocapZMQ"
             server = "127.0.0.1"
             port = "5558"
         [zmq.jetson.quad_info]
-            server = "192.168.3.150"
-            port = "5559"
+            server = "192.168.3.116"
+            port = "5555"
 
     [zmq.ground]
         [zmq.ground.vicon]
             server = "127.0.0.1"
-            # server = "192.168.3.117"
-            port = "5002"
+            port = "5555"
         [zmq.ground.ground_info]
-            server = "127.0.0.1"
-            # server = "192.168.3.117"
-            port = "5006"
+            server = "192.168.3.117"
+            port = "5555"
         [zmq.ground_arduino.vicon]
             server = "127.0.0.1"
-            port = "5101"
+            port = "5557"
         [zmq.ground_arduino.imu]
             server = "127.0.0.1"
-            port = "5102"
+            port = "5558"
 
 
 [serial]
