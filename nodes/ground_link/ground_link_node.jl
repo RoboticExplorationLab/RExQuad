@@ -23,9 +23,12 @@ module GroundLink
         rate::Float64
         should_finish::Bool
 
+        # Task listening for SerializedVicon messages
+        ground_vicon_submsg::Hg.SubscribedVICON
+        ground_vicon_sub_task::Task
+
         # Specific to GroundLinkNode
         # ProtoBuf Messages
-        ground_vicon::VICON
         filtered_state::FILTERED_STATE
         motors::MOTORS
         jetson_vicon::VICON
@@ -36,7 +39,8 @@ module GroundLink
         vis::QuadVisualizer
         debug::Bool
 
-        function GroundLinkNode(vicon_ground_sub_ip::String, vicon_ground_sub_port::String,
+        function GroundLinkNode(
+                                vicon_ground_sub_ip::String, vicon_ground_sub_port::String,
                                 quad_info_sub_ip::String, quad_info_sub_port::String,
                                 ground_info_pub_ip::String, ground_info_pub_port::String,
                                 rate::Float64, debug::Bool)
@@ -45,23 +49,21 @@ module GroundLink
             rate = rate
             should_finish = false
 
-            ground_vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
-                                quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                                time=0.)
             ground_vicon_sub = Hg.ZmqSubscriber(groundLinkNodeIO.ctx, vicon_ground_sub_ip, vicon_ground_sub_port)
-            Hg.add_subscriber!(groundLinkNodeIO, ground_vicon, ground_vicon_sub)
+            ground_vicon_submsg = Hg.SubscribedVICON(ground_vicon_sub)
+            ground_vicon_sub_task = @async Hg.subscribe(ground_vicon_submsg)
 
             # Adding the Quad Info Subscriber to the Node
             filtered_state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                                        quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                                        vel_x=0., vel_y=0., vel_z=0.,
-                                        ang_x=0., ang_y=0., ang_z=0.,
-                                        time=0.)
+                                            quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                                            vel_x=0., vel_y=0., vel_z=0.,
+                                            ang_x=0., ang_y=0., ang_z=0.,
+                                            time=0.)
             motors = MOTORS(front_left=0., front_right=0., back_right=0., back_left=0.,
                             time=0.)
             jetson_vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
-                                quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                                time=0.)
+                                 quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
+                                 time=0.)
             quad_info = QUAD_INFO(state=filtered_state, input=motors,
                                   measurement=jetson_vicon, time=0.)
             quad_info_sub = Hg.ZmqSubscriber(groundLinkNodeIO.ctx, quad_info_sub_ip, quad_info_sub_port)
@@ -76,7 +78,8 @@ module GroundLink
             debug = debug
 
             return new(groundLinkNodeIO, rate, should_finish,
-                       ground_vicon, filtered_state, motors, jetson_vicon, quad_info, ground_info,
+                       ground_vicon_submsg, ground_vicon_sub_task,
+                       filtered_state, motors, jetson_vicon, quad_info, ground_info,
                        vis, debug)
         end
     end
@@ -86,9 +89,39 @@ module GroundLink
     end
 
     function Hg.compute(node::GroundLinkNode)
-        nodeio = Hg.getIO(node)
+        groundLinkNodeIO = Hg.getIO(node)
 
-        Hg.publish.(nodeio.pubs)
+        Hg.on_new(node.ground_vicon_submsg) do serialized_vicon
+                TrajOptPlots.visualize!(node.vis,
+                                        SA[serialized_vicon.position_x,
+                                           serialized_vicon.position_y,
+                                           serialized_vicon.position_z,
+                                           serialized_vicon.quaternion_w,
+                                           serialized_vicon.quaternion_x,
+                                           serialized_vicon.quaternion_y,
+                                           serialized_vicon.quaternion_z,
+                                           0.0, 0.0, 0.0,
+                                           0.0, 0.0, 0.0],
+                                        SA[node.filtered_state.pos_x,
+                                           node.filtered_state.pos_y,
+                                           node.filtered_state.pos_z,
+                                           node.filtered_state.quat_w,
+                                           node.filtered_state.quat_x,
+                                           node.filtered_state.quat_y,
+                                           node.filtered_state.quat_z,
+                                           0.0, 0.0, 0.0,
+                                           0.0, 0.0, 0.0],)
+
+            # Rotate the IMU frame to match the VICON frame
+            if node.debug
+                @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                        serialized_vicon.position_x,
+                        serialized_vicon.position_y,
+                        serialized_vicon.position_z)
+            end
+        end
+
+        Hg.publish.(groundLinkNodeIO.pubs)
     end
 
     # Launch IMU publisher
@@ -104,11 +137,11 @@ module GroundLink
         ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
         ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
 
-        node = GroundLinkNode(vicon_ground_ip, vicon_ground_port,
+        node = GroundLinkNode(
+                              vicon_ground_ip, vicon_ground_port,
                               quad_info_ip, quad_info_port,
                               ground_info_ip, ground_info_port,
                               rate, debug)
-
         return node
     end
 end
@@ -116,17 +149,14 @@ end
 # # %%
 # import Mercury as Hg
 
-# node = GroundLink.main();
+# node = GroundLink.main(; rate=100.0, debug=true);
 
 # # %%
-# Hg.launch(node)
-
-# # %%
-# if all([isopen(submsg.sub) for submsg in node.nodeio.subs])
-#     Hg.launch(node)
-# else
-#     Hg.closeall(node)
-# end
+# node_task = @async Hg.launch(node)
 
 # # %%
 # Hg.closeall(node)
+
+# # %%
+# Base.throwto(node_task, InterruptException())
+
