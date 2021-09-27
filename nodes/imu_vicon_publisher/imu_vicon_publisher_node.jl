@@ -41,8 +41,8 @@ module ImuViconPublisher
             imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
                       gyr_x=0., gyr_y=0., gyr_z=0.,
                       time=0.)
-            imu_sub = Hg.ZmqPublisher(imuViconNodeIO.ctx, imu_pub_ip, imu_pub_port)
-            Hg.add_publisher!(imuViconNodeIO, imu, imu_sub)
+            imu_pub = Hg.ZmqPublisher(imuViconNodeIO.ctx, imu_pub_ip, imu_pub_port)
+            Hg.add_publisher!(imuViconNodeIO, imu, imu_pub)
 
             vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                           quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
@@ -50,15 +50,7 @@ module ImuViconPublisher
             vicon_sub = Hg.ZmqPublisher(imuViconNodeIO.ctx, vicon_pub_ip, vicon_pub_port)
             Hg.add_publisher!(imuViconNodeIO, vicon, vicon_sub)
 
-            imu2 = IMU(acc_x=0., acc_y=0., acc_z=0.,
-                       gyr_x=0., gyr_y=0., gyr_z=0.,
-                       time=0.)
-            vicon2 = VICON(pos_x=0., pos_y=0., pos_z=0.,
-                           quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
-                           time=0.)
-            imu_vicon = IMU_VICON(imu=imu2, vicon=vicon2)
-            # sp = LibSerialPort.SerialPort(teensy_port, teensy_baud)
-            # imu_vicon_pub = Hg.SerialSubscriber(sp)
+            imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
             imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud);
             Hg.add_subscriber!(imuViconNodeIO, imu_vicon, imu_vicon_sub)
 
@@ -84,11 +76,19 @@ module ImuViconPublisher
             node.imu.gyr_x, node.imu.gyr_y, node.imu.gyr_z = Rot_imu_body * gyr_vec
             node.imu.time = time()
 
+            node.vicon.pos_x = imu_vicon.vicon.pos_x
+            node.vicon.pos_y = imu_vicon.vicon.pos_y
+            node.vicon.pos_z = imu_vicon.vicon.pos_z
+            node.vicon.quat_w = imu_vicon.vicon.quat_w
+            node.vicon.quat_x = imu_vicon.vicon.quat_x
+            node.vicon.quat_y = imu_vicon.vicon.quat_y
+            node.vicon.quat_z = imu_vicon.vicon.quat_z
+
             if node.debug
                 @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
                         node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
                 @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.vicon.pos_x, node.vicon.pos_x, node.vicon.pos_x)
+                        node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z)
             end
         end
 
@@ -102,6 +102,9 @@ module ImuViconPublisher
 
         imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
         imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
+
+        imu_serial_port = "/dev/tty.usbmodem14101"
+        imu_baud_rate = 57600
 
         imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]

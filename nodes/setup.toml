@@ -8,10 +8,10 @@ title = "MocapZMQ"
     [zmq.jetson]
         [zmq.jetson.vicon]
             server = "127.0.0.1"
-            port = "5555"
+            port = "5575"
         [zmq.jetson.imu]
             server = "127.0.0.1"
-            port = "5556"
+            port = "5566"
         [zmq.jetson.filtered_state]
             server = "127.0.0.1"
             port = "5557"
