@@ -64,7 +64,7 @@ module ImuViconPublisher
         imuViconNodeIO = Hg.getIO(node)
 
         # Rotation descibing VICON to IMU attitude
-        Rot_imu_body = RotXYZ(0, 0, -π/2)
+        Rot_imu_body = RotXYZ(0, 0, 0)
 
         # On recieving a new IMU_VICON message
         Hg.on_new(imuViconNodeIO.subs[1]) do imu_vicon
@@ -103,8 +103,8 @@ module ImuViconPublisher
         imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
         imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
 
-        imu_serial_port = "/dev/tty.usbmodem14101"
-        imu_baud_rate = 57600
+        imu_serial_port = "/dev/tty.usbmodem14201"
+        imu_baud_rate = 115200
 
         imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
@@ -133,5 +133,3 @@ end
 
 # # %%
 # Base.throwto(filter_node_task, InterruptException())
-
-

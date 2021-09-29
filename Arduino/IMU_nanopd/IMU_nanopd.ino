@@ -3,7 +3,6 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <PacketSerial.h>
-// #include <Pose.hpp>
 
 #include <pb_common.h>
 #include <pb.h>
@@ -107,15 +106,24 @@ void loop() {
 /*
  * Relay the message over from Holybro to Jetson
  */
-void sendJetsonMessage(messaging_IMU_VICON & mes) {
+void sendJetsonMessage(messaging_IMU_VICON & msg) {
     /* Create a stream that will write to our buffer. */
     pb_ostream_t stream = pb_ostream_from_buffer(imu_vicon_buffer, imu_vicon_buffer_length);
 
-    int status = pb_encode(&stream, messaging_IMU_VICON_fields, &mes);
+    // int status1 = encode_unionmessage(&stream, messaging_IMU_fields, &(msg.imu));
+    // int status2 = encode_unionmessage(&stream, messaging_VICON_fields, &(msg.vicon));
+
+    // if (status1 && status2)
+
+    int status = pb_encode(&stream, messaging_IMU_VICON_fields, &msg);
     if (status)
     {
-        int message_length = stream.bytes_written;
+        size_t message_length = stream.bytes_written;
+
+        // Serial.printf("Encoded size: %d, Expected: %d\n", stream.bytes_written, messaging_IMU_VICON_size);
         jetsonPacketSerial.send(imu_vicon_buffer, message_length);
     }
 }
+
+
 
