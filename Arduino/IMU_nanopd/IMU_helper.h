@@ -4,7 +4,6 @@
 #include <PacketSerial.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
-#include <EEPROM.h>
 
 #include "pb_common.h"
 #include "pb.h"
@@ -36,16 +35,8 @@ void displaySensorReading(Adafruit_BNO055 & bno);
 /*
  * Conver the double array of IMU data into a
  */
-bool loadSensorOffset(Adafruit_BNO055 & bno);
+bool calibrateIMU(Adafruit_BNO055 & bno);
 
-/*
- * Conver the double array of IMU data into a
- */
-bool saveCalibration(Adafruit_BNO055 & bno);
 
-/*
- * Conver the double array of IMU data into a
- */
-bool calibrateIMU(Adafruit_BNO055 & bno, bool forceCalibration);
 
 #endif

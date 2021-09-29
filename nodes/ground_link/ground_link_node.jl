@@ -92,32 +92,52 @@ module GroundLink
         groundLinkNodeIO = Hg.getIO(node)
 
         Hg.on_new(node.ground_vicon_submsg) do serialized_vicon
-                TrajOptPlots.visualize!(node.vis,
-                                        SA[serialized_vicon.position_x,
-                                           serialized_vicon.position_y,
-                                           serialized_vicon.position_z,
-                                           serialized_vicon.quaternion_w,
-                                           serialized_vicon.quaternion_x,
-                                           serialized_vicon.quaternion_y,
-                                           serialized_vicon.quaternion_z,
-                                           0.0, 0.0, 0.0,
-                                           0.0, 0.0, 0.0],
-                                        SA[node.filtered_state.pos_x,
-                                           node.filtered_state.pos_y,
-                                           node.filtered_state.pos_z,
-                                           node.filtered_state.quat_w,
-                                           node.filtered_state.quat_x,
-                                           node.filtered_state.quat_y,
-                                           node.filtered_state.quat_z,
-                                           0.0, 0.0, 0.0,
-                                           0.0, 0.0, 0.0],)
+            TrajOptPlots.visualize!(node.vis,
+                                    SA[serialized_vicon.position_x,
+                                        serialized_vicon.position_y,
+                                        serialized_vicon.position_z,
+                                        serialized_vicon.quaternion_w,
+                                        serialized_vicon.quaternion_x,
+                                        serialized_vicon.quaternion_y,
+                                        serialized_vicon.quaternion_z,
+                                        0.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0],
+                                    # SA[node.filtered_state.pos_x,
+                                    #     node.filtered_state.pos_y,
+                                    #     node.filtered_state.pos_z,
+                                    #     node.filtered_state.quat_w,
+                                    #     node.filtered_state.quat_x,
+                                    #     node.filtered_state.quat_y,
+                                    #     node.filtered_state.quat_z,
+                                    SA[node.quad_info.measurement.pos_x,
+                                        node.quad_info.measurement.pos_y,
+                                        node.quad_info.measurement.pos_z,
+                                        node.quad_info.measurement.quat_w,
+                                        node.quad_info.measurement.quat_x,
+                                        node.quad_info.measurement.quat_y,
+                                        node.quad_info.measurement.quat_z,
+                                        0.0, 0.0, 0.0,
+                                        0.0, 0.0, 0.0],)
 
-            # Rotate the IMU frame to match the VICON frame
+            # if node.debug
+            #     @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+            #             serialized_vicon.position_x,
+            #             serialized_vicon.position_y,
+            #             serialized_vicon.position_z)
+            # end
+        end
+
+        Hg.on_new(groundLinkNodeIO.subs[1]) do quad_info
             if node.debug
                 @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                        serialized_vicon.position_x,
-                        serialized_vicon.position_y,
-                        serialized_vicon.position_z)
+                        quad_info.measurement.pos_x,
+                        quad_info.measurement.pos_y,
+                        quad_info.measurement.pos_z)
+                @printf("Vicon ori: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                        quad_info.measurement.quat_w,
+                        quad_info.measurement.quat_w,
+                        quad_info.measurement.quat_w,
+                        quad_info.measurement.quat_w)
             end
         end
 

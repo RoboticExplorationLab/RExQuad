@@ -28,13 +28,12 @@ module JetsonLink
         # Random
         debug::Bool
 
-        function JetsonLinkNode(
-                                ground_info_sub_ip::String, ground_info_sub_port::String,
+        function JetsonLinkNode(ground_info_sub_ip::String, ground_info_sub_port::String,
                                 state_sub_ip::String, state_sub_port::String,
                                 motors_sub_ip::String, motors_sub_port::String,
                                 vicon_sub_ip::String, vicon_sub_port::String,
                                 quad_info_pub_ip::String, quad_info_pub_port::String,
-                                freq::Float64, debug::Bool)
+                                rate::Float64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
             jetsonLinkNodeIO = Hg.NodeIO(ZMQ.Context(1))
             should_finish = false
@@ -83,7 +82,7 @@ module JetsonLink
     end
 
     # Launch IMU publisher
-    function main(; rate=100.0, debug=false)::Task
+    function main(; rate=100.0, debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
@@ -111,6 +110,6 @@ module JetsonLink
     end
 end
 
-# %%
-import Mercury as Hg
-filter_node = JetsonLink.main(; rate=100.0, debug=true);
+# # %%
+# import Mercury as Hg
+# filter_node = JetsonLink.main(; rate=100.0, debug=true);

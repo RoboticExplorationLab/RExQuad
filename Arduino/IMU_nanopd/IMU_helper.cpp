@@ -58,97 +58,25 @@ void displaySensorReading(Adafruit_BNO055 & bno) {
 	Serial.println("\n----------------------------------------");
 }
 
-
 /*
  * Conver the double array of IMU data into a
  */
-bool loadSensorOffset(Adafruit_BNO055 & bno) {
-	int eeAddress = 0;
-	long bnoID;
-	bool foundCalib = false;
+bool calibrateIMU(Adafruit_BNO055 & bno) {
+	bno.setExtCrystalUse(true);
+	sensors_event_t event;
 
-	EEPROM.get(eeAddress, bnoID); // EEPROM address 0 stores the ID of the I2C device
-
-	adafruit_bno055_offsets_t calibrationData;
-	sensor_t sensor;
-
-	bno.getSensor(&sensor);
-
-	// Look for a previous calibration for bno055 in bnoID
-	if (bnoID != sensor.sensor_id) {
-		Serial.println("\nNo Calibration Data for this sensor exists in EEPROM.");
-		foundCalib = false;
-	}
-	else {
-		Serial.println("\nFound Calibration for this sensor A in EEPROM.");
-		eeAddress += sizeof(long);
-		EEPROM.get(eeAddress, calibrationData);
-
-		Serial.println("Restoring Calibration data to the BNO055..");
-		bno.setSensorOffsets(calibrationData);
-		while (!bno.isFullyCalibrated()) {
-			Serial.println("Setting BNO055 Calibration... Was the sensor properly calibrated?");
-            displayCalStatus(bno);
-			delay(1000);
-		}
-
-		Serial.println("Calibration data loaded into BNO055");
-		foundCalib = true;
-	}
+	adafruit_bno055_offsets_t calibrationData = {15293, 0, 615, 50, 0, 0, 8192, 512, 0, 0, 512};
+	bno.setSensorOffsets(calibrationData);
+	Serial.println("Calibration data loaded into BNO055");
 	delay(1000);
 
-	return foundCalib;
-}
-
-/*
- * Conver the double array of IMU data into a
- */
-bool saveCalibration(Adafruit_BNO055 & bno) {
-	adafruit_bno055_offsets_t newCali;
-	bno.getSensorOffsets(newCali);
-	Serial.print("\n\nStoring calibration data to EEPROM...");
-
-	int eeAddress = 0;
-	sensor_t sensor;
-	long bnoID;
-	bno.getSensor(&sensor);
-	bnoID = sensor.sensor_id;
-
-	// Store Sensor ID
-	EEPROM.put(eeAddress, bnoID);
-	// Store the calibration data type
-	eeAddress += sizeof(long);
-	EEPROM.put(eeAddress, newCali);
-
-	delay(1000);
-    
-    Serial.println(" Saved!");
+	Serial.println("Checking Sensor Calibration: ");
+	while(!bno.isFullyCalibrated()) {
+		bno.getEvent(&event);
+		displayCalStatus(bno);
+		delay(100);
+	}
+	Serial.print("Calibration status: "); Serial.print(bno.isFullyCalibrated());
 
 	return true;
-}
-
-/*
- * Conver the double array of IMU data into a
- */
-bool calibrateIMU(Adafruit_BNO055 & bno, bool forceCalibration) {
-	bool foundCalib = loadSensorOffset(bno);
-
-	if (!forceCalibration && foundCalib && bno.isFullyCalibrated()) {
-		return true;
-	}
-	else {
-		bno.setExtCrystalUse(true);
-		sensors_event_t event;
-
-		Serial.println("Sensor needs to be calibrated: ");
-		while(!bno.isFullyCalibrated()) {
-			bno.getEvent(&event);
-			displayCalStatus(bno);
-			delay(100);
-		}
-        Serial.print("Calibration status: "); Serial.print(bno.isFullyCalibrated());
-
-		saveCalibration(bno);
-        return true;
-	}
 }

@@ -1,33 +1,29 @@
 begin
-    using Pkg
-    Pkg.activate("$(@__DIR__)/..")
+    import Mercury as Hg
 
-    include("$(@__DIR__)/../nodes/imu_vicon_publisher/imu_vicon_publisher.jl")
-    include("$(@__DIR__)/../nodes/filtered_state_publisher/filtered_state_publisher_debug.jl")
-    # include("$(@__DIR__)/../nodes/jetson_link/jetson_link.jl")
+    include("$(@__DIR__)/../nodes/imu_vicon_publisher/imu_vicon_publisher_node.jl")
+    # include("$(@__DIR__)/../nodes/filtered_state_publisher/filtered_state_publisher_node.jl")
+    # include("$(@__DIR__)/../nodes/jetson_link/jetson_link_node.jl")
 
-    # Launch Various thread
-    imu_vicon_thread = ImuViconPublisher.main(; debug=false)
-    filter_thread = FilteredStatePublisherDebug.main(; debug=false)
-    # jetson_link_thread = JetsonLink.main(; debug=false)
+    imu_vicon_node = ImuViconPublisher.main(; rate=100.0, debug=true)
+    # filter_node = FilteredStatePublisher.main(; rate=100.0, debug=false);
+    # jetson_link_node = JetsonLink.main(; rate=33.0, debug=false);
+
+    imu_vicon_node_task = Threads.@spawn Hg.launch(imu_vicon_node)
+    # filter_node_task = Threads.@spawn Hg.launch(filter_node)
+    # jetson_link_node_task = Threads.@spawn Hg.launch(jetson_link_node)
 
     try
         while true
             sleep(0.1)
-
-            if istaskdone(imu_vicon_thread)
-                fetch(imu_vicon_thread); break
-            end
-            if istaskdone(filter_thread)
-                fetch(filter_thread); break
-            end
-            # if istaskdone(jetson_link_thread)
-            #     fetch(jetson_link_thread); break
-            # end
         end
     catch e
-        schedule(imu_vicon_thread, InterruptException(), error=true)
-        schedule(filter_thread, InterruptException(), error=true)
-        # schedule(jetson_link_thread, InterruptException(), error=true)
+        Base.throwto(imu_vicon_node_task, InterruptException())
+        # Base.throwto(filter_node_task, InterruptException())
+        # Base.throwto(jetson_link_node_task, InterruptException())
+
+        Hg.closeall(imu_vicon_node)
+        # Hg.closeall(filter_node)
+        # Hg.closeall(jetson_link_node)
     end
 end
