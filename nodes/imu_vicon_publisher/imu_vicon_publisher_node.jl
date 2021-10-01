@@ -14,6 +14,25 @@ module ImuViconPublisher
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
 
+    struct IMU_VICON_C
+        acc_x::Cfloat;
+        acc_y::Cfloat;
+        acc_z::Cfloat;
+        gyr_x::Cfloat;
+        gyr_y::Cfloat;
+        gyr_z::Cfloat;
+
+        pos_x::Cfloat;
+        pos_y::Cfloat;
+        pos_z::Cfloat;
+        quat_w::Cfloat;
+        quat_x::Cfloat;
+        quat_y::Cfloat;
+        quat_z::Cfloat;
+
+        time::Cdouble;
+    end
+
     mutable struct ImuViconNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
@@ -24,7 +43,7 @@ module ImuViconPublisher
         # ProtoBuf Messages
         imu::IMU
         vicon::VICON
-        imu_vicon::IMU_VICON
+        imu_vicon::MVector{256}
 
         # Random
         debug::Bool
@@ -47,10 +66,12 @@ module ImuViconPublisher
             vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                           quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                           time=0.)
-            vicon_sub = Hg.ZmqPublisher(imuViconNodeIO.ctx, vicon_pub_ip, vicon_pub_port)
-            Hg.add_publisher!(imuViconNodeIO, vicon, vicon_sub)
+            vicon_pub = Hg.ZmqPublisher(imuViconNodeIO.ctx, vicon_pub_ip, vicon_pub_port)
+            Hg.add_publisher!(imuViconNodeIO, vicon, vicon_pub)
 
             imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
+
+            imu_vicon = @MVector rand(UInt8, 256)
             imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud);
             Hg.add_subscriber!(imuViconNodeIO, imu_vicon, imu_vicon_sub)
 
@@ -68,27 +89,29 @@ module ImuViconPublisher
 
         # On recieving a new IMU_VICON message
         Hg.on_new(imuViconNodeIO.subs[1]) do imu_vicon
-            # Rotate the IMU frame to match the VICON frame
-            acc_vec = SA[imu_vicon.imu.acc_x, imu_vicon.imu.acc_y, imu_vicon.imu.acc_z]
-            gyr_vec = SA[imu_vicon.imu.gyr_x, imu_vicon.imu.gyr_y, imu_vicon.imu.gyr_z]
+            msg_size = Hg.bytesreceived(imuViconNodeIO.subs[1].sub)
+            if msg_size == sizeof(IMU_VICON_C)
+                imu_vicon_c = reinterpret(IMU_VICON_C, imu_vicon[1:msg_size])[1]
 
-            node.imu.acc_x, node.imu.acc_y, node.imu.acc_z = Rot_imu_body * acc_vec
-            node.imu.gyr_x, node.imu.gyr_y, node.imu.gyr_z = Rot_imu_body * gyr_vec
-            node.imu.time = time()
+                acc_vec = SA[imu_vicon_c.acc_x, imu_vicon_c.acc_y, imu_vicon_c.acc_z]
+                gyr_vec = SA[imu_vicon_c.gyr_x, imu_vicon_c.gyr_y, imu_vicon_c.gyr_z]
+                pos_vec = SA[imu_vicon_c.pos_x, imu_vicon_c.pos_y, imu_vicon_c.pos_z]
+                ori_vec = SA[imu_vicon_c.quat_w, imu_vicon_c.quat_x, imu_vicon_c.quat_y, imu_vicon_c.quat_z]
 
-            node.vicon.pos_x = imu_vicon.vicon.pos_x
-            node.vicon.pos_y = imu_vicon.vicon.pos_y
-            node.vicon.pos_z = imu_vicon.vicon.pos_z
-            node.vicon.quat_w = imu_vicon.vicon.quat_w
-            node.vicon.quat_x = imu_vicon.vicon.quat_x
-            node.vicon.quat_y = imu_vicon.vicon.quat_y
-            node.vicon.quat_z = imu_vicon.vicon.quat_z
+                node.imu.acc_x, node.imu.acc_y, node.imu.acc_z = Rot_imu_body * acc_vec
+                node.imu.gyr_x, node.imu.gyr_y, node.imu.gyr_z = Rot_imu_body * gyr_vec
+                node.imu.time = time()
 
-            if node.debug
-                @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
-                @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z)
+                node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z = pos_vec
+                node.vicon.quat_w, node.vicon.quat_x, node.vicon.quat_y, node.vicon.quat_z = ori_vec
+                node.vicon.time = imu_vicon_c.time
+
+                if node.debug
+                    @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
+                            node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
+                    @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                            node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z)
+                end
             end
         end
 
@@ -130,6 +153,3 @@ end
 
 # # %%
 # Hg.closeall(filter_node)
-
-# # %%
-# Base.throwto(filter_node_task, InterruptException())
