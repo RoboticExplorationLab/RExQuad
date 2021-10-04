@@ -6,8 +6,8 @@ module MotorCommand
     using StaticArrays
     using TOML
 
-    const MAX_THROTLE = 1832
-    const MIN_THROTLE = 1148
+    const MIN_THROTLE = 1148.0f0
+    const MAX_THROTLE = 1832.0f0
 
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
@@ -41,7 +41,12 @@ module MotorCommand
             motorCommandNodeIO = Hg.NodeIO(ZMQ.Context(1))
 
             # Adding the Quad Info Subscriber to the Node
-            motor_command = [MOTORS_C(0.0, 0.0, 0.0, 0.0, time())]
+            motor_command = [MOTORS_C(MIN_THROTLE,
+                                      MIN_THROTLE,
+                                      MIN_THROTLE,
+                                      MIN_THROTLE,
+                                      time())]
+
             motor_command_buf = @MVector zeros(UInt8, sizeof(MOTORS_C))
             motor_pub = Hg.SerialPublisher(teensy_port, teensy_baud)
             Hg.add_publisher!(motorCommandNodeIO, motor_command_buf, motor_pub)
@@ -51,7 +56,6 @@ module MotorCommand
                        debug)
         end
     end
-
 
     function Hg.compute(node::MotorCommandNode)
         motorCommandNodeIO = Hg.getIO(node)
@@ -63,10 +67,10 @@ module MotorCommand
             println(last_command)
         end
 
-        node.motor_command[1] = MOTORS_C(last_command.front_left + 0.1,
-                                         last_command.front_right + 0.1,
-                                         last_command.back_right + 0.1,
-                                         last_command.back_left + 0.1,
+        node.motor_command[1] = MOTORS_C(last_command.front_left + 0.01,
+                                         last_command.front_right + 0.01,
+                                         last_command.back_right + 0.01,
+                                         last_command.back_left + 0.01,
                                          time())
         node.motor_command_buf .= reinterpret(UInt8, node.motor_command)
 
@@ -81,7 +85,7 @@ module MotorCommand
         serial_port = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
         baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
 
-        serial_port = "/dev/tty.usbmodem14101"
+        serial_port = "/dev/ttyACM0"
         baud_rate = 115200
 
         node = MotorCommandNode(serial_port, baud_rate,
@@ -97,5 +101,6 @@ motor_command_node = MotorCommand.main(; debug=true);
 # %%
 motor_command_node_task = Threads.@spawn Hg.launch(motor_command_node)
 
+wait(motor_command_node_task)
 # %%
-Hg.closeall(motor_command_node)
+# Hg.closeall(motor_command_node)
