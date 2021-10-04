@@ -1,12 +1,9 @@
 # This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon
 # data coming through the telemetry radio and the Arduino.
 module ImuViconPublisher
-    using Revise
-
     import Mercury as Hg
     using ZMQ
     using StaticArrays
-    using Rotations: RotXYZ
     using Printf
     using TOML
 
@@ -78,6 +75,11 @@ module ImuViconPublisher
         end
     end
 
+    function Hg.startup(node::ImuViconNode)
+        # imuViconNodeIO = Hg.getIO(node)
+        # open(imuViconNodeIO.subs[1].sub.serial_port)
+    end
+
     function Hg.compute(node::ImuViconNode)
         imuViconNodeIO = Hg.getIO(node)
 
@@ -97,8 +99,8 @@ module ImuViconPublisher
                 pos_vec = SA[imu_vicon_c.pos_x, imu_vicon_c.pos_y, imu_vicon_c.pos_z]
                 ori_vec = SA[imu_vicon_c.quat_w, imu_vicon_c.quat_x, imu_vicon_c.quat_y, imu_vicon_c.quat_z]
 
-                node.imu.acc_x, node.imu.acc_y, node.imu.acc_z = Rot_imu_body * acc_vec
-                node.imu.gyr_x, node.imu.gyr_y, node.imu.gyr_z = Rot_imu_body * gyr_vec
+                node.imu.acc_x, node.imu.acc_y, node.imu.acc_z = acc_vec
+                node.imu.gyr_x, node.imu.gyr_y, node.imu.gyr_z = gyr_vec
                 node.imu.time = time()
 
                 node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z = pos_vec
@@ -124,9 +126,6 @@ module ImuViconPublisher
 
         imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
         imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
-
-        imu_serial_port = "/dev/tty.usbmodem14201"
-        imu_baud_rate = 115200
 
         imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]

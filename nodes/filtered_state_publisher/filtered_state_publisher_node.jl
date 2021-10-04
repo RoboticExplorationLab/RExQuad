@@ -156,13 +156,13 @@ module FilteredStatePublisher
     end
 end
 
-# # %%
-# import Mercury as Hg
+# %%
+import Mercury as Hg
 
-# filter_node = FilteredStatePublisher.main(; rate=100.0, debug=true);
+filter_node = FilteredStatePublisher.main(; rate=100.0, debug=true);
 
-# # %%
-# filter_node_task = Threads.@spawn Hg.launch(filter_node)
+# %%
+filter_node_task = Threads.@spawn Hg.launch(filter_node)
 
 # # %%
 # Hg.closeall(filter_node)
