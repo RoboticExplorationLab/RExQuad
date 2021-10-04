@@ -36,8 +36,6 @@ module ImuViconPublisher
     mutable struct ImuViconNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
-        rate::Float64
-        should_finish::Bool
 
         # Specific to GroundLinkNode
         # ProtoBuf Messages
@@ -51,10 +49,9 @@ module ImuViconPublisher
         function ImuViconNode(teensy_port::String, teensy_baud::Int,
                               imu_pub_ip::String, imu_pub_port::String,
                               vicon_pub_ip::String, vicon_pub_port::String,
-                              rate::Float64, debug::Bool)
+                              debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
             imuViconNodeIO = Hg.NodeIO(ZMQ.Context(1))
-            should_finish = false
 
             # Adding the Quad Info Subscriber to the Node
             imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
@@ -72,10 +69,10 @@ module ImuViconPublisher
             imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
 
             imu_vicon = @MVector rand(UInt8, 256)
-            imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud);
+            imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud; name="IMU_VICON_SUB");
             Hg.add_subscriber!(imuViconNodeIO, imu_vicon, imu_vicon_sub)
 
-            return new(imuViconNodeIO, rate, should_finish,
+            return new(imuViconNodeIO,
                        imu, vicon, imu_vicon,
                        debug)
         end
@@ -87,9 +84,11 @@ module ImuViconPublisher
         # Rotation descibing VICON to IMU attitude
         Rot_imu_body = RotXYZ(0, 0, 0)
 
+        imu_vicon_sub = Hg.getsubscriber(node, "IMU_VICON_SUB")
         # On recieving a new IMU_VICON message
-        Hg.on_new(imuViconNodeIO.subs[1]) do imu_vicon
-            msg_size = Hg.bytesreceived(imuViconNodeIO.subs[1].sub)
+        Hg.on_new(imu_vicon_sub) do imu_vicon
+            msg_size = Hg.bytesreceived(imu_vicon_sub.sub)
+
             if msg_size == sizeof(IMU_VICON_C)
                 imu_vicon_c = reinterpret(IMU_VICON_C, imu_vicon[1:msg_size])[1]
 
@@ -138,18 +137,17 @@ module ImuViconPublisher
         node = ImuViconNode(imu_serial_port, imu_baud_rate,
                             imu_ip, imu_port,
                             vicon_ip, vicon_port,
-                            rate, debug)
+                            debug)
         return node
     end
 end
 
-# # %%
-# import Mercury as Hg
+# %%
+import Mercury as Hg
+filter_node = ImuViconPublisher.main(; debug=true);
 
-# filter_node = ImuViconPublisher.main(; rate=100.0, debug=true);
+# %%
+filter_node_task = Threads.@spawn Hg.launch(filter_node)
 
-# # %%
-# filter_node_task = Threads.@spawn Hg.launch(filter_node)
-
-# # %%
-# Hg.closeall(filter_node)
+# %%
+Hg.closeall(filter_node)

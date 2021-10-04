@@ -1,84 +1,77 @@
 # This node is run of the Jetson, it is a simple LQR controller to
 # stabilize the quadrotor around a hover
-module LqrHoverControllerDebug
-    using TOML
+module MotorCommand
     using ZMQ
-    using ProtoBuf
-    using SerialCOBS
+    import Mercury as Hg
+    using StaticArrays
+    using TOML
 
-    MAX_THROTLE = 1832
-    MIN_THROTLE = 1148
-
-    include("$(@__DIR__)/../utils/PubSubBuilder.jl")
-    using .PubSubBuilder
+    const MAX_THROTLE = 1832
+    const MIN_THROTLE = 1148
 
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/messaging.jl")
 
+    struct MOTORS_C
+        front_left::Cfloat;
+        front_right::Cfloat;
+        back_right::Cfloat;
+        back_left::Cfloat;
 
-    function motor_commander(motor_pub_ip::String, motor_pub_port::String,
-                             serial_port::String, baud_rate::Int;
-                             freq::Int64=100, debug::Bool=false)
-        rate = 1/freq
-        ctx = Context(1)
-        ard = Arduino(serial_port, baud_rate);
+        time::Cdouble;
+    end
 
-        # Setup Filtered state publisher
-        motors = MOTORS(front_left=MIN_THROTLE, front_right=MIN_THROTLE,
-                        back_right=MIN_THROTLE, back_left=MIN_THROTLE,
-                        time=time())
-        motors_pub = create_pub(ctx, motor_pub_ip, motor_pub_port)
-        pb = PipeBuffer()
 
-        len = 5 * freq
-        ramp = [MIN_THROTLE:(MAX_THROTLE-MIN_THROTLE)/len:MAX_THROTLE;]
-        ramp = [ramp; reverse(ramp)]
+    mutable struct MotorCommandNode <: Hg.Node
+        # Required by Abstract Node type
+        nodeio::Hg.NodeIO
 
-        try
-            open(ard) do sp
-                # # while true
-                for i in 1:1000
-                # for throt in ramp
-                    motors.front_left = MIN_THROTLE + 25
-                    motors.front_right = MIN_THROTLE + 25
-                    motors.back_right = MIN_THROTLE + 25
-                    motors.back_left = MIN_THROTLE + 25
+        # Specific to GroundLinkNode
+        # ProtoBuf Messages
+        motor_command::Vector{MOTORS_C}
+        motor_command_buf::MVector{sizeof(MOTORS_C), UInt8}
 
-                    msg_size = writeproto(pb, motors);
-                    message(ard, take!(pb))
+        # Random
+        debug::Bool
 
-                    publish(motors_pub, motors)
+        function MotorCommandNode(teensy_port::String, teensy_baud::Int,
+                                  debug::Bool)
+            # Adding the Ground Vicon Subscriber to the Node
+            motorCommandNodeIO = Hg.NodeIO(ZMQ.Context(1))
 
-                    sleep(rate)
-                    GC.gc(false)
-                end
+            # Adding the Quad Info Subscriber to the Node
+            motor_command = [MOTORS_C(0.0, 0.0, 0.0, 0.0, time())]
+            motor_command_buf = @MVector zeros(UInt8, sizeof(MOTORS_C))
+            motor_pub = Hg.SerialPublisher(teensy_port, teensy_baud)
+            Hg.add_publisher!(motorCommandNodeIO, motor_command_buf, motor_pub)
 
-                for i in 1:1000
-                    motors.front_left = MIN_THROTLE
-                    motors.front_right = MIN_THROTLE
-                    motors.back_right = MIN_THROTLE
-                    motors.back_left = MIN_THROTLE
-
-                    msg_size = writeproto(pb, motors);
-                    message(ard, take!(pb))
-
-                    publish(motors_pub, motors)
-                    sleep(rate)
-                    GC.gc(false)
-                end
-            end
-
-        catch e
-            close(motors_pub)
-            close(ctx)
-
-            if e isa InterruptException
-                println("Process terminated by you")
-            else
-                rethrow(e)
-            end
+            return new(motorCommandNodeIO,
+                       motor_command, motor_command_buf,
+                       debug)
         end
+    end
+
+
+    function Hg.compute(node::MotorCommandNode)
+        motorCommandNodeIO = Hg.getIO(node)
+        # This vector should be constant size but you can't reinterpret SArray types
+        @assert length(node.motor_command) == 1
+        last_command = node.motor_command[1]
+
+        if node.debug
+            println(last_command)
+        end
+
+        node.motor_command[1] = MOTORS_C(last_command.front_left + 0.1,
+                                         last_command.front_right + 0.1,
+                                         last_command.back_right + 0.1,
+                                         last_command.back_left + 0.1,
+                                         time())
+        node.motor_command_buf .= reinterpret(UInt8, node.motor_command)
+
+        # Publish on all topics in NodeIO
+        Hg.publish.(motorCommandNodeIO.pubs)
     end
 
     # Launch IMU publisher
@@ -88,12 +81,21 @@ module LqrHoverControllerDebug
         serial_port = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
         baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
 
-        motors_state_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
-        motors_state_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
+        serial_port = "/dev/tty.usbmodem14101"
+        baud_rate = 115200
 
-        mc_pub() = motor_commander(motors_state_ip, motors_state_port,
-                                   serial_port, baud_rate;
-                                   freq=100, debug=debug)
-        return Threads.@spawn mc_pub()
+        node = MotorCommandNode(serial_port, baud_rate,
+                                debug)
+        return node
     end
 end
+
+# %%
+import Mercury as Hg
+motor_command_node = MotorCommand.main(; debug=true);
+
+# %%
+motor_command_node_task = Threads.@spawn Hg.launch(motor_command_node)
+
+# %%
+Hg.closeall(motor_command_node)

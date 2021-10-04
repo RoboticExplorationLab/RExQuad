@@ -90,6 +90,8 @@ void sendJetsonMessage(PacketSerial &myPacketSerial, IMU_VICON &imu_vicon)
     memcpy(imu_vicon_buffer, &imu_vicon, msg_size);
 
     myPacketSerial.send(imu_vicon_buffer, msg_size);
+    // uint8_t zero_byte = 0;
+    // Serial.write(zero_byte);
 }
 
 
