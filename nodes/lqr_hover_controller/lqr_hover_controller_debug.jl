@@ -1,13 +1,13 @@
 # This node is run of the Jetson, it is a simple LQR controller to
 # stabilize the quadrotor around a hover
 module MotorCommand
-    using ZMQ
     import Mercury as Hg
+    using ZMQ
     using StaticArrays
     using TOML
 
-    const MIN_THROTLE = 1148.0f0
-    const MAX_THROTLE = 1832.0f0
+    const MIN_THROTLE = 1200.0f0
+    const MAX_THROTLE = 1800.0f0
 
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
@@ -38,7 +38,7 @@ module MotorCommand
         function MotorCommandNode(teensy_port::String, teensy_baud::Int,
                                   debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
-            motorCommandNodeIO = Hg.NodeIO(ZMQ.Context(1))
+            motorCommandNodeIO = Hg.NodeIO(ZMQ.Context(1); rate=(10.0))
 
             # Adding the Quad Info Subscriber to the Node
             motor_command = [MOTORS_C(MIN_THROTLE,
@@ -85,7 +85,7 @@ module MotorCommand
         serial_port = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
         baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
 
-        serial_port = "/dev/ttyACM0"
+        serial_port = "/dev/tty.usbmodem14201"
         baud_rate = 115200
 
         node = MotorCommandNode(serial_port, baud_rate,
@@ -101,6 +101,10 @@ motor_command_node = MotorCommand.main(; debug=true);
 # %%
 motor_command_node_task = Threads.@spawn Hg.launch(motor_command_node)
 
-wait(motor_command_node_task)
+try
+    wait(motor_command_node_task)
+catch e
+    Base.throwto(motor_command_node_task, InterruptException())
+end
 # %%
-# Hg.closeall(motor_command_node)
+Hg.closeall(motor_command_node)
