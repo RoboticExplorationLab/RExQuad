@@ -100,10 +100,15 @@ module ImuViconPublisher
                 node.vicon.time = imu_vicon_c.time
 
                 if node.debug
-                    @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
-                            node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
+                    # @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
+                    #         node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
                     @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
                             node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z)
+                    @printf("Vicon ori: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                            node.quad_info.measurement.quat_w,
+                            node.quad_info.measurement.quat_w,
+                            node.quad_info.measurement.quat_w,
+                            node.quad_info.measurement.quat_w)
                 end
             end
         end

@@ -11,4 +11,4 @@ const LQR_gain_file = joinpath(@__DIR__, "..", "data", "lqr_gain.json")
 """
 The location of the mesh files
 """
-const mesh_folder = joinpath(@__DIR__, "..", "..", "data", "meshes")
+const mesh_folder = joinpath(@__DIR__, "..", "data", "meshes")
