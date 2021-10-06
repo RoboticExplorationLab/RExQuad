@@ -46,8 +46,8 @@ void setup() {
 
 void loop() {
     jetsonPacketSerial.update();
-
-//     print_command(command);
+    
+//    print_command(command);
     command_motors(motors, command);
 }
 

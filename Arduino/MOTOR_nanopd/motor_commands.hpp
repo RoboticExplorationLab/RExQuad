@@ -5,8 +5,8 @@
 #include <Servo.h>
 
 #define LED_PIN     (13)
-#define MAX_THROTLE (1800.0)
-#define MIN_THROTLE (1200.0)
+#define MAX_THROTLE (1832.0)
+#define MIN_THROTLE (1148.0)
 
 typedef struct _MOTOR_COMMANDS
 {

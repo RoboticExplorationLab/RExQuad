@@ -6,8 +6,8 @@ module MotorCommand
     using StaticArrays
     using TOML
 
-    const MIN_THROTLE = 1200.0f0
-    const MAX_THROTLE = 1800.0f0
+    const MIN_THROTLE = 1148.0f0
+    const MAX_THROTLE = 1832.0f0
 
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
@@ -32,6 +32,7 @@ module MotorCommand
         motor_command::Vector{MOTORS_C}
         motor_command_buf::MVector{sizeof(MOTORS_C), UInt8}
 
+        start_time::Float64
         # Random
         debug::Bool
 
@@ -51,8 +52,11 @@ module MotorCommand
             motor_pub = Hg.SerialPublisher(teensy_port, teensy_baud)
             Hg.add_publisher!(motorCommandNodeIO, motor_command_buf, motor_pub)
 
+            start_time = time()
+
             return new(motorCommandNodeIO,
                        motor_command, motor_command_buf,
+                       start_time,
                        debug)
         end
     end
@@ -66,13 +70,21 @@ module MotorCommand
         if node.debug
             println(last_command)
         end
-
-        node.motor_command[1] = MOTORS_C(last_command.front_left + 0.01,
-                                         last_command.front_right + 0.01,
-                                         last_command.back_right + 0.01,
-                                         last_command.back_left + 0.01,
-                                         time())
-        node.motor_command_buf .= reinterpret(UInt8, node.motor_command)
+        if abs(time() - node.start_time) < 10
+            node.motor_command[1] = MOTORS_C(last_command.front_left + 5,
+                                            last_command.front_right + 5,
+                                            last_command.back_right + 5,
+                                            last_command.back_left + 5,
+                                            time())
+            node.motor_command_buf .= reinterpret(UInt8, node.motor_command)
+        else
+            node.motor_command[1] = MOTORS_C(MIN_THROTLE,
+                                             MIN_THROTLE,
+                                             MIN_THROTLE,
+                                             MIN_THROTLE,
+                                             time())
+            node.motor_command_buf .= reinterpret(UInt8, node.motor_command)
+        end
 
         # Publish on all topics in NodeIO
         Hg.publish.(motorCommandNodeIO.pubs)
@@ -106,5 +118,6 @@ try
 catch e
     Base.throwto(motor_command_node_task, InterruptException())
 end
+
 # %%
 Hg.closeall(motor_command_node)

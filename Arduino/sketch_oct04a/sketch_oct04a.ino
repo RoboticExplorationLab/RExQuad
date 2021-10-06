@@ -1,59 +1,111 @@
-/*ESC calibration sketch; author: ELECTRONOOBS */
+/**
+ * Usage, according to documentation(https://www.firediy.fr/files/drone/HW-01-V4.pdf) : 
+ *     1. Plug your Arduino to your computer with USB cable, open terminal, then type 1 to send max throttle to every ESC to enter programming mode
+ *     2. Power up your ESCs. You must hear "beep1 beep2 beep3" tones meaning the power supply is OK
+ *     3. After 2sec, "beep beep" tone emits, meaning the throttle highest point has been correctly confirmed
+ *     4. Type 0 to send min throttle
+ *     5. Several "beep" tones emits, which means the quantity of the lithium battery cells (3 beeps for a 3 cells LiPo)
+ *     6. A long beep tone emits meaning the throttle lowest point has been correctly confirmed
+ *     7. Type 2 to launch test function. This will send min to max throttle to ESCs to test them
+ *
+ * @author lobodol <grobodol@gmail.com>
+ */
+// ---------------------------------------------------------------------------
 #include <Servo.h>
+// ---------------------------------------------------------------------------
+// Customize here pulse lengths as needed
+#define MIN_PULSE_LENGTH 1148 // Minimum pulse length in µs
+#define MAX_PULSE_LENGTH 1832 // Maximum pulse length in µs
+// ---------------------------------------------------------------------------
+Servo motA, motB, motC, motD;
+char data;
+// ---------------------------------------------------------------------------
 
-#define MAX_SIGNAL 1832
-#define MIN_SIGNAL 1148
-#define MOTOR_PIN 9
-int DELAY = 1000;
-
-Servo motor;
-
+/**
+ * Initialisation routine
+ */
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Don't forget to subscribe!");
-  Serial.println("ELECTRONOOBS ESC calibration...");
-  Serial.println(" ");
-  delay(1500);
-  Serial.println("Program begin...");
-  delay(1000);
-  Serial.println("This program will start the ESC.");
-
-  motor.attach(MOTOR_PIN);
-
-  Serial.print("Now writing maximum output: (");Serial.print(MAX_SIGNAL);Serial.print(" us in this case)");Serial.print("\n");
-  Serial.println("Turn on power source, then wait 2 seconds and press any key.");
-  motor.writeMicroseconds(MAX_SIGNAL);
-
-  // Wait for input
-  while (!Serial.available());
-  Serial.read();
-
-  // Send min output
-  Serial.println("\n");
-  Serial.println("\n");
-  Serial.print("Sending minimum output: (");Serial.print(MIN_SIGNAL);Serial.print(" us in this case)");Serial.print("\n");
-  motor.writeMicroseconds(MIN_SIGNAL);
-  Serial.println("The ESC is calibrated");
-  Serial.println("----");
-  Serial.println("Now, type a values between 1000 and 2000 and press enter");
-  Serial.println("and the motor will start rotating.");
-  Serial.println("Send 1000 to stop the motor and 2000 for full throttle");
-
+    Serial.begin(9600);
+    while(!Serial) {}
+    
+    motA.attach(9, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
+//    motB.attach(5, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
+//    motC.attach(6, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
+//    motD.attach(7, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
+    
+    displayInstructions();
 }
 
+/**
+ * Main function
+ */
 void loop() {
-   
-  if (Serial.available() > 0)
-  {
-    int DELAY = Serial.parseInt();
-    if (DELAY > 999)
-    {
-      
-      motor.writeMicroseconds(DELAY);
-      float SPEED = (DELAY-1000)/10;
-      Serial.print("\n");
-      Serial.println("Motor speed:"); Serial.print("  "); Serial.print(SPEED); Serial.print("%"); 
-    }     
-  }
+    if (Serial.available()) {
+        data = Serial.read();
+
+        switch (data) {
+            // 0
+            case 48 : Serial.println("Sending minimum throttle");
+                      motA.writeMicroseconds(MIN_PULSE_LENGTH);
+//                      motB.writeMicroseconds(MIN_PULSE_LENGTH);
+//                      motC.writeMicroseconds(MIN_PULSE_LENGTH);
+//                      motD.writeMicroseconds(MIN_PULSE_LENGTH);
+            break;
+
+            // 1
+            case 49 : Serial.println("Sending maximum throttle");
+                      motA.writeMicroseconds(MAX_PULSE_LENGTH);
+//                      motB.writeMicroseconds(MAX_PULSE_LENGTH);
+//                      motC.writeMicroseconds(MAX_PULSE_LENGTH);
+//                      motD.writeMicroseconds(MAX_PULSE_LENGTH);
+            break;
+
+            // 2
+            case 50 : Serial.print("Running test in 3");
+                      delay(1000);
+                      Serial.print(" 2");
+                      delay(1000);
+                      Serial.println(" 1...");
+                      delay(1000);
+                      test();
+            break;
+        }
+    }
+    
+
 }
- 
+
+/**
+ * Test function: send min throttle to max throttle to each ESC.
+ */
+void test()
+{
+    for (int i = MIN_PULSE_LENGTH; i <= MAX_PULSE_LENGTH; i += 5) {
+        Serial.print("Pulse length = ");
+        Serial.println(i);
+        
+        motA.writeMicroseconds(i);
+//        motB.writeMicroseconds(i);
+//        motC.writeMicroseconds(i);
+//        motD.writeMicroseconds(i);
+        
+        delay(200);
+    }
+
+    Serial.println("STOP");
+    motA.writeMicroseconds(MIN_PULSE_LENGTH);
+//    motB.writeMicroseconds(MIN_PULSE_LENGTH);
+//    motC.writeMicroseconds(MIN_PULSE_LENGTH);
+//    motD.writeMicroseconds(MIN_PULSE_LENGTH);
+}
+
+/**
+ * Displays instructions to user
+ */
+void displayInstructions()
+{  
+    Serial.println("READY - PLEASE SEND INSTRUCTIONS AS FOLLOWING :");
+    Serial.println("\t0 : Send min throttle");
+    Serial.println("\t1 : Send max throttle");
+    Serial.println("\t2 : Run test function\n");
+}

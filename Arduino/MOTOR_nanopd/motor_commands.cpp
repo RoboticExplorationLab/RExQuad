@@ -6,10 +6,10 @@ MOTORS initialize_motors(MOTOR_COMMANDS * command, int front_left_pin, int front
 {
     MOTORS quad_motors;
 
-//    quad_motors.front_left_esc.attach(front_left_pin, MIN_THROTLE, MAX_THROTLE);
-//    quad_motors.front_right_esc.attach(front_right_pin, MIN_THROTLE, MAX_THROTLE);
-//    quad_motors.back_right_esc.attach(back_right_pin, MIN_THROTLE, MAX_THROTLE);
-//    quad_motors.back_left_esc.attach(back_left_pin, MIN_THROTLE, MAX_THROTLE);
+    quad_motors.front_left_esc.attach(front_left_pin, MIN_THROTLE, MAX_THROTLE);
+    quad_motors.front_right_esc.attach(front_right_pin, MIN_THROTLE, MAX_THROTLE);
+    quad_motors.back_right_esc.attach(back_right_pin, MIN_THROTLE, MAX_THROTLE);
+    quad_motors.back_left_esc.attach(back_left_pin, MIN_THROTLE, MAX_THROTLE);
 
     delay(1000);
     calibrate(quad_motors);
@@ -50,14 +50,14 @@ void calibrate(MOTORS &motors)
     motors.front_right_esc.writeMicroseconds(MAX_THROTLE);
     motors.back_right_esc.writeMicroseconds(MAX_THROTLE);
     motors.back_left_esc.writeMicroseconds(MAX_THROTLE);
-    delay(3000);
+    delay(7000);
     
     //Serial.println("throttle down 1");
     motors.front_left_esc.writeMicroseconds(MIN_THROTLE);
     motors.front_right_esc.writeMicroseconds(MIN_THROTLE);
     motors.back_right_esc.writeMicroseconds(MIN_THROTLE);
     motors.back_left_esc.writeMicroseconds(MIN_THROTLE);
-    delay(3000);
+    delay(8000);
 
     for (int i = 0; i < 2; i++)
     {
