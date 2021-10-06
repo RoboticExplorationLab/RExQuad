@@ -66,7 +66,8 @@ module GroundLink
                                  time=0.)
             quad_info = QUAD_INFO(state=filtered_state, input=motors,
                                   measurement=jetson_vicon, time=0.)
-            quad_info_sub = Hg.ZmqSubscriber(groundLinkNodeIO.ctx, quad_info_sub_ip, quad_info_sub_port)
+            quad_info_sub = Hg.ZmqSubscriber(groundLinkNodeIO.ctx, quad_info_sub_ip, quad_info_sub_port;
+                                             name="QUAD_INFO_SUB")
             Hg.add_subscriber!(groundLinkNodeIO, quad_info, quad_info_sub)
 
             # Adding the Ground Info Publisher to the Node
@@ -76,58 +77,52 @@ module GroundLink
 
             vis = QuadVisualizer()
             debug = debug
+            open(vis);
+            add_copy!(vis)
 
             return new(groundLinkNodeIO, rate, should_finish,
                        ground_vicon_submsg, ground_vicon_sub_task,
                        filtered_state, motors, jetson_vicon, quad_info, ground_info,
-                       vis, debug)
+                       vis,
+                       debug)
         end
     end
 
     function Hg.startup(node::GroundLinkNode)
-        open(node.vis); add_copy!(node.vis)
+        # open(node.vis);
+        # add_copy!(node.vis)
     end
 
     function Hg.compute(node::GroundLinkNode)
         groundLinkNodeIO = Hg.getIO(node)
 
+        quad_info_sub = Hg.getsubscriber(node, "QUAD_INFO_SUB")
+
         Hg.on_new(node.ground_vicon_submsg) do serialized_vicon
             TrajOptPlots.visualize!(node.vis,
                                     SA[serialized_vicon.position_x,
-                                        serialized_vicon.position_y,
-                                        serialized_vicon.position_z,
-                                        serialized_vicon.quaternion_w,
-                                        serialized_vicon.quaternion_x,
-                                        serialized_vicon.quaternion_y,
-                                        serialized_vicon.quaternion_z,
-                                        0.0, 0.0, 0.0,
-                                        0.0, 0.0, 0.0],
-                                    # SA[node.filtered_state.pos_x,
-                                    #     node.filtered_state.pos_y,
-                                    #     node.filtered_state.pos_z,
-                                    #     node.filtered_state.quat_w,
-                                    #     node.filtered_state.quat_x,
-                                    #     node.filtered_state.quat_y,
-                                    #     node.filtered_state.quat_z,
-                                    SA[node.quad_info.measurement.pos_x,
-                                        node.quad_info.measurement.pos_y,
-                                        node.quad_info.measurement.pos_z,
-                                        node.quad_info.measurement.quat_w,
-                                        node.quad_info.measurement.quat_x,
-                                        node.quad_info.measurement.quat_y,
-                                        node.quad_info.measurement.quat_z,
-                                        0.0, 0.0, 0.0,
-                                        0.0, 0.0, 0.0],)
-
-            # if node.debug
-            #     @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-            #             serialized_vicon.position_x,
-            #             serialized_vicon.position_y,
-            #             serialized_vicon.position_z)
-            # end
+                                       serialized_vicon.position_y,
+                                       serialized_vicon.position_z,
+                                       serialized_vicon.quaternion_w,
+                                       serialized_vicon.quaternion_x,
+                                       serialized_vicon.quaternion_y,
+                                       serialized_vicon.quaternion_z,
+                                       0.0, 0.0, 0.0,
+                                       0.0, 0.0, 0.0])
         end
 
-        Hg.on_new(groundLinkNodeIO.subs[1]) do quad_info
+        Hg.on_new(quad_info_sub) do quad_info
+            visualize_copy!(node.vis,
+                            SA[quad_info.measurement.pos_x,
+                                quad_info.measurement.pos_y,
+                                quad_info.measurement.pos_z,
+                                quad_info.measurement.quat_w,
+                                quad_info.measurement.quat_x,
+                                quad_info.measurement.quat_y,
+                                quad_info.measurement.quat_z,
+                                0.0, 0.0, 0.0,
+                                0.0, 0.0, 0.0])
+
             if node.debug
                 @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
                         quad_info.measurement.pos_x,
@@ -135,9 +130,9 @@ module GroundLink
                         quad_info.measurement.pos_z)
                 @printf("Vicon ori: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
                         quad_info.measurement.quat_w,
-                        quad_info.measurement.quat_w,
-                        quad_info.measurement.quat_w,
-                        quad_info.measurement.quat_w)
+                        quad_info.measurement.quat_x,
+                        quad_info.measurement.quat_y,
+                        quad_info.measurement.quat_z)
             end
         end
 
@@ -166,17 +161,17 @@ module GroundLink
     end
 end
 
-# # %%
-# import Mercury as Hg
+# %%
+import Mercury as Hg
 
-# node = GroundLink.main(; rate=100.0, debug=true);
+node = GroundLink.main(; rate=100.0, debug=false);
 
-# # %%
-# node_task = @async Hg.launch(node)
+# %%
+node_task = @async Hg.launch(node)
 
-# # %%
-# Hg.closeall(node)
+# %%
+Hg.closeall(node)
 
-# # %%
-# Base.throwto(node_task, InterruptException())
+# %%
+Base.throwto(node_task, InterruptException())
 
