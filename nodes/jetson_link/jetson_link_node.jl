@@ -2,6 +2,7 @@
 module JetsonLink
     import Mercury as Hg
     using ZMQ
+    using Printf
     using TOML
 
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
@@ -63,7 +64,8 @@ module JetsonLink
 
             # Adding the Quad Info Subscriber to the Node
             quad_info = QUAD_INFO(state=state, input=motors, measurement=vicon, time=0.)
-            quad_info_sub = Hg.ZmqPublisher(jetsonLinkNodeIO.ctx, quad_info_pub_ip, quad_info_pub_port)
+            quad_info_sub = Hg.ZmqPublisher(jetsonLinkNodeIO.ctx, quad_info_pub_ip, quad_info_pub_port;
+                                            name="QUAD_INFO_PUB")
             Hg.add_publisher!(jetsonLinkNodeIO, quad_info, quad_info_sub)
 
             return new(jetsonLinkNodeIO, rate, should_finish,
@@ -77,8 +79,24 @@ module JetsonLink
 
         node.quad_info.time = time()
 
+        if node.debug
+            @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                    node.quad_info.measurement.pos_x,
+                    node.quad_info.measurement.pos_y,
+                    node.quad_info.measurement.pos_z)
+            @printf("Vicon ori: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                    node.quad_info.measurement.quat_w,
+                    node.quad_info.measurement.quat_x,
+                    node.quad_info.measurement.quat_y,
+                    node.quad_info.measurement.quat_z)
+        end
+
+        quad_info_pub = Hg.getpublisher(node, "QUAD_INFO_PUB")
+
         # Publish on all topics in NodeIO
-        Hg.publish.(jetsonLinkNodeIO.pubs)
+        Hg.publish(quad_info_pub)
+
+        # Hg.publish.(jetsonLinkNodeIO.pubs)
     end
 
     # Launch IMU publisher
@@ -109,7 +127,3 @@ module JetsonLink
         return node
     end
 end
-
-# # %%
-# import Mercury as Hg
-# filter_node = JetsonLink.main(; rate=100.0, debug=true);

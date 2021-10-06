@@ -119,16 +119,16 @@ module ImuViconPublisher
         imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
         imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
 
-        imu_serial_port = "/dev/tty.usbmodem14201"
-        imu_baud_rate = 115200
+        # imu_serial_port = "/dev/tty.usbmodem14201"
+        # imu_baud_rate = 115200
 
         imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
-        imu_port = "5566"
+        # imu_port = "5566"
 
         vicon_ip = setup_dict["zmq"]["jetson"]["vicon"]["server"]
         vicon_port = setup_dict["zmq"]["jetson"]["vicon"]["port"]
-        vicon_port = "5544"
+        # vicon_port = "5544"
 
         node = ImuViconNode(imu_serial_port, imu_baud_rate,
                             imu_ip, imu_port,
@@ -139,12 +139,12 @@ module ImuViconPublisher
 end
 
 # %% For Testing
-@warn "Testing code is uncommented"
-import Mercury as Hg
-filter_node = ImuViconPublisher.main(; debug=true);
+# @warn "Testing code is uncommented"
+# import Mercury as Hg
+# filter_node = ImuViconPublisher.main(; debug=true);
 
-# %%
-filter_node_task = Threads.@spawn Hg.launch(filter_node)
+# # %%
+# filter_node_task = Threads.@spawn Hg.launch(filter_node)
 
-# %%
-Hg.closeall(filter_node)
+# # %%
+# Hg.closeall(filter_node)
