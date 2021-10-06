@@ -68,6 +68,6 @@ function TrajOptPlots.visualize!(vis::QuadVisualizer, x::AbstractVector, x2::Abs
     TrajOptPlots.visualize!(vis.vis["copy"], vis.model, x2)
 end
 
-function TrajOptPlots.visualize_copy!(vis::QuadVisualizer, x::AbstractVector)
+function visualize_copy!(vis::QuadVisualizer, x::AbstractVector)
     TrajOptPlots.visualize!(vis.vis["copy"], vis.model, x)
 end
