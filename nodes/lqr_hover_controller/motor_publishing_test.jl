@@ -70,7 +70,7 @@ module MotorCommand
         if node.debug
             println(last_command)
         end
-        if abs(time() - node.start_time) < 10
+        if abs(time() - node.start_time) < 5
             node.motor_command[1] = MOTORS_C(last_command.front_left + 5,
                                             last_command.front_right + 5,
                                             last_command.back_right + 5,
@@ -97,7 +97,7 @@ module MotorCommand
         serial_port = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
         baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
 
-        serial_port = "/dev/tty.usbmodem14201"
+        serial_port = "/dev/ttyACM0"
         baud_rate = 115200
 
         node = MotorCommandNode(serial_port, baud_rate,

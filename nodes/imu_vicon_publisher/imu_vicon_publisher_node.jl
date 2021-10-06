@@ -75,16 +75,8 @@ module ImuViconPublisher
         end
     end
 
-    function Hg.startup(node::ImuViconNode)
-        # imuViconNodeIO = Hg.getIO(node)
-        # open(imuViconNodeIO.subs[1].sub.serial_port)
-    end
-
     function Hg.compute(node::ImuViconNode)
         imuViconNodeIO = Hg.getIO(node)
-
-        # Rotation descibing VICON to IMU attitude
-        Rot_imu_body = RotXYZ(0, 0, 0)
 
         imu_vicon_sub = Hg.getsubscriber(node, "IMU_VICON_SUB")
         # On recieving a new IMU_VICON message
@@ -141,12 +133,13 @@ module ImuViconPublisher
     end
 end
 
-# %%
-import Mercury as Hg
-filter_node = ImuViconPublisher.main(; debug=true);
+# %% For Testing
+# @warn "Testing code is uncommented"
+# import Mercury as Hg
+# filter_node = ImuViconPublisher.main(; debug=true);
 
-# %%
-filter_node_task = Threads.@spawn Hg.launch(filter_node)
+# # %%
+# filter_node_task = Threads.@spawn Hg.launch(filter_node)
 
-# %%
-Hg.closeall(filter_node)
+# # %%
+# Hg.closeall(filter_node)
