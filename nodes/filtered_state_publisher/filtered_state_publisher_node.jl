@@ -2,21 +2,19 @@
 # data coming through the telemetry radio and the Arduino.
 module FilteredStatePublisher
     using Revise
+    using StaticArrays
 
     import Mercury as Hg
-    using ZMQ
-    using EKF
-    using StaticArrays
-    using SparseArrays
+    import ZMQ
+    import EKF
+    import EKF.CommonSystems as ComSys
+    using Rotations: UnitQuaternion, params
     using LinearAlgebra: I
-    using ForwardDiff: jacobian
-    using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
-    using Rotations: rotation_error, params, ∇differential, kinematics, RotZ
     using Printf
     using TOML
 
-    # EKF helper functions
-    include("$(@__DIR__)/imu_states.jl")
+    # # EKF helper functions
+    # include("$(@__DIR__)/imu_states.jl")
     # Import Protobuf Messages
     include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
@@ -25,8 +23,6 @@ module FilteredStatePublisher
     mutable struct FilterNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
-        rate::Float64
-        should_finish::Bool
 
         # Specific to GroundLinkNode
         # ProtoBuf Messages
@@ -37,7 +33,10 @@ module FilteredStatePublisher
         last_imu_time::Float64
 
         # EKF type
-        ekf::ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}
+        input::ComSys.ImuInput
+        measurement::ComSys.ViconMeasure
+        ekf::EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput, ComSys.ViconMeasure, ComSys.ViconError}
+        has_predicted::Bool
 
         # Random
         debug::Bool
@@ -47,21 +46,19 @@ module FilteredStatePublisher
                             state_pub_ip::String, state_pub_port::String,
                             rate::Float64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
-            filterNodeIO = Hg.NodeIO(Context(1))
-            rate = rate
-            should_finish = false
+            filterNodeIO = Hg.NodeIO(ZMQ.Context(1); rate=rate)
 
             # Adding the Quad Info Subscriber to the Node
             imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
                       gyr_x=0., gyr_y=0., gyr_z=0.,
                       time=0.)
-            imu_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, imu_sub_ip, imu_sub_port)
+            imu_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, imu_sub_ip, imu_sub_port; name="IMU_SUB")
             Hg.add_subscriber!(filterNodeIO, imu, imu_sub)
 
             vicon = VICON(pos_x=0., pos_y=0., pos_z=0.,
                           quat_w=0., quat_x=0., quat_y=0., quat_z=0.,
                           time=0.)
-            vicon_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, vicon_sub_ip, vicon_sub_port)
+            vicon_sub = Hg.ZmqSubscriber(filterNodeIO.ctx, vicon_sub_ip, vicon_sub_port; name="VICON_SUB")
             Hg.add_subscriber!(filterNodeIO, vicon, vicon_sub)
 
             state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
@@ -75,19 +72,32 @@ module FilteredStatePublisher
             last_imu_time = imu.time
 
             # Setup the EKF filter
-            est_state = ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
-            est_cov = Matrix(2.2 * I(length(ImuError)))
-            process_cov = Matrix(0.5 * I(length(ImuError)))
-            measure_cov = Matrix(0.005 * I(length(ViconError)))
+            est_state = ComSys.ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
+            est_cov = Matrix(2.2 * I(length(ComSys.ImuError)))
+            process_cov = Matrix(0.5 * I(length(ComSys.ImuError)))
+            measure_cov = Matrix(0.005 * I(length(ComSys.ViconError)))
 
-            ekf = ErrorStateFilter{ImuState, ImuError, ImuInput, Vicon, ViconError}(est_state, est_cov,
-                                                                                    process_cov, measure_cov)
+            input = ComSys.ImuInput(0.,0.,0.,0.,0.,0.)
+            measurement = ComSys.ViconMeasure(0.,0.,0.,1.,0.,0.,0.)
+            ekf = EKF.ErrorStateFilter{
+                                       ComSys.ImuState,
+                                       ComSys.ImuError,
+                                       ComSys.ImuInput,
+                                       ComSys.ViconMeasure,
+                                       ComSys.ViconError
+                                       }(
+                                         est_state,
+                                         est_cov,
+                                         process_cov,
+                                         measure_cov
+                                         )
+            has_predicted = false
 
             debug = debug
 
-            return new(filterNodeIO, rate, should_finish,
+            return new(filterNodeIO,
                        imu, vicon, state, last_imu_time,
-                       ekf,
+                       input, measurement, ekf, has_predicted,
                        debug)
         end
     end
@@ -95,26 +105,35 @@ module FilteredStatePublisher
     function Hg.compute(node::FilterNode)
         filterNodeIO = Hg.getIO(node)
 
+        imu_sub = Hg.getsubscriber(node, "IMU_SUB")
+        vicon_sub = Hg.getsubscriber(node, "VICON_SUB")
+
         # On recieving a new IMU message
-        Hg.on_new(filterNodeIO.subs[1]) do imu_msg
+        Hg.on_new(imu_sub) do imu_msg
             dt = imu_msg.time - node.last_imu_time
             node.last_imu_time = imu_msg.time
 
-            input = ImuInput(imu_msg.acc_x, imu_msg.acc_y, imu_msg.acc_z,
-                             imu_msg.gyr_x, imu_msg.gyr_y, imu_msg.gyr_z)
-            # Run prediciton step on EKF
-            prediction!(node.ekf, input, dt)
+            node.input = ComSys.ImuInput(imu_msg.acc_x, imu_msg.acc_y, imu_msg.acc_z,
+                                         imu_msg.gyr_x, imu_msg.gyr_y, imu_msg.gyr_z)
 
+            # Run prediciton step on EKF
+            EKF.prediction!(node.ekf, node.input, dt)
+            node.has_predicted = true
+        end
+
+        if node.has_predicted # Make sure weve run prediction step before running update
             # On recieving a new VICON message
-            Hg.on_new(filterNodeIO.subs[2]) do vicon_msg
-                # Update EKF
-                measurement = Vicon(vicon_msg.pos_x, vicon_msg.pos_y, vicon_msg.pos_z,
-                                    vicon_msg.quat_w, vicon_msg.quat_x, vicon_msg.quat_y, vicon_msg.quat_z)
-                update!(node.ekf, measurement)
+            Hg.on_new(vicon_sub) do vicon_msg
+                node.measurement = ComSys.ViconMeasure(vicon_msg.pos_x, vicon_msg.pos_y, vicon_msg.pos_z,
+                                                    vicon_msg.quat_w, vicon_msg.quat_x, vicon_msg.quat_y, vicon_msg.quat_z)
+
+                # Run update step on EKF
+                EKF.update!(node.ekf, node.measurement)
+                node.has_predicted = false
 
                 # Update the filtered state message and publish it
-                _, ω = getComponents(input)
-                p, q, v, α, β = getComponents(ImuState(node.ekf.est_state))
+                _, ω = ComSys.getComponents(node.input)
+                p, q, v, α, β = ComSys.getComponents(ComSys.ImuState(node.ekf.est_state))
 
                 node.state.pos_x, node.state.pos_y, node.state.pos_z = p
                 node.state.quat_w, node.state.quat_x, node.state.quat_y, node.state.quat_z = params(q)
@@ -167,8 +186,5 @@ end
 
 # # %%
 # Hg.closeall(filter_node)
-
-# # %%
-# Base.throwto(filter_node_task, InterruptException())
 
 

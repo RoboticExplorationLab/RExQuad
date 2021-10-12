@@ -46,9 +46,9 @@ module ImuViconPublisher
         function ImuViconNode(teensy_port::String, teensy_baud::Int,
                               imu_pub_ip::String, imu_pub_port::String,
                               vicon_pub_ip::String, vicon_pub_port::String,
-                              debug::Bool)
+                              rate::Float64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
-            imuViconNodeIO = Hg.NodeIO(ZMQ.Context(1))
+            imuViconNodeIO = Hg.NodeIO(ZMQ.Context(1); rate=rate)
 
             # Adding the Quad Info Subscriber to the Node
             imu = IMU(acc_x=0., acc_y=0., acc_z=0.,
@@ -100,15 +100,15 @@ module ImuViconPublisher
                 node.vicon.time = imu_vicon_c.time
 
                 if node.debug
-                    # @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
-                    #         node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
-                    @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
-                            node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z)
-                    @printf("Vicon ori: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                            node.quad_info.measurement.quat_w,
-                            node.quad_info.measurement.quat_w,
-                            node.quad_info.measurement.quat_w,
-                            node.quad_info.measurement.quat_w)
+                    @printf("IMU accel: \t[%1.3f, %1.3f, %1.3f]\n",
+                            node.imu.acc_x, node.imu.acc_y, node.imu.acc_z)
+                    # @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
+                    #         node.vicon.pos_x, node.vicon.pos_y, node.vicon.pos_z)
+                    # @printf("Vicon ori: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                    #         node.vicon.quat_w,
+                    #         node.vicon.quat_w,
+                    #         node.vicon.quat_w,
+                    #         node.vicon.quat_w)
                 end
             end
         end
@@ -118,14 +118,14 @@ module ImuViconPublisher
     end
 
     # Launch IMU publisher
-    function main(; debug::Bool=false)
+    function main(; rate::Float64=150.0, debug::Bool=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         imu_serial_port = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
         imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
 
-        # imu_serial_port = "/dev/tty.usbmodem14201"
-        # imu_baud_rate = 115200
+        imu_serial_port = "/dev/tty.usbmodem14201"
+        imu_baud_rate = 115200
 
         imu_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
         imu_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
@@ -138,7 +138,7 @@ module ImuViconPublisher
         node = ImuViconNode(imu_serial_port, imu_baud_rate,
                             imu_ip, imu_port,
                             vicon_ip, vicon_port,
-                            debug)
+                            rate, debug)
         return node
     end
 end
