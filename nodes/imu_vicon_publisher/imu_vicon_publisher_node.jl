@@ -43,6 +43,12 @@ module ImuViconPublisher
         # Random
         debug::Bool
 
+        print_rate::Bool
+        cnt::UInt64
+        start_time::Float64
+        end_time::Float64
+
+
         function ImuViconNode(teensy_port::String, teensy_baud::Int,
                               imu_pub_ip::String, imu_pub_port::String,
                               vicon_pub_ip::String, vicon_pub_port::String,
@@ -66,12 +72,19 @@ module ImuViconPublisher
             imu_vicon = IMU_VICON(imu=imu, vicon=vicon)
 
             imu_vicon = @MVector rand(UInt8, 256)
-            imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud; name="IMU_VICON_SUB");
+            # imu_vicon_sub = Hg.SerialSubscriber(teensy_port, teensy_baud; name="IMU_VICON_SUB");
+            imu_vicon_sub = Hg.ZmqSubscriber(imuViconNodeIO.ctx, vicon_pub_ip, vicon_pub_port; name="IMU_VICON_SUB");
             Hg.add_subscriber!(imuViconNodeIO, imu_vicon, imu_vicon_sub)
+
+            print_rate = true
+            cnt = 0
+            start_time = time()
+            end_time = time()
 
             return new(imuViconNodeIO,
                        imu, vicon, imu_vicon,
-                       debug)
+                       debug,
+                       print_rate, cnt, start_time, end_time)
         end
     end
 
@@ -109,6 +122,15 @@ module ImuViconPublisher
                     #         node.vicon.quat_w,
                     #         node.vicon.quat_w,
                     #         node.vicon.quat_w)
+                end
+
+                if node.print_rate
+                    node.cnt += 1
+                    if node.cnt % 100 == 0
+                        node.end_time = time()
+                        @info "Node $(Hg.getname(node)) running at $(100 / (node.end_time - node.start_time))Hz"
+                        node.start_time = time()
+                    end
                 end
             end
         end

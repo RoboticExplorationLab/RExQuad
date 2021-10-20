@@ -83,13 +83,13 @@ module ImuViconPublisher
     end
 end
 
-# # %% For Testing
-# @warn "Testing code is uncommented"
-# import Mercury as Hg
-# filter_node = ImuViconPublisher.main(; debug=true);
+# %% For Testing
+@warn "Testing code is uncommented"
+import Mercury as Hg
+filter_node = ImuViconPublisher.main(; debug=true);
 
-# # %%
-# filter_node_task = Threads.@spawn Hg.launch(filter_node)
+# %%
+filter_node_task = Threads.@spawn Hg.launch(filter_node)
 
-# # %%
-# Hg.closeall(filter_node)
+# %%
+Hg.closeall(filter_node)

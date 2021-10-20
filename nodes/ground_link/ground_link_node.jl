@@ -20,8 +20,6 @@ module GroundLink
     mutable struct GroundLinkNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
-        rate::Float64
-        should_finish::Bool
 
         # Task listening for SerializedVicon messages
         ground_vicon_submsg::Hg.SubscribedVICON
@@ -39,15 +37,17 @@ module GroundLink
         vis::QuadVisualizer
         debug::Bool
 
+        big_bang_time::Float32
+        recieved_time::Float64
+        last_jetson_vicon::Hg.SerializedVICONcpp
+
         function GroundLinkNode(
                                 vicon_ground_sub_ip::String, vicon_ground_sub_port::String,
                                 quad_info_sub_ip::String, quad_info_sub_port::String,
                                 ground_info_pub_ip::String, ground_info_pub_port::String,
                                 rate::Float64, debug::Bool)
             # Adding the Ground Vicon Subscriber to the Node
-            groundLinkNodeIO = Hg.NodeIO(Context(1))
-            rate = rate
-            should_finish = false
+            groundLinkNodeIO = Hg.NodeIO(Context(1); rate=rate)
 
             ground_vicon_sub = Hg.ZmqSubscriber(groundLinkNodeIO.ctx, vicon_ground_sub_ip, vicon_ground_sub_port)
             ground_vicon_submsg = Hg.SubscribedVICON(ground_vicon_sub)
@@ -76,21 +76,20 @@ module GroundLink
             Hg.add_publisher!(groundLinkNodeIO, ground_info, ground_info_pub)
 
             vis = QuadVisualizer()
-            debug = debug
             open(vis);
             add_copy!(vis)
 
-            return new(groundLinkNodeIO, rate, should_finish,
+            big_bang_time = time()
+            recieved_time = time()
+            last_jetson_vicon = zero(Hg.SerializedVICONcpp)
+
+            return new(groundLinkNodeIO,
                        ground_vicon_submsg, ground_vicon_sub_task,
                        filtered_state, motors, jetson_vicon, quad_info, ground_info,
                        vis,
-                       debug)
+                       debug,
+                       big_bang_time, recieved_time, last_jetson_vicon)
         end
-    end
-
-    function Hg.startup(node::GroundLinkNode)
-        # open(node.vis);
-        # add_copy!(node.vis)
     end
 
     function Hg.compute(node::GroundLinkNode)
@@ -109,19 +108,37 @@ module GroundLink
                                        serialized_vicon.quaternion_z,
                                        0.0, 0.0, 0.0,
                                        0.0, 0.0, 0.0])
+
+            if sqrt(sum(SA[serialized_vicon.position_x, serialized_vicon.position_y, serialized_vicon.position_z] -
+                        SA[node.last_jetson_vicon.position_x, node.last_jetson_vicon.position_y, node.last_jetson_vicon.position_z]).^2) > .01
+                node.big_bang_time = serialized_vicon.time_us
+                node.recieved_time = time()
+                @info "recorded a big bang!"
+
+            end
+
+            node.last_jetson_vicon = serialized_vicon
+
+            # node.last_jetson_vicon.position_x = serialized_vicon.position_x
+            # node.last_jetson_vicon.position_y = serialized_vicon.position_y
+            # node.last_jetson_vicon.position_z = serialized_vicon.position_z
+            # node.last_jetson_vicon.quaternion_w = serialized_vicon.position_w
+            # node.last_jetson_vicon.quaternion_x = serialized_vicon.position_x
+            # node.last_jetson_vicon.quaternion_y = serialized_vicon.position_y
+            # node.last_jetson_vicon.quaternion_z = serialized_vicon.position_z
         end
 
         Hg.on_new(quad_info_sub) do quad_info
             visualize_copy!(node.vis,
                             SA[quad_info.measurement.pos_x,
-                                quad_info.measurement.pos_y,
-                                quad_info.measurement.pos_z,
-                                quad_info.measurement.quat_w,
-                                quad_info.measurement.quat_x,
-                                quad_info.measurement.quat_y,
-                                quad_info.measurement.quat_z,
-                                0.0, 0.0, 0.0,
-                                0.0, 0.0, 0.0])
+                               quad_info.measurement.pos_y,
+                               quad_info.measurement.pos_z,
+                               quad_info.measurement.quat_w,
+                               quad_info.measurement.quat_x,
+                               quad_info.measurement.quat_y,
+                               quad_info.measurement.quat_z,
+                               0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0])
 
             if node.debug
                 @printf("Vicon pos: \t[%1.3f, %1.3f, %1.3f]\n",
@@ -137,6 +154,8 @@ module GroundLink
         end
 
         Hg.publish.(groundLinkNodeIO.pubs)
+
+        return nothing
     end
 
     # Launch IMU publisher
@@ -162,18 +181,12 @@ module GroundLink
 end
 
 # %%
-
-# %%
 import Mercury as Hg
 
-node = GroundLink.main(; rate=100.0, debug=false);
+node = GroundLink.main(; rate=200.0, debug=false);
 
 # %%
 node_task = @async Hg.launch(node)
 
 # %%
-Hg.closeall(node)
-
-# %%
-Base.throwto(node_task, InterruptException())
-
+Hg.stopnode(node)

@@ -41,16 +41,14 @@ title = "MocapZMQ"
     [serial.jetson]
         [serial.jetson.imu_arduino]
             serial_port = "/dev/ttyACM1"
-            baud_rate = 57600
+            baud_rate = 115200
         [serial.jetson.motors_arduino]
             serial_port = "/dev/ttyACM0"
-            baud_rate = 57600
+            baud_rate = 115200
     [serial.ground]
         [serial.ground.telemetry_radio]
             serial_port = "/dev/tty.usbserial-D309D5SC"
-            # serial_port = "/dev/tty.usbmodem92222901"
-            # serial_port = "/dev/tty.usbmodem14201"
-            baud_rate = 57600
+            baud_rate = 115200
         [serial.ground.imu_arduino]
             serial_port = "/dev/tty.usbmodem92225501"
-            baud_rate = 57600
+            baud_rate = 115200
