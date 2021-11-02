@@ -14,7 +14,8 @@ mutable struct VICON <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -27,8 +28,28 @@ function meta(::Type{VICON})
     ProtoBuf.metalock() do
         if !isassigned(__meta_VICON)
             __meta_VICON[] = target = ProtoMeta(VICON)
-            allflds = Pair{Symbol,Union{Type,String}}[:pos_x => Float32, :pos_y => Float32, :pos_z => Float32, :quat_w => Float32, :quat_x => Float32, :quat_y => Float32, :quat_z => Float32, :time => Float64]
-            meta(target, VICON, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :pos_x=>Float32,
+                :pos_y=>Float32,
+                :pos_z=>Float32,
+                :quat_w=>Float32,
+                :quat_x=>Float32,
+                :quat_y=>Float32,
+                :quat_z=>Float32,
+                :time=>Float64,
+            ]
+            meta(
+                target,
+                VICON,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_VICON[]
     end

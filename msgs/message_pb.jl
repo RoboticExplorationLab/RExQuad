@@ -14,7 +14,8 @@ mutable struct Motor_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -27,8 +28,33 @@ function meta(::Type{Motor_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_Motor_msg)
             __meta_Motor_msg[] = target = ProtoMeta(Motor_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:FR_Hip => Float64, :FR_Thigh => Float64, :FR_Calf => Float64, :FL_Hip => Float64, :FL_Thigh => Float64, :FL_Calf => Float64, :RR_Hip => Float64, :RR_Thigh => Float64, :RR_Calf => Float64, :RL_Hip => Float64, :RL_Thigh => Float64, :RL_Calf => Float64, :time => Float64]
-            meta(target, Motor_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :FR_Hip=>Float64,
+                :FR_Thigh=>Float64,
+                :FR_Calf=>Float64,
+                :FL_Hip=>Float64,
+                :FL_Thigh=>Float64,
+                :FL_Calf=>Float64,
+                :RR_Hip=>Float64,
+                :RR_Thigh=>Float64,
+                :RR_Calf=>Float64,
+                :RL_Hip=>Float64,
+                :RL_Thigh=>Float64,
+                :RL_Calf=>Float64,
+                :time=>Float64,
+            ]
+            meta(
+                target,
+                Motor_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_Motor_msg[]
     end
@@ -77,7 +103,8 @@ mutable struct MotorPos_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -90,8 +117,19 @@ function meta(::Type{MotorPos_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_MotorPos_msg)
             __meta_MotorPos_msg[] = target = ProtoMeta(MotorPos_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:positions => Motor_msg, :time => Float64]
-            meta(target, MotorPos_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[:positions=>Motor_msg, :time=>Float64]
+            meta(
+                target,
+                MotorPos_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_MotorPos_msg[]
     end
@@ -118,7 +156,8 @@ mutable struct MotorReadings_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -131,8 +170,25 @@ function meta(::Type{MotorReadings_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_MotorReadings_msg)
             __meta_MotorReadings_msg[] = target = ProtoMeta(MotorReadings_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:torques => Motor_msg, :q => Motor_msg, :dq => Motor_msg, :ddq => Motor_msg, :time => Float64]
-            meta(target, MotorReadings_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :torques=>Motor_msg,
+                :q=>Motor_msg,
+                :dq=>Motor_msg,
+                :ddq=>Motor_msg,
+                :time=>Float64,
+            ]
+            meta(
+                target,
+                MotorReadings_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_MotorReadings_msg[]
     end
@@ -165,7 +221,8 @@ mutable struct MotorTorqueCommands_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -178,8 +235,19 @@ function meta(::Type{MotorTorqueCommands_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_MotorTorqueCommands_msg)
             __meta_MotorTorqueCommands_msg[] = target = ProtoMeta(MotorTorqueCommands_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:torques => Motor_msg, :time => Float64]
-            meta(target, MotorTorqueCommands_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[:torques=>Motor_msg, :time=>Float64]
+            meta(
+                target,
+                MotorTorqueCommands_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_MotorTorqueCommands_msg[]
     end
@@ -206,7 +274,8 @@ mutable struct MotorVelocities_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -219,8 +288,20 @@ function meta(::Type{MotorVelocities_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_MotorVelocities_msg)
             __meta_MotorVelocities_msg[] = target = ProtoMeta(MotorVelocities_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:velocities => Motor_msg, :time => Float64]
-            meta(target, MotorVelocities_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds =
+                Pair{Symbol,Union{Type,String}}[:velocities=>Motor_msg, :time=>Float64]
+            meta(
+                target,
+                MotorVelocities_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_MotorVelocities_msg[]
     end
@@ -247,7 +328,8 @@ mutable struct Vector3_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -260,8 +342,19 @@ function meta(::Type{Vector3_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_Vector3_msg)
             __meta_Vector3_msg[] = target = ProtoMeta(Vector3_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:x => Float64, :y => Float64, :z => Float64]
-            meta(target, Vector3_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[:x=>Float64, :y=>Float64, :z=>Float64]
+            meta(
+                target,
+                Vector3_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_Vector3_msg[]
     end
@@ -290,7 +383,8 @@ mutable struct IMU_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -303,8 +397,23 @@ function meta(::Type{IMU_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_IMU_msg)
             __meta_IMU_msg[] = target = ProtoMeta(IMU_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:acceleration => Vector3_msg, :gyroscope => Vector3_msg, :time => Float64]
-            meta(target, IMU_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :acceleration=>Vector3_msg,
+                :gyroscope=>Vector3_msg,
+                :time=>Float64,
+            ]
+            meta(
+                target,
+                IMU_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_IMU_msg[]
     end
@@ -333,7 +442,8 @@ mutable struct Quaternion_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -346,8 +456,24 @@ function meta(::Type{Quaternion_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_Quaternion_msg)
             __meta_Quaternion_msg[] = target = ProtoMeta(Quaternion_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:w => Float64, :x => Float64, :y => Float64, :z => Float64]
-            meta(target, Quaternion_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :w=>Float64,
+                :x=>Float64,
+                :y=>Float64,
+                :z=>Float64,
+            ]
+            meta(
+                target,
+                Quaternion_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_Quaternion_msg[]
     end
@@ -378,7 +504,8 @@ mutable struct Vicon_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -391,8 +518,23 @@ function meta(::Type{Vicon_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_Vicon_msg)
             __meta_Vicon_msg[] = target = ProtoMeta(Vicon_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:position => Vector3_msg, :quaternion => Quaternion_msg, :time => Float64]
-            meta(target, Vicon_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :position=>Vector3_msg,
+                :quaternion=>Quaternion_msg,
+                :time=>Float64,
+            ]
+            meta(
+                target,
+                Vicon_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_Vicon_msg[]
     end
@@ -421,7 +563,8 @@ mutable struct EKF_msg <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -434,8 +577,26 @@ function meta(::Type{EKF_msg})
     ProtoBuf.metalock() do
         if !isassigned(__meta_EKF_msg)
             __meta_EKF_msg[] = target = ProtoMeta(EKF_msg)
-            allflds = Pair{Symbol,Union{Type,String}}[:position => Vector3_msg, :quaternion => Quaternion_msg, :velocity => Vector3_msg, :acceleration_bias => Vector3_msg, :angular_velocity_bias => Vector3_msg, :time => Float64]
-            meta(target, EKF_msg, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :position=>Vector3_msg,
+                :quaternion=>Quaternion_msg,
+                :velocity=>Vector3_msg,
+                :acceleration_bias=>Vector3_msg,
+                :angular_velocity_bias=>Vector3_msg,
+                :time=>Float64,
+            ]
+            meta(
+                target,
+                EKF_msg,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_EKF_msg[]
     end
@@ -458,4 +619,13 @@ function Base.getproperty(obj::EKF_msg, name::Symbol)
     end
 end
 
-export MotorPos_msg, MotorVelocities_msg, MotorTorqueCommands_msg, MotorReadings_msg, Motor_msg, EKF_msg, IMU_msg, Vicon_msg, Vector3_msg, Quaternion_msg
+export MotorPos_msg,
+    MotorVelocities_msg,
+    MotorTorqueCommands_msg,
+    MotorReadings_msg,
+    Motor_msg,
+    EKF_msg,
+    IMU_msg,
+    Vicon_msg,
+    Vector3_msg,
+    Quaternion_msg

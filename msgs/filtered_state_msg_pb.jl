@@ -14,7 +14,8 @@ mutable struct FILTERED_STATE <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -27,8 +28,34 @@ function meta(::Type{FILTERED_STATE})
     ProtoBuf.metalock() do
         if !isassigned(__meta_FILTERED_STATE)
             __meta_FILTERED_STATE[] = target = ProtoMeta(FILTERED_STATE)
-            allflds = Pair{Symbol,Union{Type,String}}[:pos_x => Float64, :pos_y => Float64, :pos_z => Float64, :quat_w => Float64, :quat_x => Float64, :quat_y => Float64, :quat_z => Float64, :vel_x => Float64, :vel_y => Float64, :vel_z => Float64, :ang_x => Float64, :ang_y => Float64, :ang_z => Float64, :time => Float64]
-            meta(target, FILTERED_STATE, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[
+                :pos_x=>Float64,
+                :pos_y=>Float64,
+                :pos_z=>Float64,
+                :quat_w=>Float64,
+                :quat_x=>Float64,
+                :quat_y=>Float64,
+                :quat_z=>Float64,
+                :vel_x=>Float64,
+                :vel_y=>Float64,
+                :vel_z=>Float64,
+                :ang_x=>Float64,
+                :ang_y=>Float64,
+                :ang_z=>Float64,
+                :time=>Float64,
+            ]
+            meta(
+                target,
+                FILTERED_STATE,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_FILTERED_STATE[]
     end

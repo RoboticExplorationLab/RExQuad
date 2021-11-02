@@ -59,7 +59,7 @@ void setup()
 
 void loop()
 {
-    delay(10);
+    delay(100);
 
     // // Read in VICON measurement
     // if (hasLoRaRecieved())
@@ -84,6 +84,3 @@ void sendJetsonMessage(IMU_VICON &imu_vicon)
     memcpy(imu_vicon_buffer, &imu_vicon, msg_size);
     Serial.write(imu_vicon_buffer, msg_size);
 }
-
-
-

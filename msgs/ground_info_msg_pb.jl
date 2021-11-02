@@ -14,7 +14,8 @@ mutable struct GROUND_INFO <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) ||
+                error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -27,8 +28,19 @@ function meta(::Type{GROUND_INFO})
     ProtoBuf.metalock() do
         if !isassigned(__meta_GROUND_INFO)
             __meta_GROUND_INFO[] = target = ProtoMeta(GROUND_INFO)
-            allflds = Pair{Symbol,Union{Type,String}}[:deadman => Bool, :time => Float64]
-            meta(target, GROUND_INFO, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+            allflds = Pair{Symbol,Union{Type,String}}[:deadman=>Bool, :time=>Float64]
+            meta(
+                target,
+                GROUND_INFO,
+                allflds,
+                ProtoBuf.DEF_REQ,
+                ProtoBuf.DEF_FNUM,
+                ProtoBuf.DEF_VAL,
+                ProtoBuf.DEF_PACK,
+                ProtoBuf.DEF_WTYPES,
+                ProtoBuf.DEF_ONEOFS,
+                ProtoBuf.DEF_ONEOF_NAMES,
+            )
         end
         __meta_GROUND_INFO[]
     end

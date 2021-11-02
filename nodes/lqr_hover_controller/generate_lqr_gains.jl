@@ -1,4 +1,5 @@
-using Pkg; Pkg.activate(joinpath(@__DIR__, "..", ".."))
+using Pkg;
+Pkg.activate(joinpath(@__DIR__, "..", ".."));
 using LinearAlgebra
 using ForwardDiff
 using BlockDiagonals
@@ -19,9 +20,13 @@ quadrotor is linearized about equilibrium for level flight.
 
 The gains are returned and also saved to a file to be read in later.
 """
-function generate_LQR_hover_gains(Qd = ones(12), Rd = fill(0.1, 4); save_to_file::Bool = true)
+function generate_LQR_hover_gains(
+    Qd = ones(12),
+    Rd = fill(0.1, 4);
+    save_to_file::Bool = true,
+)
 
-    model = gen_quadrotormodel() 
+    model = gen_quadrotormodel()
     h = 0.02 # time step (s)
 
     #Initial Conditions
@@ -32,24 +37,29 @@ function generate_LQR_hover_gains(Qd = ones(12), Rd = fill(0.1, 4); save_to_file
     v0 = @MVector zeros(3)
     ω0 = @MVector zeros(3)
     x0 = [r0; q0; v0; ω0]
-    x̃0 = [r0; SA[0; 0; 0]; v0; ω0];
+    x̃0 = [r0; SA[0; 0; 0]; v0; ω0]
     uhover = trim_controls(model)
 
     # With RobotZoo
-    linmodel = RobotDynamics.LinearizedModel(model, KnotPoint(x0, uhover, h, 0.0), dt=h, integration=RobotDynamics.Exponential)
-    E2 = zeros(Nx,Nx̃)
+    linmodel = RobotDynamics.LinearizedModel(
+        model,
+        KnotPoint(x0, uhover, h, 0.0),
+        dt = h,
+        integration = RobotDynamics.Exponential,
+    )
+    E2 = zeros(Nx, Nx̃)
     A = RobotDynamics.get_A(linmodel)
     B = RobotDynamics.get_B(linmodel)
     RobotDynamics.state_diff_jacobian!(E2, model, x0)
-    Ã = E2'A*E2
+    Ã = E2'A * E2
     B̃ = E2'B
 
     # Cost weights
-    Q = Array(Diagonal(Qd));
-    R = Array(Diagonal(Rd));
+    Q = Array(Diagonal(Qd))
+    R = Array(Diagonal(Rd))
 
     # LQR Gain
-    K = dlqr(Ã,B̃,Q,R);
+    K = dlqr(Ã, B̃, Q, R)
 
     if (save_to_file)
         # Write gain to file

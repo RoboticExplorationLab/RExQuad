@@ -1,4 +1,5 @@
-using Pkg; Pkg.activate(joinpath(@__DIR__, "..", ".."))
+using Pkg;
+Pkg.activate(joinpath(@__DIR__, "..", ".."));
 using JSON
 include(joinpath(@__DIR__, "..", "constants.jl"))
 include(joinpath(@__DIR__, "..", "visualizer.jl"))
@@ -17,7 +18,7 @@ open(vis)
 
 ##
 model = gen_quadrotormodel()
-generate_LQR_hover_gains([10,10,100, 10,10,10, 1,1,1, 1,1,1],fill(1e-2,4))
+generate_LQR_hover_gains([10, 10, 100, 10, 10, 10, 1, 1, 1, 1, 1, 1], fill(1e-2, 4))
 
 # %%
 r0 = SA[0.0; 0; 1.0]
@@ -31,15 +32,15 @@ K = read_LQR_gain_from_file()
 
 x_init = zeros(model)[1]
 h = 1e-2
-times = range(0, 3, step=h)
-x = RobotDynamics.build_state(model, [0,0,0], RotX(deg2rad(0)), zeros(3), zeros(3))
+times = range(0, 3, step = h)
+x = RobotDynamics.build_state(model, [0, 0, 0], RotX(deg2rad(0)), zeros(3), zeros(3))
 visualize!(vis, x)
 X = [x for t in times]
 discrete_dynamics(RK4, model, x, uhover, 0.0, 0.1)
-for (i,t) in enumerate(times)
+for (i, t) in enumerate(times)
     # visualize!(vis, x)
     dx = RobotDynamics.state_diff(model, x, x0)  # uses Cayley map by default
-    du = -K*dx
+    du = -K * dx
     u = du + uhover
     x = discrete_dynamics(RK4, model, x, u, t, h)
     X[i] = x

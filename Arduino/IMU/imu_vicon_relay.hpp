@@ -29,7 +29,7 @@ typedef struct _IMU_VICON
     float quat_y;
     float quat_z;
 
-    double time;
+    uint32_t time;
 } IMU_VICON;
 
 #define IMU_VICON_init_zero                      \
