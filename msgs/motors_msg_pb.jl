@@ -14,8 +14,7 @@ mutable struct MOTORS <: ProtoType
         for nv in kwargs
             fldname, fldval = nv
             fldtype = symdict[fldname].jtyp
-            (fldname in keys(symdict)) ||
-                error(string(typeof(obj), " has no field with name ", fldname))
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
             if fldval !== nothing
                 values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
             end
@@ -28,25 +27,8 @@ function meta(::Type{MOTORS})
     ProtoBuf.metalock() do
         if !isassigned(__meta_MOTORS)
             __meta_MOTORS[] = target = ProtoMeta(MOTORS)
-            allflds = Pair{Symbol,Union{Type,String}}[
-                :front_left=>Float64,
-                :front_right=>Float64,
-                :back_right=>Float64,
-                :back_left=>Float64,
-                :time=>Float64,
-            ]
-            meta(
-                target,
-                MOTORS,
-                allflds,
-                ProtoBuf.DEF_REQ,
-                ProtoBuf.DEF_FNUM,
-                ProtoBuf.DEF_VAL,
-                ProtoBuf.DEF_PACK,
-                ProtoBuf.DEF_WTYPES,
-                ProtoBuf.DEF_ONEOFS,
-                ProtoBuf.DEF_ONEOF_NAMES,
-            )
+            allflds = Pair{Symbol,Union{Type,String}}[:front_left => Float64, :front_right => Float64, :back_right => Float64, :back_left => Float64, :time => Float64]
+            meta(target, MOTORS, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
         end
         __meta_MOTORS[]
     end

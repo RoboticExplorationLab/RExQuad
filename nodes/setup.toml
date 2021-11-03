@@ -18,18 +18,18 @@ title = "MocapZMQ"
             port = "5557"
         [zmq.jetson.imu_vicon_relay.out]
             server = "127.0.0.1"
-            port = "5557"
+            port = "5558"
 
 
         [zmq.jetson.filtered_state]
             server = "127.0.0.1"
-            port = "5558"
+            port = "5559"
         [zmq.jetson.motors]
             server = "127.0.0.1"
-            port = "5559"
+            port = "5560"
         [zmq.jetson.quad_info]
             server = "192.168.3.116"
-            port = "5560"
+            port = "5561"
 
     [zmq.ground]
         [zmq.ground.vicon]
@@ -37,14 +37,7 @@ title = "MocapZMQ"
             port = "5555"
         [zmq.ground.ground_info]
             server = "192.168.3.117"
-            port = "5555"
-        [zmq.ground_arduino.vicon]
-            server = "127.0.0.1"
-            port = "5557"
-        [zmq.ground_arduino.imu]
-            server = "127.0.0.1"
-            port = "5558"
-
+            port = "5556"
 
 [serial]
     [serial.jetson]
@@ -54,10 +47,10 @@ title = "MocapZMQ"
         [serial.jetson.motors_arduino]
             serial_port = "/dev/ttyACM0"
             baud_rate = 115200
-    [serial.ground]
-        [serial.ground.telemetry_radio]
+    [serial.macbook]
+        [serial.macbook.telemetry_radio]
             serial_port = "/dev/tty.usbserial-D309D5SC"
             baud_rate = 115200
-        [serial.ground.imu_arduino]
+        [serial.macbook.imu_arduino]
             serial_port = "/dev/tty.usbmodem92225501"
             baud_rate = 115200

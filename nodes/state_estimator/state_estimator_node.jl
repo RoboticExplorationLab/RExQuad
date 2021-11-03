@@ -11,9 +11,13 @@ module StateEstimatorDebug
     using Printf
     using TOML
 
+    include("$(@__DIR__)/serial_relay_start.jl")
+    import .SerialRelayStart
+
     # Import Protobuf Messages
     include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
+    include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
     include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
 
     struct IMU_VICON_C
@@ -41,12 +45,15 @@ module StateEstimatorDebug
         nodeio::Hg.NodeIO
 
         # Serial messages
-        imu_vicon::IMU_VICON_C
+        imu_vicon_buf::Vector{UInt8}
         last_imu_time::Float64
         last_vicon_time::UInt32
 
         # ProtoBuf Messages
         state::FILTERED_STATE
+
+        # Serial Relay
+        imu_vicon_serial_relay::Hg.SerialZmqRelay
 
         # EKF type
         input::ComSys.ImuInput
@@ -62,14 +69,12 @@ module StateEstimatorDebug
             # Adding the Ground Vicon Subscriber to the Node
             filterNodeIO = Hg.NodeIO(ZMQ.Context(1); rate=rate)
 
-            tmp = zeros(Cfloat, 14)
-            tmp[10] = 1.
-            imu_vicon = reinterpret(IMU_VICON_C, tmp)[1]
+            imu_vicon_buf = zeros(UInt8, sizeof(IMU_VICON_C))
             imu_vicon_sub = Hg.ZmqSubscriber(filterNodeIO.ctx,
                                              imu_vicon_sub_ip,
                                              imu_vicon_sub_port;
                                              name="IMU_VICON_SUB")
-            Hg.add_subscriber!(filterNodeIO, imu_vicon, imu_vicon_sub)
+            Hg.add_subscriber!(filterNodeIO, imu_vicon_buf, imu_vicon_sub)
 
             last_imu_time = time()
             last_vicon_time = zero(UInt32)
@@ -80,11 +85,14 @@ module StateEstimatorDebug
                                    vel_x=0., vel_y=0., vel_z=0.,
                                    ang_x=0., ang_y=0., ang_z=0.,
                                    time=0.)
-            state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port)
+            state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port;
+                                        name="FILTERED_STATE_PUB")
             Hg.add_publisher!(filterNodeIO,
                               state,
-                              state_pub;
-                              name="FILTERED_STATE_PUB")
+                              state_pub)
+
+            # Setup Serial Relay
+            imu_vicon_serial_relay = SerialRelayStart.main()
 
             # Setup the EKF filter
             est_state = ComSys.ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
@@ -110,8 +118,9 @@ module StateEstimatorDebug
             debug = debug
 
             return new(filterNodeIO,
-                       imu_vicon, last_imu_time, last_vicon_time,
+                       imu_vicon_buf, last_imu_time, last_vicon_time,
                        state,
+                       imu_vicon_serial_relay,
                        input, measurement, ekf,
                        debug
                        )
@@ -122,19 +131,22 @@ module StateEstimatorDebug
         filterIO = Hg.getIO(node)
         imu_vicon_sub = Hg.getsubscriber(node, "IMU_VICON_SUB")
 
-        Hg.on_new(imu_vicon_sub) do imu_vicon
+        Hg.on_new(imu_vicon_sub) do imu_vicon_buf
+            # Convert the buffer of data to IMU_VICON_C type
+            imu_vicon = reinterpret(IMU_VICON_C, imu_vicon_buf)[1]
+
             dt = time() - node.last_imu_time
             node.last_imu_time = time()
 
             # If we got a new imu message run predicition step
-            imu = SA[node.imu_vicon.acc_x, node.imu_vicon.acc_y, node.imu_vicon.acc_z,
-                        node.imu_vicon.gyr_x, node.imu_vicon.gyr_y, node.imu_vicon.gyr_z]
+            imu = SA[imu_vicon.acc_x, imu_vicon.acc_y, imu_vicon.acc_z,
+                     imu_vicon.gyr_x, imu_vicon.gyr_y, imu_vicon.gyr_z]
             node.input = ComSys.ImuInput(imu)
 
             EKF.prediction!(node.ekf, node.input, dt)
 
-            vicon = SA[node.imu_vicon.pos_x, node.imu_vicon.pos_y, node.imu_vicon.pos_z,
-                        node.imu_vicon.quat_w, node.imu_vicon.quat_x, node.imu_vicon.quat_y, node.imu_vicon.quat_z]
+            vicon = SA[imu_vicon.pos_x, imu_vicon.pos_y, imu_vicon.pos_z,
+                       imu_vicon.quat_w, imu_vicon.quat_x, imu_vicon.quat_y, imu_vicon.quat_z]
             node.measurement = ComSys.ViconMeasure(vicon)
 
             # If we got a new vicon message run update step
@@ -169,17 +181,22 @@ module StateEstimatorDebug
         Hg.publish.(filterIO.pubs)
     end
 
+    # Make sure to kill the serial relay process
+    function Hg.finishup(node::StateEsitmatorNode)
+        close(node.imu_vicon_serial_relay)
+    end
+
     # Launch IMU publisher
     function main(; rate=100.0, debug=false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        imu_vicon_ip = setup_dict["zmq"]["jetson"]["imu"]["server"]
-        imu_vicon_port = setup_dict["zmq"]["jetson"]["imu"]["port"]
+        imu_serial_ipaddr = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["server"]
+        imu_serial_port = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["port"]
 
         filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
         filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-        node = StateEsitmatorNode(imu_vicon_ip, imu_vicon_port,
+        node = StateEsitmatorNode(imu_serial_ipaddr, imu_serial_port,
                                   filtered_state_ip, filtered_state_port,
                                   rate, debug)
 
@@ -191,7 +208,7 @@ end
 @warn "Testing code is uncommented"
 import Mercury as Hg
 
-filter_node = StateEstimatorDebug.main(; rate=10.0, debug=true);
+filter_node = StateEstimatorDebug.main(; rate=100.0, debug=false);
 
 # %%
 filter_node_task = Threads.@spawn Hg.launch(filter_node)

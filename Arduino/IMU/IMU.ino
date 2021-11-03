@@ -10,7 +10,7 @@
 #define LED_PIN     13
 
 // IMU
-// Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
+ Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
 
 // Vicon
 constexpr int MSG_SIZE = sizeof(rexlab::Pose<int32_t>);
@@ -21,7 +21,6 @@ constexpr int IMU_VICON_MSG_SIZE = sizeof(IMU_VICON);
 uint8_t imu_vicon_buffer[IMU_VICON_MSG_SIZE];
 
 // Message type
-// IMU_VICON imu_vicon = IMU_VICON_init_zero;
 IMU_VICON imu_vicon = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0};
 
 // Initialize packet serial ports
@@ -31,23 +30,23 @@ void sendJetsonMessage(IMU_VICON &imu_vicon);
 void setup()
 {
     pinMode(LED_PIN, OUTPUT);
-    // // Start up the lora radio
-    // if (!initialize_LoRaViconReceiver(lora_buffer, MSG_SIZE))
-    // {
-    //     Serial.println("Failed to properly setup LoRaViconReceiver!!");
-    //     while(true)
-    //     {
-    //     }
-    // }
+     // Start up the lora radio
+     if (!initialize_LoRaViconReceiver(lora_buffer, MSG_SIZE))
+     {
+         Serial.println("Failed to properly setup LoRaViconReceiver!!");
+         while(true)
+         {
+         }
+     }
 
-    // // Start up SPI IMU and initialize
-    // if (!bno.begin())
-    // {
-    //     Serial.print("\nOoops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
-    //     while (true)
-    //     {
-    //     }
-    // }
+     // Start up SPI IMU and initialize
+     if (!bno.begin())
+     {
+         Serial.print("\nOoops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
+         while (true)
+         {
+         }
+     }
 
     // Setup PacketSerial to handle communicating from Serial
     Serial.begin(9600);
@@ -61,14 +60,14 @@ void loop()
 {
     delay(100);
 
-    // // Read in VICON measurement
-    // if (hasLoRaRecieved())
-    // {
-    //     updateVicon(imu_vicon);
-    // }
+    // Read in VICON measurement
+    if (hasLoRaRecieved())
+    {
+        updateVicon(imu_vicon);
+    }
 
-    // // Read in IMU measurement
-    // updateIMU(bno, imu_vicon);
+    // Read in IMU measurement
+    updateIMU(bno, imu_vicon);
 
     // Send IMU/Vicon Message
     sendJetsonMessage(imu_vicon);
