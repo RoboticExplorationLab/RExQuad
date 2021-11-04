@@ -148,7 +148,7 @@ module JetsonLink
         motors_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
 
         quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
-        quad_info_ip = "192.168.3.117"
+        # quad_info_ip = "192.168.3.117"
         quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
 
         node = JetsonLinkNode(
@@ -171,7 +171,7 @@ end
 @warn "Testing code is uncommented"
 import Mercury as Hg
 
-link_node = JetsonLink.main(; rate=100.0, debug=false);
+link_node = JetsonLink.main(; rate=33.0, debug=false);
 
 # %%
 link_node_task = Threads.@spawn Hg.launch(link_node)
