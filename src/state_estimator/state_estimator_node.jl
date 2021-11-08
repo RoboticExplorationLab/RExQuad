@@ -1,6 +1,8 @@
 # This node is run of the Jetson, acts as the ZMQ publisher for the IMU and Vicon
 # data coming through the telemetry radio and the Arduino.
 module StateEstimator
+    using ..RExQuad
+
     import Mercury as Hg
     import ZMQ
     using StaticArrays
@@ -13,12 +15,6 @@ module StateEstimator
 
     include("$(@__DIR__)/serial_relay_start.jl")
     import .SerialRelayStart
-
-    # Import Protobuf Messages
-    include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
 
     struct IMU_VICON_C
         # IMU
@@ -51,15 +47,19 @@ module StateEstimator
         last_vicon_time::UInt32
 
         # ProtoBuf Messages
-        state::FILTERED_STATE
+        state::RExQuad.FILTERED_STATE
 
         # Serial Relay
         imu_vicon_serial_relay::Hg.SerialZmqRelay
 
         # EKF type
-        input::ComSys.ImuInput
-        measurement::ComSys.ViconMeasure
-        ekf::EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput, ComSys.ViconMeasure, ComSys.ViconError}
+        imu_input::ComSys.ImuInput{Float64}
+        vicon_obs::EKF.Observation{ComSys.ViconMeasure{Float64},
+                                   length(ComSys.ViconMeasure),
+                                   length(ComSys.ViconError)
+                                   }
+
+        ekf::EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput}
 
         # Random
         debug::Bool
@@ -70,8 +70,8 @@ module StateEstimator
             # Adding the Ground Vicon Subscriber to the Node
             filterNodeIO = Hg.NodeIO(ZMQ.Context(1); rate=rate)
 
-            imu_vicon_last = IMU_VICON_C(zeros(Cfloat, 9)..., 1., zeros(Cfloat, 4)...)
-            imu_vicon_buf = reinterpret(UInt8, [IMU_VICON_C(zeros(Cfloat, 9)..., 1., zeros(Cfloat, 4)...)])
+            imu_vicon_last = IMU_VICON_C(zeros(Cfloat, 9)..., 1.0f0, zeros(Cfloat, 4)...)
+            imu_vicon_buf = reinterpret(UInt8, [IMU_VICON_C(zeros(Cfloat, 9)..., 1.0f0, zeros(Cfloat, 4)...)])
             imu_vicon_sub = Hg.ZmqSubscriber(filterNodeIO.ctx,
                                              imu_vicon_sub_ip,
                                              imu_vicon_sub_port;
@@ -82,11 +82,11 @@ module StateEstimator
             last_vicon_time = zero(UInt32)
 
             # Adding the Quad Info Subscriber to the Node
-            state = FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                                   quat_w=1., quat_x=0., quat_y=0., quat_z=0.,
-                                   vel_x=0., vel_y=0., vel_z=0.,
-                                   ang_x=0., ang_y=0., ang_z=0.,
-                                   time=0.)
+            state = RExQuad.FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
+                                           quat_w=1., quat_x=0., quat_y=0., quat_z=0.,
+                                           vel_x=0., vel_y=0., vel_z=0.,
+                                           ang_x=0., ang_y=0., ang_z=0.,
+                                           time=0.)
             state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port;
                                         name="FILTERED_STATE_PUB")
             Hg.add_publisher!(filterNodeIO,
@@ -97,24 +97,25 @@ module StateEstimator
             imu_vicon_serial_relay = SerialRelayStart.main()
 
             # Setup the EKF filter
-            est_state = ComSys.ImuState(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
-            est_cov = Matrix(2.2 * I(length(ComSys.ImuError)))
-            process_cov = Matrix(0.5 * I(length(ComSys.ImuError)))
-            measure_cov = Matrix(0.005 * I(length(ComSys.ViconError)))
+            est_state = ComSys.ImuState{Float64}(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
+            est_cov = Matrix{Float64}(2.2 * I(length(ComSys.ImuError)))
+            process_cov = Matrix{Float64}(0.5 * I(length(ComSys.ImuError)))
+            measure_cov = Matrix{Float64}(0.005 * I(length(ComSys.ViconError)))
 
-            input = ComSys.ImuInput(0.,0.,0.,0.,0.,0.)
-            measurement = ComSys.ViconMeasure(0.,0.,0.,1.,0.,0.,0.)
+            imu_input = ComSys.ImuInput{Float64}(0.,0.,0.,0.,0.,0.)
+            vicon_measure = ComSys.ViconMeasure{Float64}(0.,0.,0.,1.,0.,0.,0.)
+            Nₑₘ = length(ComSys.ViconError)
+            vicon_measure_cov = SMatrix{Nₑₘ, Nₑₘ, Float64}(0.005 * I(Nₑₘ))
+            vicon_obs = EKF.Observation(vicon_measure, vicon_measure_cov)
+
             ekf = EKF.ErrorStateFilter{
                 ComSys.ImuState,
                 ComSys.ImuError,
                 ComSys.ImuInput,
-                ComSys.ViconMeasure,
-                ComSys.ViconError
             }(
                 est_state,
                 est_cov,
                 process_cov,
-                measure_cov
             )
 
             debug = debug
@@ -123,7 +124,7 @@ module StateEstimator
                        imu_vicon_last, imu_vicon_buf, last_imu_time, last_vicon_time,
                        state,
                        imu_vicon_serial_relay,
-                       input, measurement, ekf,
+                       imu_input, vicon_obs, ekf,
                        debug
                        )
         end
@@ -166,19 +167,22 @@ module StateEstimator
                 # If we got a new imu message run predicition step
                 imu = SA[imu_vicon.acc_x, imu_vicon.acc_y, imu_vicon.acc_z,
                         imu_vicon.gyr_x, imu_vicon.gyr_y, imu_vicon.gyr_z]
-                node.input = ComSys.ImuInput(imu)
+                node.imu_input = ComSys.ImuInput{Float64}(imu)
 
-                EKF.prediction!(node.ekf, node.input, dt)
+                EKF.prediction!(node.ekf, node.imu_input, Float64(dt))
 
                 vicon = SA[imu_vicon.pos_x, imu_vicon.pos_y, imu_vicon.pos_z,
-                        imu_vicon.quat_w, imu_vicon.quat_x, imu_vicon.quat_y, imu_vicon.quat_z]
-                node.measurement = ComSys.ViconMeasure(vicon)
+                           imu_vicon.quat_w, imu_vicon.quat_x, imu_vicon.quat_y, imu_vicon.quat_z]
+                node.vicon_obs = EKF.Observation(
+                    ComSys.ViconMeasure{Float64}(vicon), # Update Measurement
+                    EKF.getCovariance(node.vicon_obs),   # Don't update covariance
+                )
 
                 # If we got a new vicon message run update step
-                EKF.update!(node.ekf, node.measurement)
+                EKF.update!(node.ekf, node.vicon_obs)
 
                 # Update the filters state protobuf message and send
-                _, ω = ComSys.getComponents(node.input)
+                _, ω = ComSys.getComponents(node.imu_input)
                 p, q, v, _, β = ComSys.getComponents(ComSys.ImuState(node.ekf.est_state))
 
                 node.state.pos_x, node.state.pos_y, node.state.pos_z = p
@@ -192,13 +196,13 @@ module StateEstimator
 
             if (node.debug)
                 @printf("Acceleration: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.input[1:3]...)
+                        node.imu_input[1:3]...)
                 @printf("Rotational Vel: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.input[4:6]...)
+                        node.imu_input[4:6]...)
                 @printf("Vicon Position: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.measurement[1:3]...)
+                        EKF.getMeasurement(node.vicon_obs)[1:3]...)
                 @printf("Vicon Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                        node.measurement[4:7]...)
+                        EKF.getMeasurement(node.vicon_obs)[4:7]...)
                 @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
                         node.state.pos_x, node.state.pos_y, node.state.pos_z)
                 @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n\n",

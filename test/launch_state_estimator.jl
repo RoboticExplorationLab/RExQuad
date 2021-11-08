@@ -4,7 +4,7 @@ using RExQuad
 # %% For Testing
 import Mercury as Hg
 
-filter_node = StateEstimator.main(; rate=1.0, debug=true);
+filter_node = StateEstimator.main(; rate=100.0, debug=false);
 
 # %%
 filter_node_task = Threads.@spawn Hg.launch(filter_node)

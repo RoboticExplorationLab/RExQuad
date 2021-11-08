@@ -1,15 +1,11 @@
 #
 module JetsonLink
+    using ..RExQuad
+
     import Mercury as Hg
     using ZMQ
     using Printf
     using TOML
-
-    include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/quad_info_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/ground_info_msg_pb.jl")
 
     mutable struct JetsonLinkNode <: Hg.Node
         # Required by Abstract Node type
