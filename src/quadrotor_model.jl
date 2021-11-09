@@ -3,10 +3,8 @@ using Rotations
 using StaticArrays
 using LinearAlgebra
 
-include(joinpath(@__DIR__, "..", "msgs", "filtered_state_msg_pb.jl"))
-
 """
-    RExQuad{R}
+    RExQuadBody{R}
 
 A standard quadrotor model, with simple aerodynamic forces. The orientation is represent by
 a general rotation `R`. The body z-axis point is vertical, so positive controls cause acceleration
@@ -24,7 +22,7 @@ where `R <: Rotation{3}` and defaults to `UnitQuaternion{Float64}` if omitted. T
 * `km` - motor torque constant (default = 0.0245)
 * `kf` - motor force constant (default = 1.0)
 """
-struct RExQuad <: RigidBody{UnitQuaternion}
+struct RExQuadBody <: RigidBody{UnitQuaternion}
     mass::Float64
     J::SMatrix{3,3,Float64,9}
     Jinv::SMatrix{3,3,Float64,9}
@@ -35,9 +33,9 @@ struct RExQuad <: RigidBody{UnitQuaternion}
     bodyframe::Bool  # velocity in body frame?
     ned::Bool
 end
-RobotDynamics.control_dim(::RExQuad) = 4
+RobotDynamics.control_dim(::RExQuadBody) = 4
 
-function RExQuad(;
+function RExQuadBody(;
     mass = 0.5,
     J = Diagonal(@SVector [0.0023, 0.0023, 0.004]),
     gravity = SVector(0, 0, -9.81),
@@ -48,16 +46,16 @@ function RExQuad(;
     ned = false,
 ) where {R}
     @assert issymmetric(J)
-    RExQuad(mass, J, inv(J), gravity, motor_dist, kf, km, bodyframe, ned)
+    RExQuadBody(mass, J, inv(J), gravity, motor_dist, kf, km, bodyframe, ned)
 end
 
-@inline RobotDynamics.velocity_frame(model::RExQuad) = model.bodyframe ? :body : :world
+@inline RobotDynamics.velocity_frame(model::RExQuadBody) = model.bodyframe ? :body : :world
 
-function trim_controls(model::RExQuad)
+function trim_controls(model::RExQuadBody)
     @SVector fill(-model.gravity[3] * model.mass / 4.0 / model.kf, size(model)[2])
 end
 
-function RobotDynamics.forces(model::RExQuad, x, u)
+function RobotDynamics.forces(model::RExQuadBody, x, u)
     q = orientation(model, x)
     kf = model.kf
     g = model.gravity
@@ -82,7 +80,7 @@ function RobotDynamics.forces(model::RExQuad, x, u)
     return f
 end
 
-function RobotDynamics.moments(model::RExQuad, x, u)
+function RobotDynamics.moments(model::RExQuadBody, x, u)
 
     kf, km = model.kf, model.km
     L = model.motor_dist
@@ -109,11 +107,11 @@ function RobotDynamics.moments(model::RExQuad, x, u)
     return tau
 end
 
-RobotDynamics.inertia(model::RExQuad) = model.J
-RobotDynamics.inertia_inv(model::RExQuad) = model.Jinv
-RobotDynamics.mass(model::RExQuad) = model.mass
+RobotDynamics.inertia(model::RExQuadBody) = model.J
+RobotDynamics.inertia_inv(model::RExQuadBody) = model.Jinv
+RobotDynamics.mass(model::RExQuadBody) = model.mass
 
-function Base.zeros(model::RExQuad)
+function Base.zeros(model::RExQuadBody)
     x = RobotDynamics.build_state(model, zero(RBState))
     u = @SVector fill(-model.mass * model.gravity[end] / 4, 4)
     return x, u
@@ -129,11 +127,11 @@ function gen_quadrotormodel()
     km = 0.044  # motor torque constant (Nm/(rad/s))
 
     model =
-        RExQuad(mass = m, motor_dist = l, J = J, gravity = SA[0, 0, -g], km = km, kf = kt)
+        RExQuadBody(mass = m, motor_dist = l, J = J, gravity = SA[0, 0, -g], km = km, kf = kt)
     return model
 end
 
-function statemsg2vector(x::FILTERED_STATE)
+function statemsg2vector(x::RExQuad.FILTERED_STATE)
     SA[
         x.pos_x,
         x.pos_y,

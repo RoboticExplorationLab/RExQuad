@@ -1,20 +1,15 @@
 # Node for communicating with the Jetson (run on the ground station)
 module GroundLink
-    using Revise
+    using ..RExQuad
 
     import Mercury as Hg
     using ZMQ
-    using Printf
     using StaticArrays
+    using Printf
     using TOML
 
     include("$(@__DIR__)/visualizer.jl")
 
-    include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/motors_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/quad_info_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/ground_info_msg_pb.jl")
 
     struct SerializedVICON_C
         msgid::UInt8
@@ -42,8 +37,6 @@ module GroundLink
 
         # Specific to GroundLinkNode
         # ProtoBuf Messages
-        filtered_state::FILTERED_STATE
-        # motors::MOTORS
         quad_info::QUAD_INFO
         ground_info::GROUND_INFO
 
@@ -74,25 +67,7 @@ module GroundLink
             Hg.add_subscriber!(groundLinkNodeIO, serialized_vicon_buf, ground_vicon_sub)
 
             # Adding the Quad Info Subscriber to the Node
-            filtered_state = FILTERED_STATE(
-                pos_x = 0.0, pos_y = 0.0, pos_z = 0.0,
-                quat_w = 0.0, quat_x = 0.0, quat_y = 0.0, quat_z = 0.0,
-                vel_x = 0.0, vel_y = 0.0, vel_z = 0.0,
-                ang_x = 0.0, ang_y = 0.0, ang_z = 0.0,
-                time = 0.0,
-            )
-            # motors = MOTORS(
-            #     front_left = 0.0,
-            #     front_right = 0.0,
-            #     back_right = 0.0,
-            #     back_left = 0.0,
-            #     time = 0.0,
-            # )
-            quad_info = QUAD_INFO(
-                state = filtered_state,
-                # input = motors,
-                time = 0.0,
-            )
+            quad_info = RExQuad.zero_QUAD_INFO()
             quad_info_sub = Hg.ZmqSubscriber(
                 groundLinkNodeIO.ctx,
                 quad_info_sub_ip,
@@ -102,7 +77,7 @@ module GroundLink
             Hg.add_subscriber!(groundLinkNodeIO, quad_info, quad_info_sub)
 
             # Adding the Ground Info Publisher to the Node
-            ground_info = GROUND_INFO(deadman = true, time = time())
+            ground_info = RExQuad.zero_GROUND_INFO()
             ground_info_pub = Hg.ZmqPublisher(
                 groundLinkNodeIO.ctx,
                 ground_info_pub_ip,
@@ -117,8 +92,6 @@ module GroundLink
             return new(
                 groundLinkNodeIO,
                 serialized_vicon_buf,
-                filtered_state,
-                # motors,
                 quad_info,
                 ground_info,
                 vis,
@@ -221,14 +194,3 @@ module GroundLink
         return node
     end
 end
-
-# %%
-import Mercury as Hg
-
-node = GroundLink.main(; rate = 200.0, debug = false);
-
-# %%
-node_task = @async Hg.launch(node)
-
-# # %%
-# Hg.stopnode(node)

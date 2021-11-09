@@ -12,10 +12,6 @@ module StateEstimatorDebug
     using TOML
 
     # Import Protobuf Messages
-    include("$(@__DIR__)/../../msgs/imu_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/vicon_msg_pb.jl")
-    include("$(@__DIR__)/../../msgs/filtered_state_msg_pb.jl")
-
     struct IMU_VICON_C
         # IMU
         acc_x::Cfloat;

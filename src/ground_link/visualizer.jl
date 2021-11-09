@@ -4,21 +4,17 @@ using RobotZoo
 using MeshCat
 using Colors
 
-include(joinpath(@__DIR__, "..", "quadrotor_model.jl"))
-include(joinpath(@__DIR__, "..", "constants.jl"))
-include(joinpath(@__DIR__, "..", "..", "msgs", "filtered_state_msg_pb.jl"))
-
 """
 A type for facilitating the visualization of the quadrotor in a 3D MeshCat
     environment
 """
 struct QuadVisualizer
     vis::MeshCat.Visualizer
-    model::RExQuad
+    model::RExQuad.RExQuadBody
 end
 function QuadVisualizer()
     vis = MeshCat.Visualizer()
-    model = gen_quadrotormodel()
+    model = RExQuad.gen_quadrotormodel()
     QuadVisualizer(vis, model)
 end
 
@@ -30,7 +26,7 @@ function Base.open(vis::QuadVisualizer)
     TrajOptPlots.set_mesh!(vis.vis, vis.model)
 end
 
-# Define visualization methods for the RExQuad model
+# Define visualization methods for the RExQuadBody model
 function TrajOptPlots.visualize!(vis::QuadVisualizer, x::AbstractVector)
     TrajOptPlots.visualize!(vis.vis, vis.model, x)
 end
@@ -41,11 +37,11 @@ end
 
 function TrajOptPlots._set_mesh!(
     vis,
-    model::RExQuad;
+    model::RExQuad.RExQuadBody;
     scaling = 1.0,
     color = colorant"black",
 )
-    obj = joinpath(mesh_folder, "quadrotor_scaled.obj")
+    obj = joinpath(RExQuad.mesh_folder, "quadrotor_scaled.obj")
     robot_obj = MeshFileGeometry(obj)
     mat = MeshPhongMaterial(color = color)
     setobject!(vis["geom"], robot_obj, mat)

@@ -86,11 +86,7 @@ module StateEstimator
             last_vicon_time = zero(UInt32)
 
             # Adding the Quad Info Subscriber to the Node
-            state = RExQuad.FILTERED_STATE(pos_x=0., pos_y=0., pos_z=0.,
-                                           quat_w=1., quat_x=0., quat_y=0., quat_z=0.,
-                                           vel_x=0., vel_y=0., vel_z=0.,
-                                           ang_x=0., ang_y=0., ang_z=0.,
-                                           time=0.)
+            state = RExQuad.zero_FILTERED_STATE()
             state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port;
                                         name="FILTERED_STATE_PUB")
             Hg.add_publisher!(filterNodeIO,
@@ -128,21 +124,21 @@ module StateEstimator
             cnt = 0
             debug = debug
 
-            return new(filterNodeIO,
-                       imu_vicon_last, imu_vicon_buf, last_imu_time, last_vicon_time,
-                       state,
-                       imu_vicon_serial_relay,
-                       imu_input, vicon_obs, ekf,
-                       start_time, end_time, cnt, debug
-                       )
+            return new(
+                filterNodeIO,
+                imu_vicon_last, imu_vicon_buf, last_imu_time, last_vicon_time,
+                state,
+                imu_vicon_serial_relay,
+                imu_input, vicon_obs, ekf,
+                start_time, end_time, cnt, debug
+            )
         end
     end
 
     # Wait until weve heard from the subscriber once
     function Hg.startup(node::StateEsitmatorNode)
-        received_first = false
-        filterIO = Hg.getIO(node)
         imu_vicon_sub = Hg.getsubscriber(node, "IMU_VICON_SUB")
+        received_first = false
 
         while (!received_first)
             Hg.poll_subscribers(node)

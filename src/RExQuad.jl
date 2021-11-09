@@ -13,11 +13,16 @@ module RExQuad
         @error "RExQuad package hasn't been built yet!"
     end
 
+    include(joinpath(@__DIR__, "constants.jl"))
+    include(joinpath(@__DIR__, "quadrotor_model.jl"))
+
     include(joinpath(@__DIR__, "state_estimator", "state_estimator_node.jl"))
     include(joinpath(@__DIR__, "jetson_link", "jetson_link_node.jl"))
+    include(joinpath(@__DIR__, "ground_link", "ground_link_node.jl"))
 
     export StateEstimator
     export JetsonLink
+    export GroundLink
 
 
 end # module
