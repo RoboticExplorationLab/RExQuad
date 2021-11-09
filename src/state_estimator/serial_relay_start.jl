@@ -23,7 +23,7 @@ module SerialRelayStart
         imu_vicon_serial_relay = Hg.launch_relay(imu_serial_device,
                                                  imu_baud_rate,
                                                  imu_sub_endpoint,
-                                                 imu_pub_endpoint
+                                                 imu_pub_endpoint,
                                                  )
 
         # motors_serial_relay = Hg.launch_relay(port_name, imu_baud_rate, sub_endpoint, pub_endpoint )

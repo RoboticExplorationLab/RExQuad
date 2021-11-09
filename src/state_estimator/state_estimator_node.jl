@@ -61,6 +61,10 @@ module StateEstimator
 
         ekf::EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput}
 
+        start_time::Float64
+        end_time::Float64
+        cnt::Int64
+
         # Random
         debug::Bool
 
@@ -118,6 +122,10 @@ module StateEstimator
                 process_cov,
             )
 
+
+            start_time = time()
+            end_time = time()
+            cnt = 0
             debug = debug
 
             return new(filterNodeIO,
@@ -125,7 +133,7 @@ module StateEstimator
                        state,
                        imu_vicon_serial_relay,
                        imu_input, vicon_obs, ekf,
-                       debug
+                       start_time, end_time, cnt, debug
                        )
         end
     end
@@ -157,7 +165,7 @@ module StateEstimator
             # Convert the buffer of data to IMU_VICON_C type
             imu_vicon = reinterpret(IMU_VICON_C, imu_vicon_buf)[1]
 
-            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=true)
+            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=false)
 
             if outlier_check
                 # Update the time for the dynamics time step
@@ -192,6 +200,13 @@ module StateEstimator
                 node.state.time = time()
 
                 node.imu_vicon_last = imu_vicon
+
+                node.cnt += 1
+                if node.cnt % floor(filterIO.opts.rate) == 0
+                    node.end_time = time()
+                    @info "Publishing rate: $(floor(filterIO.opts.rate)/ (node.end_time - node.start_time))"
+                    node.start_time = time()
+                end
             end
 
             if (node.debug)
