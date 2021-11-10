@@ -197,27 +197,21 @@ module StateEstimator
 
                 node.imu_vicon_last = imu_vicon
 
-                node.cnt += 1
-                if node.cnt % floor(filterIO.opts.rate) == 0
-                    node.end_time = time()
-                    @info "Publishing rate: $(floor(filterIO.opts.rate)/ (node.end_time - node.start_time))"
-                    node.start_time = time()
-                end
-            end
+                if (node.debug)
+                    node.cnt += 1
+                    if node.cnt % floor(filterIO.opts.rate) == 0
+                        node.end_time = time()
 
-            if (node.debug)
-                @printf("Acceleration: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.imu_input[1:3]...)
-                @printf("Rotational Vel: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.imu_input[4:6]...)
-                @printf("Vicon Position: \t[%1.3f, %1.3f, %1.3f]\n",
-                        EKF.getMeasurement(node.vicon_obs)[1:3]...)
-                @printf("Vicon Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                        EKF.getMeasurement(node.vicon_obs)[4:7]...)
-                @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
-                        node.state.pos_x, node.state.pos_y, node.state.pos_z)
-                @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n\n",
-                        node.state.quat_w, node.state.quat_x, node.state.quat_y, node.state.quat_z)
+                        @info "Filtering rate: $(floor(filterIO.opts.rate)/ (node.end_time - node.start_time))"
+
+                        @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
+                                node.state.pos_x, node.state.pos_y, node.state.pos_z)
+                        @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n\n",
+                                node.state.quat_w, node.state.quat_x, node.state.quat_y, node.state.quat_z)
+
+                        node.start_time = time()
+                    end
+                end
             end
         end
 

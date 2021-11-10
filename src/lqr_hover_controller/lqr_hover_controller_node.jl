@@ -23,16 +23,6 @@ module LQRcontroller
     lqr_K = hcat([Vector{Float64}(vec) for vec in JSON.parsefile("src/data/lqr_gain.json")]...)
     lqr_K = SMatrix{num_input, num_err_state, Float64}(lqr_K)
 
-
-    function force2pwm(force_input::SVector{4,Float64})::SVector{4,Float64}
-
-
-        clamp.(pwm_input, RExQuad.MIN_THROTLE, RExQuad.MAX_THROTLE)
-        return pwm_input
-    end
-
-
-
     mutable struct LQRcontrollerNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
@@ -64,8 +54,8 @@ module LQRcontroller
                                          name="FILTERED_STATE_SUB")
             Hg.add_subscriber!(lqrIO, state, state_sub)
 
-            motor_c_buf = reinterpret(UInt8, [MOTORS_C(MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE)])
-            motor_c = MOTORS_C(MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE)
+            motor_c_buf = reinterpret(UInt8, [MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)])
+            motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
             # motor_pub = Hg.ZmqPublisher(lqrIO.ctx, motor_pub_ip, motor_pub_port;
             #                             name="MOTOR_PUB")
             # Hg.add_publisher!(lqrIO, motors, motor_pub)
@@ -92,9 +82,6 @@ module LQRcontroller
                            state.quat_w, state.quat_x, state.quat_y, state.quat_z,
                            state.vel_x, state.vel_y, state.vel_z,
                            state.ang_x, state.ang_y, state.ang_z]
-            display(size(lqr_K))
-            display(size(state_vec))
-            # display(size(lqr_K * state_vec))
         end
 
 

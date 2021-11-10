@@ -50,7 +50,7 @@ end
 
 function TrajOptPlots.visualize!(
     vis,
-    model::RobotZoo.Quadrotor,
+    model::RExQuad.RExQuadBody,
     x::StaticVector,
     addrobot::Bool = true,
 )
