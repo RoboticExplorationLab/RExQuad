@@ -14,7 +14,7 @@ module RExQuad
     end
 
     include(joinpath(@__DIR__, "constants.jl"))
-    include(joinpath(@__DIR__, "quadrotor_model.jl"))
+    include(joinpath(@__DIR__, "quadrotor_model_robot_dynamics_node".jl"))
 
     include(joinpath(@__DIR__, "state_estimator", "state_estimator_node.jl"))
     include(joinpath(@__DIR__, "lqr_hover_controller", "lqr_hover_controller_node.jl"))
