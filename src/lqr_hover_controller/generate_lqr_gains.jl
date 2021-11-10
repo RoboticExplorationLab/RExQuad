@@ -15,7 +15,7 @@ include(joinpath(@__DIR__, "..", "quadrotor_model.jl"))
 """
     generate_LQR_hover_gains([Qd, Rd; save_to_file])
 
-Generates the LQR gains for the diagonal cost weights `Qd` and `Rd`. Assumes the 
+Generates the LQR gains for the diagonal cost weights `Qd` and `Rd`. Assumes the
 quadrotor is linearized about equilibrium for level flight.
 
 The gains are returned and also saved to a file to be read in later.

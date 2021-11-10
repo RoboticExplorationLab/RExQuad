@@ -35,18 +35,6 @@ struct RExQuadBody <: RigidBody{UnitQuaternion}
 end
 RobotDynamics.control_dim(::RExQuadBody) = 4
 
-function quad_dynamics(model::RExQuadBody, x::SVector{}, u)
-    p = SA[x[1], x[2], x[3]]
-    q = normalize(SA[x[4], x[5], x[6], x[7]])
-    v = SA[x[8], x[9], x[10]]
-    ω = SA[x[11], x[12], x[13]]
-
-    ω̇ₛₜᵗ = Jₜ \ (-ω × (Jₜ * ω))            # Body velocity dynamics
-    q̇ₛₜˢ = Rotations.kinematics(UnitQuaternion(qₛₜˢ), ωₛₜᵗ)  # Quaternion kinematics
-
-end
-
-
 function RExQuadBody(;
     mass = 0.5,
     J = Diagonal(@SVector [0.0023, 0.0023, 0.004]),
