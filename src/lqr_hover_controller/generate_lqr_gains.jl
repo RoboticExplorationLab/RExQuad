@@ -1,16 +1,10 @@
-using Pkg;
-Pkg.activate(joinpath(@__DIR__, "..", ".."));
-using LinearAlgebra
-using ForwardDiff
-using BlockDiagonals
 using RobotDynamics
 using RobotZoo
 using StaticArrays
+using LinearAlgebra
 using ControlSystems
 using JSON
 
-include(joinpath(@__DIR__, "..", "constants.jl"))
-include(joinpath(@__DIR__, "..", "quadrotor_model.jl"))
 
 """
     generate_LQR_hover_gains([Qd, Rd; save_to_file])
@@ -26,7 +20,7 @@ function generate_LQR_hover_gains(
     save_to_file::Bool = true,
 )
 
-    model = gen_quadrotormodel()
+    model = RExQuad.gen_quadrotormodel()
     h = 0.02 # time step (s)
 
     #Initial Conditions
@@ -38,7 +32,7 @@ function generate_LQR_hover_gains(
     ω0 = @MVector zeros(3)
     x0 = [r0; q0; v0; ω0]
     x̃0 = [r0; SA[0; 0; 0]; v0; ω0]
-    uhover = trim_controls(model)
+    uhover = RExQuad.trim_controls(model)
 
     # With RobotZoo
     linmodel = RobotDynamics.LinearizedModel(
@@ -63,7 +57,7 @@ function generate_LQR_hover_gains(
 
     if (save_to_file)
         # Write gain to file
-        file = open(LQR_gain_file, "w")
+        file = open(RExQuad.LQR_gain_file, "w")
         JSON.print(file, K)
         close(file)
     end

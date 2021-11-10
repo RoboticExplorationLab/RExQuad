@@ -6,12 +6,12 @@ autonomy stack.
 """
 The location of the data file containing the LQR gain for level, stable flight.
 """
-const LQR_gain_file = joinpath(@__DIR__, "..", "data", "lqr_gain.json")
+const LQR_gain_file = joinpath(@__DIR__, "data", "lqr_gain.json")
 
 """
 The location of the mesh files
 """
-const mesh_folder = joinpath(@__DIR__, "..", "data", "meshes")
+const mesh_folder = joinpath(@__DIR__, "data", "meshes")
 
 const MIN_THROTLE = 1148.0f0
 const MAX_THROTLE = 1832.0f0
