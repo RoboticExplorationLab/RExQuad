@@ -23,26 +23,6 @@ module LQRcontroller
     lqr_K = hcat([Vector{Float64}(vec) for vec in JSON.parsefile("src/data/lqr_gain.json")]...)
     lqr_K = SMatrix{num_input, num_err_state, Float64}(lqr_K)
 
-    function compute_err_state(state::SVector{13, Float64})::SVector{12, Float64}
-        r0 = SA[0.0; 0; 1.0]
-        r1 = SA[state[1], state[2], state[3])
-        dr = r1 - r0
-
-        q0 = UnitQuaternion(SA[1.0; 0; 0; 0])
-        q1 = UnitQuaternion(SA[state[4], state[5], state[6], state[7]))
-        dq = Rotations.rotation_error(q1, q0)
-
-        v0 = @SVector zeros(3)
-        v1 = SA[state[8], state[9], state[10])
-        dv = v1 - v0
-
-        ω0 = @SVector zeros(3)
-        ω1 = SA[state[11], state[12], state[13])
-        dω = ω1 - ω0
-
-        dx = SA[dr; dq; dv; dω]
-        return dx
-    end
 
     function force2pwm(force_input::SVector{4,Float64})::SVector{4,Float64}
 
