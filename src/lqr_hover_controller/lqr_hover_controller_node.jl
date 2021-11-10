@@ -6,28 +6,65 @@ module LQRcontroller
     import Mercury as Hg
     using ZMQ
     using StaticArrays
+    using JSON
+    using Rotations
     using TOML
 
-    const lqr_K = generate_LQR_hover_gains(
-        Qd = ones(12),
-        Rd = fill(0.1, 4);
-        save_to_file = false,
-    )
+    struct MOTORS_C
+        front_left::Cfloat
+        front_right::Cfloat
+        back_right::Cfloat
+        back_left::Cfloat
+    end
 
-    # function wrench2pwm(force_torque::SVector{8})
+    const num_input = 4
+    const num_err_state = 12
 
-    # end
+    lqr_K = hcat([Vector{Float64}(vec) for vec in JSON.parsefile("src/data/lqr_gain.json")]...)
+    lqr_K = SMatrix{num_input, num_err_state, Float64}(lqr_K)
+
+    function compute_err_state(state::SVector{13, Float64})::SVector{12, Float64}
+        r0 = SA[0.0; 0; 1.0]
+        r1 = SA[state[1], state[2], state[3])
+        dr = r1 - r0
+
+        q0 = UnitQuaternion(SA[1.0; 0; 0; 0])
+        q1 = UnitQuaternion(SA[state[4], state[5], state[6], state[7]))
+        dq = Rotations.rotation_error(q1, q0)
+
+        v0 = @SVector zeros(3)
+        v1 = SA[state[8], state[9], state[10])
+        dv = v1 - v0
+
+        ω0 = @SVector zeros(3)
+        ω1 = SA[state[11], state[12], state[13])
+        dω = ω1 - ω0
+
+        dx = SA[dr; dq; dv; dω]
+        return dx
+    end
+
+    function force2pwm(force_input::SVector{4,Float64})::SVector{4,Float64}
+
+
+        clamp.(pwm_input, RExQuad.MIN_THROTLE, RExQuad.MAX_THROTLE)
+        return pwm_input
+    end
+
+
 
     mutable struct LQRcontrollerNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
 
-        # Specific to GroundLinkNode
         # ProtoBuf Messages
         state::RExQuad.FILTERED_STATE
-        motor_command::RExQuad.MOTORS
 
-        start_time::Float64
+        # Specific to GroundLinkNode
+        motor_c_buf::Vector{UInt8}
+        motor_c::MOTORS_C
+        # motor_command::RExQuad.MOTORS
+
         # Random
         debug::Bool
 
@@ -47,19 +84,19 @@ module LQRcontroller
                                          name="FILTERED_STATE_SUB")
             Hg.add_subscriber!(lqrIO, state, state_sub)
 
-            motors = RExQuad.zero_MOTORS()
-            motor_pub = Hg.ZmqPublisher(lqrIO.ctx, motor_pub_ip, motor_pub_port;
-                                        name="MOTOR_PUB")
-            Hg.add_publisher!(lqrIO, motors, motor_pub)
+            motor_c_buf = reinterpret(UInt8, [MOTORS_C(MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE)])
+            motor_c = MOTORS_C(MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE)
+            # motor_pub = Hg.ZmqPublisher(lqrIO.ctx, motor_pub_ip, motor_pub_port;
+            #                             name="MOTOR_PUB")
+            # Hg.add_publisher!(lqrIO, motors, motor_pub)
 
-            start_time = time()
             debug = debug
 
             return new(
-                motorCommandNodeIO,
-                motor_command,
-                motor_command_buf,
-                start_time,
+                lqrIO,
+                state,
+                motor_c_buf,
+                motor_c,
                 debug
             )
         end
@@ -86,16 +123,18 @@ module LQRcontroller
     end
 
     # Launch IMU publisher
-    function main(; debug = false)
+    function main(;rate=100.0, debug = false)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        serial_port = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
-        baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
+        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
+        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-        serial_port = "/dev/ttyACM0"
-        baud_rate = 115200
+        motor_serial_ipaddr = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["server"]
+        motor_serial_port = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["port"]
 
-        node = MotorCommandNode(serial_port, baud_rate, debug)
+        node = LQRcontrollerNode(filtered_state_ip, filtered_state_port,
+                                 motor_serial_ipaddr, motor_serial_port,
+                                 rate, debug)
         return node
     end
 end
