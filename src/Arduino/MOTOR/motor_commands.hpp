@@ -18,8 +18,8 @@ typedef struct _MOTOR_COMMANDS
     double time;
 } MOTOR_COMMANDS;
 
-#define initial_motor_commands_default                                        \
-    {                                                                         \
+#define MOTOR_COMMANDS_zero                                          \
+    {                                                           \
         MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, 0.0 \
     }
 
@@ -31,10 +31,10 @@ typedef struct _MOTORS
     Servo back_left_esc;
 } MOTORS;
 
-MOTORS initialize_motors(MOTOR_COMMANDS * command, 
-                         int front_left_pin, 
-                         int front_right_pin, 
-                         int back_right_pin, 
+MOTORS initialize_motors(MOTOR_COMMANDS * command,
+                         int front_left_pin,
+                         int front_right_pin,
+                         int back_right_pin,
                          int back_left_pin);
 
 void command_motors(MOTORS &motors, MOTOR_COMMANDS &command);

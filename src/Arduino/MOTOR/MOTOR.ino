@@ -10,14 +10,6 @@
 MOTORS motors;
 MOTOR_COMMANDS command = initial_motor_commands_default;
 
-// Build buffers and message types
-uint8_t motors_buffer[256];
-size_t motors_buffer_length = sizeof(motors_buffer);
-
-// Initialize packet serial ports
-PacketSerial jetsonPacketSerial;
-void onMotorsRecieved(const uint8_t *buffer, size_t size);
-
 
 void setup() {
     pinMode(LED_PIN, OUTPUT);
@@ -30,34 +22,31 @@ void setup() {
     }
     Serial.println("Connected to Serial");
 
-    jetsonPacketSerial.setStream(&Serial);
-    jetsonPacketSerial.setPacketHandler(&onMotorsRecieved);
-
-    delay(1000);
-
     // Setup Motor ESC
+    delay(1000);
     motors = initialize_motors(&command, FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK_LEFT_PIN);
 
     for (int i=0; i<10; i++)
     {
-        blink();    
+        blink();
     }
 }
 
-void loop() {
-    jetsonPacketSerial.update();
-    
-//    print_command(command);
+void loop()
+{
+    receiveJetsonMessage(command);
+
+    // print_command(command);
     command_motors(motors, command);
 }
 
-/*
- * Callback function called when a packet comes in over serial port
- */
-void onMotorsRecieved(const uint8_t *buffer, size_t buffer_size) {
-    if (buffer_size == sizeof(MOTOR_COMMANDS))
+void receiveJetsonMessage(MOTOR_COMMANDS &command)
+{
+    int msg_bytes = sizeof(MOTOR_COMMANDS);
+
+    if (Serial.available() == msg_bytes)
     {
-        memcpy(&command, buffer, buffer_size);
+        Serial.readBytes((uint8_t *)command, msg_bytes);
         switch_led();
     }
 }

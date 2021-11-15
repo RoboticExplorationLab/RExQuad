@@ -2,7 +2,6 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
-#include <PacketSerial.h>
 
 #include "imu_vicon_relay.hpp"
 #include "pose.hpp"
@@ -59,7 +58,7 @@ void setup()
 void loop()
 {
     // Limit to 1000 Hz
-    delay(10);
+//    delay(10);
     
     // Read in VICON measurement
     if (hasLoRaRecieved())
