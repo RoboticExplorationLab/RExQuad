@@ -44,7 +44,7 @@ module MotorSpinUp
             debug = debug
 
             return new(
-                lqrIO,
+                motorIO,
                 motor_c_buf,
                 debug
             )
