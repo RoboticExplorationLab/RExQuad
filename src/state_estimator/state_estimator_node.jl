@@ -159,7 +159,7 @@ module StateEstimator
             # Convert the buffer of data to IMU_VICON_C type
             imu_vicon = reinterpret(IMU_VICON_C, imu_vicon_buf)[1]
 
-            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=false)
+            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=true)
 
             if outlier_check
                 # Update the time for the dynamics time step
@@ -168,7 +168,7 @@ module StateEstimator
 
                 # If we got a new imu message run predicition step
                 imu = SA[imu_vicon.acc_x, imu_vicon.acc_y, imu_vicon.acc_z,
-                        imu_vicon.gyr_x, imu_vicon.gyr_y, imu_vicon.gyr_z]
+                         imu_vicon.gyr_x, imu_vicon.gyr_y, imu_vicon.gyr_z]
                 node.imu_input = ComSys.ImuInput{Float64}(imu)
 
                 EKF.prediction!(node.ekf, node.imu_input, Float64(dt))
@@ -202,6 +202,10 @@ module StateEstimator
 
                         @info "Filtering rate: $(floor(filterIO.opts.rate)/ (node.end_time - node.start_time))"
 
+                        @printf("IMU Acceleration: \t[%1.3f, %1.3f, %1.3f]\n",
+                                imu[1], imu[2], imu[3])
+                        @printf("Vicon Position: \t[%1.3f, %1.3f, %1.3f]\n",
+                                vicon[1], vicon[2], vicon[3])
                         @printf("Position: \t[%1.3f, %1.3f, %1.3f]\n",
                                 node.state.pos_x, node.state.pos_y, node.state.pos_z)
                         @printf("Orientation: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n\n",

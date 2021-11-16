@@ -35,7 +35,6 @@ struct RExQuadBody <: RigidBody{UnitQuaternion}
     km::Float64
     bm::Float64
     bodyframe::Bool  # velocity in body frame?
-    ned::Bool
 end
 RobotDynamics.control_dim(::RExQuadBody) = 4
 

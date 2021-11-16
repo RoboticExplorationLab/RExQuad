@@ -8,6 +8,7 @@ module LQRcontroller
     using StaticArrays
     using JSON
     using Rotations
+    using Printf
     using TOML
 
     struct MOTORS_C
@@ -19,6 +20,8 @@ module LQRcontroller
 
     const num_input = 4
     const num_err_state = 12
+
+    include("generate_lqr_gains.jl")
 
     lqr_K = hcat([Vector{Float64}(vec) for vec in JSON.parsefile("src/data/lqr_gain.json")]...)
     lqr_K = SMatrix{num_input, num_err_state, Float64}(lqr_K)
@@ -34,6 +37,10 @@ module LQRcontroller
         motor_c_buf::Vector{UInt8}
         motor_c::MOTORS_C
         # motor_command::RExQuad.MOTORS
+
+        start_time::Float64
+        end_time::Float64
+        cnt::Int64
 
         # Random
         debug::Bool
@@ -60,6 +67,9 @@ module LQRcontroller
             #                             name="MOTOR_PUB")
             # Hg.add_publisher!(lqrIO, motors, motor_pub)
 
+            start_time = time()
+            end_time = time()
+            cnt = 0
             debug = debug
 
             return new(
@@ -67,6 +77,9 @@ module LQRcontroller
                 state,
                 motor_c_buf,
                 motor_c,
+                start_time,
+                end_time,
+                cnt,
                 debug
             )
         end
@@ -82,6 +95,25 @@ module LQRcontroller
                            state.quat_w, state.quat_x, state.quat_y, state.quat_z,
                            state.vel_x, state.vel_y, state.vel_z,
                            state.ang_x, state.ang_y, state.ang_z]
+            state_err = compute_err_state(state_vec)
+
+            inputs = lqr_K * state_err
+            # inputs = clamp.(lqr_K * state_err, RExQuad.MIN_THROTLE, RExQuad.MAX_THROTLE)
+            motor_c = MOTORS_C(inputs[1], inputs[2], inputs[3], inputs[4])
+
+            if node.debug
+                node.cnt += 1
+                if node.cnt % floor(lqrIO.opts.rate) == 0
+                    node.end_time = time()
+
+                    @info "Control rate: $(floor(lqrIO.opts.rate)/ (node.end_time - node.start_time))"
+
+                    @printf("Motor PWM Commands: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
+                            motor_c.front_left, motor_c.front_right, motor_c.back_right, motor_c.back_left)
+
+                    node.start_time = time()
+                end
+            end
         end
 
 
@@ -90,7 +122,11 @@ module LQRcontroller
     end
 
     # Launch IMU publisher
-    function main(;rate=100.0, debug = false)
+    function main(;rate=100.0, debug = false, recompute_gains = false)
+        if recompute_gains
+            generate_LQR_hover_gains()
+        end
+
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]

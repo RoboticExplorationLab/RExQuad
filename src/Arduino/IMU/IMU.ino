@@ -59,7 +59,7 @@ void loop()
 {
     // Limit to 1000 Hz
 //    delay(10);
-    
+
     // Read in VICON measurement
     if (hasLoRaRecieved())
     {
