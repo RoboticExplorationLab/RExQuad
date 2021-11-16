@@ -16,8 +16,8 @@ MOTORS initialize_motors(MOTOR_COMMANDS * command, int front_left_pin, int front
     Serial.println("Finsihed Calibration");
 
     // Set the command variable passed in to the MIN_THROTLE stick position
-    *command = initial_motor_commands_default;
-    
+    *command = MOTOR_COMMANDS_zero;
+
     return quad_motors;
 }
 
@@ -51,7 +51,7 @@ void calibrate(MOTORS &motors)
     motors.back_right_esc.writeMicroseconds(MAX_THROTLE);
     motors.back_left_esc.writeMicroseconds(MAX_THROTLE);
     delay(7000);
-    
+
     //Serial.println("throttle down 1");
     motors.front_left_esc.writeMicroseconds(MIN_THROTLE);
     motors.front_right_esc.writeMicroseconds(MIN_THROTLE);

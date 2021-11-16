@@ -89,9 +89,7 @@ module StateEstimator
             state = RExQuad.zero_FILTERED_STATE()
             state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port;
                                         name="FILTERED_STATE_PUB")
-            Hg.add_publisher!(filterNodeIO,
-                              state,
-                              state_pub)
+            Hg.add_publisher!(filterNodeIO, state, state_pub )
 
             # Setup Serial Relay
             imu_vicon_serial_relay = SerialRelayStart.main()
