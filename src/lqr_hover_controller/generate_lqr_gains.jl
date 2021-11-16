@@ -29,7 +29,7 @@ function compute_err_state(state::SVector{13, Float64})::SVector{12, Float64}
     ω1 = SA[HOVER_STATE[11]; HOVER_STATE[12]; HOVER_STATE[13]]
     dω = ω1 - ω0
 
-    dx = [dr; dq; dv; dω]
+    dx = SA[dr; dq; dv; dω]
     return dx
 end
 
