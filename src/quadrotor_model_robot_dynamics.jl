@@ -93,8 +93,6 @@ function RobotDynamics.forces(model::RExQuadBody, x, u)
     F3 = kf * w3 + bf
     F4 = kf * w4 + bf
 
-    println(F1, " ", F2, " ", F3, " ", F4, " ", )
-
     force_body = SA[0; 0; (F1+F2+F3+F4)] + q' * (m * g)
 
     return force_body

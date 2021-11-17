@@ -159,7 +159,7 @@ module StateEstimator
             # Convert the buffer of data to IMU_VICON_C type
             imu_vicon = reinterpret(IMU_VICON_C, imu_vicon_buf)[1]
 
-            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=false)
+            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=true)
 
             if outlier_check
                 # Update the time for the dynamics time step
@@ -237,22 +237,22 @@ module StateEstimator
             (isnan(last_field) || isnan(curr_field)) && return false
         end
 
-        # Check for too large of imu accelerations (||a|| > 5g's)
+        # Check for too large of imu accelerations (||a|| > 50g's)
         acc_mag = sqrt(acc' * acc)
-        if (acc_mag > 50)
+        if (acc_mag > 500)
             debug && (@warn "Outlier accleration magnitude: $acc_mag")
             return false
         end
-        # Check for too fast of imu rotation (||ω|| > 1 RPS)
+        # Check for too fast of imu rotation (||ω|| > 10 RPS)
         gyr_mag = sqrt(gyr' * gyr)/(2π)
-        if (gyr_mag > 1)
+        if (gyr_mag > 10)
             debug && (@warn "Outlier rotational vel magnitude: $gyr_mag")
             return false
         end
-        # Check for a vicon position outside the arena (||p|| > 10m)
+        # Check for a vicon position outside the arena (||p|| > 5m)
         pos_mag = sqrt(pos' * pos)
-        if (pos_mag > 10)
-            debug && (@warn "Position outside arena: $pos_mag")
+        if (pos_mag > 5)
+            debug && (@warn "Position outside arena: $pos_mag $pos")
             return false
         end
 
@@ -265,8 +265,8 @@ module StateEstimator
 
         # Check for unit quaternion violation
         unit_quat_err = abs(quat' * quat - 1)
-        if (unit_quat_err > .001)
-            debug && (@warn "Quaternion non-unit: $unit_quat_err")
+        if (unit_quat_err > .01)
+            debug && (@warn "Quaternion non-unit: $unit_quat_err $quat")
             return false
         end
 

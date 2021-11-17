@@ -10,6 +10,15 @@ function launch_ground_link()
     return
 end
 
+function launch_vicon_listener(; rate = 100.0, debug = false)
+    node = ViconListener.ViconListenerNode(rate, debug, )
+    Hg.setupIO!(node, Hg.getIO(node))
+    node_task = Threads.@spawn Hg.launch(node)
+
+    push!(RUNNING_NODES, node)
+    return
+end
+
 function launch_jetson_link()
     node = JetsonLink.main(; rate = 33.0, debug=false);
     node_task = Threads.@spawn Hg.launch(node)
@@ -26,15 +35,15 @@ function launch_state_estimator(; debug = false)
     return
 end
 
-function launch_lqr_controller(; debug = false, recompute_gains = false)
-    node = LQRcontroller.main(; rate = 100.0, debug = debug, recompute_gains = recompute_gains);
+function launch_lqr_controller(; debug = false)
+    node = LQRcontroller.main(; rate = 100.0, debug = debug);
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
 
     return
 end
 
-function launch_motor_spin_up(; debug = false, recompute_gains = false)
+function launch_motor_spin_up(; debug = false)
     node = MotorSpinUp.main(; rate = 1.0, debug = debug)
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
