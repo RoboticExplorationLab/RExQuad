@@ -99,7 +99,7 @@ module LQRcontroller
                            state.ang_x, state.ang_y, state.ang_z]
             state_err = compute_err_state(state_vec)
 
-            inputs = lqr_K * state_err + u_hover
+            inputs = -lqr_K * state_err + u_hover
             # inputs = clamp.(lqr_K * state_err, RExQuad.MIN_THROTLE, RExQuad.MAX_THROTLE)
             motor_c = MOTORS_C(inputs[1], inputs[2], inputs[3], inputs[4])
 
