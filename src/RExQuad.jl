@@ -18,11 +18,13 @@ module RExQuad
 
     include(joinpath(@__DIR__, "state_estimator", "state_estimator_node.jl"))
     include(joinpath(@__DIR__, "lqr_hover_controller", "lqr_hover_controller_node.jl"))
+    include(joinpath(@__DIR__, "lqr_hover_controller", "motor_spin_up.jl"))
     include(joinpath(@__DIR__, "jetson_link", "jetson_link_node.jl"))
     include(joinpath(@__DIR__, "ground_link", "ground_link_node.jl"))
 
     export StateEstimator
     export LQRcontroller
+    export MotorSpinUp
     export JetsonLink
     export GroundLink
 

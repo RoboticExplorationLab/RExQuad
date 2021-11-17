@@ -14,13 +14,11 @@ typedef struct _MOTOR_COMMANDS
     float front_right;
     float back_right;
     float back_left;
-
-    double time;
 } MOTOR_COMMANDS;
 
 #define MOTOR_COMMANDS_zero                                          \
     {                                                           \
-        MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, 0.0 \
+        MIN_THROTLE, MIN_THROTLE, MIN_THROTLE, MIN_THROTLE \
     }
 
 typedef struct _MOTORS

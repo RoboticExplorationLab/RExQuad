@@ -42,7 +42,6 @@ void loop()
     receiveJetsonMessage(command);
     deadman_switch(command);
 
-    // print_command(command);
     command_motors(motors, command);
 }
 
@@ -60,8 +59,11 @@ void receiveJetsonMessage(MOTOR_COMMANDS &command)
 
 void deadman_switch(MOTOR_COMMANDS &command)
 {
+    // If you haven't heard a message in DEADMAN_MILLIS milliseconds then
+    // zero out the motor commands and switch the indicator LED to high
     if (abs(last_time - millis()) > DEADMAN_MILLIS)
     {
         command = MOTOR_COMMANDS_zero;
+        digitalWrite(LED_PIN, HIGH);
     }
 }
