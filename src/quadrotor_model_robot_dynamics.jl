@@ -30,10 +30,12 @@ struct RExQuadBody <: RigidBody{UnitQuaternion}
     Jinv::SMatrix{3,3,Float64,9}
     gravity::SVector{3,Float64}
     motor_dist::Float64
+
     kf::Float64
     bf::Float64
     km::Float64
     bm::Float64
+
     bodyframe::Bool  # velocity in body frame?
 end
 RobotDynamics.control_dim(::RExQuadBody) = 4
@@ -43,20 +45,26 @@ function RExQuadBody(;
     J = (@SMatrix  [0.01566089 0.00000318037 0; 0.00000318037 0.01562078 0; 0 0 0.02226868]),
     gravity = SVector(0, 0, -9.81),
     motor_dist = 0.28,
-    kf = 40.9666,
-    bf = 1248.9,
-    km = 3338.01,
-    bm = 1227.37,
+    kf = 0.0244101,
+    bf = -30.48576,
+    km = 0.00029958,
+    bm = -0.367697,
     bodyframe = true,
 ) where {R}
     @assert issymmetric(J)
-    RExQuadBody(mass, J, inv(J), gravity, motor_dist, kf, bf, km, bm, bodyframe)
+    RExQuadBody(mass, J, inv(J), gravity, motor_dist, kf, bf, km, bm, bodyframe, )
 end
 
 @inline RobotDynamics.velocity_frame(model::RExQuadBody) = model.bodyframe ? :body : :world
 
 function trim_controls(model::RExQuadBody)
-    @SVector fill(-model.gravity[3] * model.mass / 4.0 / model.kf, size(model)[2])
+    kf, bf = model.kf, model.bf
+
+    thrust = -model.gravity[3] * model.mass / 4.0
+    pwm = (thrust - bf) / kf
+    # pwm = clamp(pwm, MIN_THROTLE, MAX_THROTLE)
+
+    @SVector fill(pwm, size(model)[2])
 end
 
 """
@@ -65,8 +73,8 @@ end
 """
 function RobotDynamics.forces(model::RExQuadBody, x, u)
     q = orientation(model, x)
-    kf, km = model.kf, model.km
-    bf, bm = model.bf, model.bm
+    kf, bf = model.kf, model.bf
+    km, bm = model.km, model.bm
     L = model.motor_dist
     g = model.gravity
     m = model.mass
@@ -75,31 +83,41 @@ function RobotDynamics.forces(model::RExQuadBody, x, u)
     w2 = u[2] #PWM on front right motor
     w3 = u[3] #PWM on back right motor
     w4 = u[4] #PWM on back left motor
+    clamp(w1, MIN_THROTLE, MAX_THROTLE)
+    clamp(w2, MIN_THROTLE, MAX_THROTLE)
+    clamp(w3, MIN_THROTLE, MAX_THROTLE)
+    clamp(w4, MIN_THROTLE, MAX_THROTLE)
 
-    F1 = clamp(kf * w1 + bf, MIN_THROTLE, MAX_THROTLE)
-    F2 = clamp(kf * w2 + bf, MIN_THROTLE, MAX_THROTLE)
-    F3 = clamp(kf * w3 + bf, MIN_THROTLE, MAX_THROTLE)
-    F4 = clamp(kf * w4 + bf, MIN_THROTLE, MAX_THROTLE)
+    F1 = kf * w1 + bf
+    F2 = kf * w2 + bf
+    F3 = kf * w3 + bf
+    F4 = kf * w4 + bf
 
-    force_body = SA[0; 0; (F1+F2+F3+F4)] + q' * (-m * g)
+    println(F1, " ", F2, " ", F3, " ", F4, " ", )
+
+    force_body = SA[0; 0; (F1+F2+F3+F4)] + q' * (m * g)
 
     return force_body
 end
 
 function RobotDynamics.moments(model::RExQuadBody, x, u)
-    kf, km = model.kf, model.km
-    bf, bm = model.bf, model.bm
+    kf, bf = model.kf, model.bf
+    km, bm = model.km, model.bm
     L = model.motor_dist
 
     w1 = u[1] #PWM on front left motor
     w2 = u[2] #PWM on front right motor
     w3 = u[3] #PWM on back right motor
     w4 = u[4] #PWM on back left motor
+    clamp(w1, MIN_THROTLE, MAX_THROTLE)
+    clamp(w2, MIN_THROTLE, MAX_THROTLE)
+    clamp(w3, MIN_THROTLE, MAX_THROTLE)
+    clamp(w4, MIN_THROTLE, MAX_THROTLE)
 
-    F1 = clamp(kf * w1 + bf, MIN_THROTLE, MAX_THROTLE)
-    F2 = clamp(kf * w2 + bf, MIN_THROTLE, MAX_THROTLE)
-    F3 = clamp(kf * w3 + bf, MIN_THROTLE, MAX_THROTLE)
-    F4 = clamp(kf * w4 + bf, MIN_THROTLE, MAX_THROTLE)
+    F1 = kf * w1 + bf
+    F2 = kf * w2 + bf
+    F3 = kf * w3 + bf
+    F4 = kf * w4 + bf
 
     M1 = km * w1 + bm
     M2 = km * w2 + bm
@@ -119,7 +137,8 @@ RobotDynamics.mass(model::RExQuadBody) = model.mass
 
 function Base.zeros(model::RExQuadBody)
     x = RobotDynamics.build_state(model, zero(RBState))
-    u = @SVector fill(-model.mass * model.gravity[end] / 4, 4)
+
+    u = trim_controls(model)
     return x, u
 end
 
@@ -129,16 +148,14 @@ function gen_quadrotormodel()
     l = 0.28  # motor distance (m)
     J = [0.01566089 0.00000318037 0; 0.00000318037 0.01562078 0; 0 0 0.02226868]
     g = 9.81  # gravity (m/s^2)
-    kt = 0.11   # motor force constant (N/(rad/s))
-    km = 0.044  # motor torque constant (Nm/(rad/s))
 
-    kf = 40.9666
-    bf = 1248.9
-    km = 3338.01
-    bm = 1227.37
+    kf = 0.0244101
+    bf = -30.48576
+    km = 0.00029958
+    bm = -0.367697
 
     model =
-        RExQuadBody(mass = m, motor_dist = l, J = J, gravity = SA[0, 0, -g], km = km, bm = bm, kf = kf, bf = bf)
+        RExQuadBody(mass = m, J = J, gravity = SA[0, 0, -g], motor_dist = l, km = km, bm = bm, kf = kf, bf = bf)
     return model
 end
 

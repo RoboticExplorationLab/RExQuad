@@ -7,6 +7,7 @@ autonomy stack.
 The location of the data file containing the LQR gain for level, stable flight.
 """
 const LQR_gain_file = joinpath(@__DIR__, "data", "lqr_gain.json")
+const LQR_equilibrium_input_file = joinpath(@__DIR__, "data", "u_equilibrium.json")
 
 """
 The location of the mesh files

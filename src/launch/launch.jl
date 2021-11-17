@@ -7,7 +7,7 @@ function launch_ground_link()
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
 
-    return node
+    return
 end
 
 function launch_jetson_link()
@@ -15,7 +15,7 @@ function launch_jetson_link()
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
 
-    return node
+    return
 end
 
 function launch_state_estimator(; debug = false)
@@ -23,7 +23,7 @@ function launch_state_estimator(; debug = false)
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
 
-    return node
+    return
 end
 
 function launch_lqr_controller(; debug = false, recompute_gains = false)
@@ -31,15 +31,15 @@ function launch_lqr_controller(; debug = false, recompute_gains = false)
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
 
-    return node
+    return
 end
 
 function launch_motor_spin_up(; debug = false, recompute_gains = false)
-    node = MotorSpinUp.main(; rate = 1.0, debug = false)
+    node = MotorSpinUp.main(; rate = 1.0, debug = debug)
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
 
-    return node
+    return
 end
 
 function stopall()

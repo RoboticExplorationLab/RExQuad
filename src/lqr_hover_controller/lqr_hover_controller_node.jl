@@ -25,6 +25,8 @@ module LQRcontroller
 
     lqr_K = hcat([Vector{Float64}(vec) for vec in JSON.parsefile("src/data/lqr_gain.json")]...)
     lqr_K = SMatrix{num_input, num_err_state, Float64}(lqr_K)
+    u_hover = Vector{Float64}(JSON.parsefile("src/data/u_equilibrium.json"))
+    println(u_hover)
 
     mutable struct LQRcontrollerNode <: Hg.Node
         # Required by Abstract Node type
@@ -97,7 +99,7 @@ module LQRcontroller
                            state.ang_x, state.ang_y, state.ang_z]
             state_err = compute_err_state(state_vec)
 
-            inputs = lqr_K * state_err
+            inputs = lqr_K * state_err + u_hover
             # inputs = clamp.(lqr_K * state_err, RExQuad.MIN_THROTLE, RExQuad.MAX_THROTLE)
             motor_c = MOTORS_C(inputs[1], inputs[2], inputs[3], inputs[4])
 
@@ -108,6 +110,8 @@ module LQRcontroller
 
                     @info "Control rate: $(floor(lqrIO.opts.rate)/ (node.end_time - node.start_time))"
 
+                    @printf("State Error: \t[%1.3f, %1.3f, %1.3f, %1.3f, %1.3f, %1.3f, %1.3f]\n",
+                            state_err[1:7]...)
                     @printf("Motor PWM Commands: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
                             motor_c.front_left, motor_c.front_right, motor_c.back_right, motor_c.back_left)
 

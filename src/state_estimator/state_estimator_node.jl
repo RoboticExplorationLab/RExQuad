@@ -159,7 +159,7 @@ module StateEstimator
             # Convert the buffer of data to IMU_VICON_C type
             imu_vicon = reinterpret(IMU_VICON_C, imu_vicon_buf)[1]
 
-            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=true)
+            outlier_check = not_outlier(node.imu_vicon_last, imu_vicon; debug=false)
 
             if outlier_check
                 # Update the time for the dynamics time step

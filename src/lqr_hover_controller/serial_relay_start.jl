@@ -6,8 +6,8 @@ module SerialRelayStart
     function main()::Hg.SerialZmqRelay
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-        # motors_serial_device = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
-        motors_serial_device = "/dev/tty.usbmodem14201"
+        motors_serial_device = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
+        # motors_serial_device = "/dev/tty.usbmodem14201"
         motors_baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
 
         motors_serial_ipaddr = setup_dict["zmq"]["jetson"]["motors_relay"]["in"]["server"]

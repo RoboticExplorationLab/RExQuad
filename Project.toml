@@ -22,3 +22,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 TrajOptPlots = "7770976a-8dee-4930-bf39-a1782fd21ce6"
 ZMQ = "c2297ded-f4af-51ae-bb23-16f91089e4e1"
+
+[compat]
+Rotations = "1.0"

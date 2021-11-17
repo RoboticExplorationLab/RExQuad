@@ -6,11 +6,12 @@ using LinearAlgebra
 using ControlSystems
 using JSON
 
-r0 = SA[0.0; 0.0; 1.0]
-q0 = Rotations.params(UnitQuaternion(1.0, 0, 0, 0))
+r0 = SA[-2.563, -0.258, 0.922]
+q0 = Rotations.params(UnitQuaternion(1, 0, 0, 0))
 v0 = SA[0.0; 0.0; 0.0]
 ω0 = SA[0.0; 0.0; 0.0]
 const HOVER_STATE = SVector{13, Float64}([r0; q0; v0; ω0])
+const HOVER_INPUT = RExQuad.trim_controls(RExQuad.gen_quadrotormodel())
 
 function compute_err_state(state::SVector{13, Float64})::SVector{12, Float64}
     r0 = SA[HOVER_STATE[1]; HOVER_STATE[2]; HOVER_STATE[3]]
@@ -29,7 +30,7 @@ function compute_err_state(state::SVector{13, Float64})::SVector{12, Float64}
     ω1 = SA[HOVER_STATE[11]; HOVER_STATE[12]; HOVER_STATE[13]]
     dω = ω1 - ω0
 
-    dx = SA[dr; dq; dv; dω]
+    dx = [dr; dq; dv; dω]
     return dx
 end
 
@@ -86,6 +87,10 @@ function generate_LQR_hover_gains(
         file = open(RExQuad.LQR_gain_file, "w")
         JSON.print(file, K)
         close(file)
+
+        file = open(RExQuad.LQR_equilibrium_input_file, "w")
+        JSON.print(file, uhover)
+        close(file)
     end
-    return K
+    return K, uhover
 end
