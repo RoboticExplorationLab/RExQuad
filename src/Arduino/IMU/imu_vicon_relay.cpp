@@ -2,6 +2,7 @@
 
 #include <SPI.h>
 #include <LoRa.h>
+#include <math.h>
 
 #include "pose.hpp"
 
@@ -47,6 +48,8 @@ bool initialize_LoRaViconReceiver(uint8_t *buf, size_t msg_size)
 
     LoRa.onReceive(onLoRaReceive);
     LoRa.receive(global_receiver.msg_size);
+    // LoRa.enableCrc();
+    // LoRa.receive(global_receiver.msg_size + 2); // Add on the 2 byte CRC suffix
 
     return true;
 }
@@ -63,7 +66,7 @@ void onLoRaReceive(int packetSize)
     }
 }
 
-bool hasLoRaRecieved()
+bool hasLoRaReceived()
 {
     return global_receiver.new_msg;
 }
@@ -158,4 +161,18 @@ void displayImuVicon(IMU_VICON &imu_vicon)
     Serial.printf(" Pos: [%1.3f, %1.3f, %1.3f]\n", imu_vicon.pos_x, imu_vicon.pos_y, imu_vicon.pos_z);
     Serial.printf(" Quat: [%1.3f, %1.3f, %1.3f, %1.3f]\n", imu_vicon.quat_w, imu_vicon.quat_x, imu_vicon.quat_y, imu_vicon.quat_z);
     Serial.println("\n----------------------------------------");
+}
+
+void constraintCheck(IMU_VICON &imu_vicon)
+{
+    double quat_norm = sqrt(pow(imu_vicon.quat_w, 2) +
+                            pow(imu_vicon.quat_x, 2) +
+                            pow(imu_vicon.quat_y, 2) +
+                            pow(imu_vicon.quat_z, 2));
+
+    if (abs(quat_norm - 1) > .001)
+    {
+        Serial.println("Quaternion Constraint Violation!!!");
+        Serial.printf(" Quat: [%1.3f, %1.3f, %1.3f, %1.3f]\n", imu_vicon.quat_w, imu_vicon.quat_x, imu_vicon.quat_y, imu_vicon.quat_z);
+    }
 }

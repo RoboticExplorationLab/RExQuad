@@ -27,27 +27,29 @@ function launch_jetson_link()
     return
 end
 
-function launch_state_estimator(; debug = false)
-    node = StateEstimator.main(; rate = 100.0, debug=debug);
+function launch_state_estimator(; rate = 100.0, debug = false)
+    node = StateEstimator.main(; rate = rate, debug=debug);
     node_task = Threads.@spawn Hg.launch(node)
     push!(RUNNING_NODES, node)
 
     return
 end
 
-function launch_lqr_controller(; debug = false)
-    node = LQRcontroller.main(; rate = 100.0, debug = debug);
+function launch_lqr_controller(; rate = 100.0, debug = false)
+    node = LQRcontroller.LQRcontrollerNode(rate, debug)
+    Hg.setupIO!(node, Hg.getIO(node))
     node_task = Threads.@spawn Hg.launch(node)
-    push!(RUNNING_NODES, node)
 
+    push!(RUNNING_NODES, node)
     return
 end
 
 function launch_motor_spin_up(; debug = false)
-    node = MotorSpinUp.main(; rate = 1.0, debug = debug)
+    node = MotorSpinUp.MotorSpinNode(rate, debug)
+    Hg.setupIO!(node, Hg.getIO(node))
     node_task = Threads.@spawn Hg.launch(node)
-    push!(RUNNING_NODES, node)
 
+    push!(RUNNING_NODES, node)
     return
 end
 

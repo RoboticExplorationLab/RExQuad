@@ -245,7 +245,7 @@ module StateEstimator
         end
         # Check for too fast of imu rotation (||ω|| > 10 RPS)
         gyr_mag = sqrt(gyr' * gyr)/(2π)
-        if (gyr_mag > 10)
+        if (gyr_mag > 50)
             debug && (@warn "Outlier rotational vel magnitude: $gyr_mag")
             return false
         end
@@ -253,13 +253,6 @@ module StateEstimator
         pos_mag = sqrt(pos' * pos)
         if (pos_mag > 5)
             debug && (@warn "Position outside arena: $pos_mag $pos")
-            return false
-        end
-
-        # Check for big jump in vicon position (||pₖ₋₁ - pₖ|| < 10 cm)
-        pos_change = sqrt(sum((pos - pos_last).^2))
-        if (pos_change > .1)
-            debug && (@warn "Outlier jump in position: $pos_change")
             return false
         end
 

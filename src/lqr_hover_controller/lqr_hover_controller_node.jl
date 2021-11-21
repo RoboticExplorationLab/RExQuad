@@ -18,9 +18,6 @@ module LQRcontroller
         back_left::Cfloat
     end
 
-    include("$(@__DIR__)/serial_relay_start.jl")
-    import .SerialRelayStart
-
     include("generate_lqr_gains.jl")
 
     const num_input = 4

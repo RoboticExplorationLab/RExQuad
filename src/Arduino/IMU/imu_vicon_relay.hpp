@@ -41,7 +41,7 @@ bool initialize_LoRaViconReceiver(uint8_t *buf, size_t msg_size);
 
 void onLoRaReceive(int packetSize);
 
-bool hasLoRaRecieved();
+bool hasLoRaReceived();
 
 void updateVicon(IMU_VICON &imu_vicon);
 
@@ -56,5 +56,7 @@ void displaySensorReading(Adafruit_BNO055 &bno);
 bool calibrateIMU(Adafruit_BNO055 &bno);
 
 void displayImuVicon(IMU_VICON &imu_vicon);
+
+void constraintCheck(IMU_VICON &imu_vicon);
 
 #endif

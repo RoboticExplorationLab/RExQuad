@@ -9,7 +9,7 @@ module SerialRelayStart
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         imu_serial_device = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
-        # imu_serial_device = "/dev/tty.usbmodem14101"
+        imu_serial_device = "/dev/tty.usbmodem14201"
         imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
 
         imu_serial_ipaddr = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["in"]["server"]
