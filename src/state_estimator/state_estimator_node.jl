@@ -39,99 +39,104 @@ module StateEstimator
     mutable struct StateEsitmatorNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
-
         # Serial messages
         imu_vicon_last::IMU_VICON_C
         imu_vicon_buf::Vector{UInt8}
         last_imu_time::Float64
         last_vicon_time::UInt32
-
         # ProtoBuf Messages
         state::RExQuad.FILTERED_STATE
-
         # Serial Relay
         imu_vicon_serial_relay::Hg.SerialZmqRelay
-
         # EKF type
         imu_input::ComSys.ImuInput{Float64}
         vicon_obs::EKF.Observation{ComSys.ViconMeasure{Float64},
                                    length(ComSys.ViconMeasure),
                                    length(ComSys.ViconError)
                                    }
-
         ekf::EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput}
-
+        # Timing Utilites
         start_time::Float64
         end_time::Float64
         cnt::Int64
-
         # Random
         debug::Bool
-
-        function StateEsitmatorNode(imu_vicon_sub_ip::String, imu_vicon_sub_port::String,
-                                    state_pub_ip::String, state_pub_port::String,
-                                    rate::Float64, debug::Bool)
-            # Adding the Ground Vicon Subscriber to the Node
-            filterNodeIO = Hg.NodeIO(ZMQ.Context(1); rate=rate)
-
-            imu_vicon_last = IMU_VICON_C(zeros(Cfloat, 9)..., 1.0f0, zeros(Cfloat, 4)...)
-            imu_vicon_buf = reinterpret(UInt8, [IMU_VICON_C(zeros(Cfloat, 9)..., 1.0f0, zeros(Cfloat, 4)...)])
-            imu_vicon_sub = Hg.ZmqSubscriber(filterNodeIO.ctx,
-                                             imu_vicon_sub_ip,
-                                             imu_vicon_sub_port;
-                                             name="IMU_VICON_SUB")
-            Hg.add_subscriber!(filterNodeIO, imu_vicon_buf, imu_vicon_sub)
-
-            last_imu_time = time()
-            last_vicon_time = zero(UInt32)
-
-            # Adding the Quad Info Subscriber to the Node
-            state = RExQuad.zero_FILTERED_STATE()
-            state_pub = Hg.ZmqPublisher(filterNodeIO.ctx, state_pub_ip, state_pub_port;
-                                        name="FILTERED_STATE_PUB")
-            Hg.add_publisher!(filterNodeIO, state, state_pub )
-
-            # Setup Serial Relay
-            imu_vicon_serial_relay = SerialRelayStart.main()
-
-            # Setup the EKF filter
-            est_state = ComSys.ImuState{Float64}(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
-            est_cov = Matrix{Float64}(2.2 * I(length(ComSys.ImuError)))
-            process_cov = Matrix{Float64}(0.5 * I(length(ComSys.ImuError)))
-            measure_cov = Matrix{Float64}(0.005 * I(length(ComSys.ViconError)))
-
-            imu_input = ComSys.ImuInput{Float64}(0.,0.,0.,0.,0.,0.)
-            vicon_measure = ComSys.ViconMeasure{Float64}(0.,0.,0.,1.,0.,0.,0.)
-            Nₑₘ = length(ComSys.ViconError)
-            vicon_measure_cov = SMatrix{Nₑₘ, Nₑₘ, Float64}(0.005 * I(Nₑₘ))
-            vicon_obs = EKF.Observation(vicon_measure, vicon_measure_cov)
-
-            ekf = EKF.ErrorStateFilter{
-                ComSys.ImuState,
-                ComSys.ImuError,
-                ComSys.ImuInput,
-            }(
-                est_state,
-                est_cov,
-                process_cov,
-            )
-
-
-            start_time = time()
-            end_time = time()
-            cnt = 0
-            debug = debug
-
-            return new(
-                filterNodeIO,
-                imu_vicon_last, imu_vicon_buf, last_imu_time, last_vicon_time,
-                state,
-                imu_vicon_serial_relay,
-                imu_input, vicon_obs, ekf,
-                start_time, end_time, cnt, debug
-            )
-        end
     end
+
+    function StateEsitmatorNode(rate::Float64, debug::Bool)
+        filterNodeIO = Hg.NodeIO(ZMQ.Context(1); rate=rate)
+
+        imu_vicon_last = IMU_VICON_C(zeros(Cfloat, 9)..., 1.0f0, zeros(Cfloat, 4)...)
+        imu_vicon_buf = reinterpret(UInt8, [IMU_VICON_C(zeros(Cfloat, 9)..., 1.0f0, zeros(Cfloat, 4)...)])
+        last_imu_time = time()
+        last_vicon_time = zero(UInt32)
+
+        state = RExQuad.zero_FILTERED_STATE()
+
+        imu_vicon_serial_relay = run(`true`)
+
+        est_state = ComSys.ImuState{Float64}(rand(3)..., params(ones(UnitQuaternion))..., rand(9)...)
+        est_cov = Matrix{Float64}(2.2 * I(length(ComSys.ImuError)))
+        process_cov = Matrix{Float64}(0.5 * I(length(ComSys.ImuError)))
+
+        imu_input = ComSys.ImuInput{Float64}(0.,0.,0.,0.,0.,0.)
+        vicon_measure = ComSys.ViconMeasure{Float64}(0.,0.,0.,1.,0.,0.,0.)
+        Nₑₘ = length(ComSys.ViconError)
+        vicon_measure_cov = SMatrix{Nₑₘ, Nₑₘ, Float64}(0.005 * I(Nₑₘ))
+        vicon_obs = EKF.Observation(vicon_measure, vicon_measure_cov)
+
+        ekf = EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput, }( est_state, est_cov, process_cov, )
+
+        start_time = time()
+        end_time = time()
+        cnt = 0
+        debug = debug
+
+        return StateEsitmatorNode(
+            filterNodeIO,
+            imu_vicon_last, imu_vicon_buf, last_imu_time, last_vicon_time,
+            state,
+            imu_vicon_serial_relay,
+            imu_input, vicon_obs, ekf,
+            start_time, end_time, cnt, debug
+        )
+    end
+
+    function Hg.setupIO!(node::StateEsitmatorNode, nodeio::Hg.NodeIO)
+        setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
+
+        imu_serial_device = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
+        imu_serial_device = "/dev/tty.usbmodem14201"
+        imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
+
+        imu_serial_ipaddr = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["in"]["server"]
+        imu_serial_port = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["in"]["port"]
+        imu_sub_endpoint = Hg.tcpstring(imu_serial_ipaddr, imu_serial_port)
+
+        imu_serial_ipaddr = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["server"]
+        imu_serial_port = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["port"]
+        imu_pub_endpoint = Hg.tcpstring(imu_serial_ipaddr, imu_serial_port)
+
+        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
+        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
+
+        # Setup Serial Relay
+        node.imu_vicon_serial_relay = Hg.launch_relay(imu_serial_device,
+                                                      imu_baud_rate,
+                                                      imu_sub_endpoint,
+                                                      imu_pub_endpoint)
+        # Adding the IMU_VICON Subscriber to the Node
+        imu_vicon_sub = Hg.ZmqSubscriber(nodeio.ctx,
+                                         imu_serial_ipaddr,
+                                         imu_serial_port;
+                                         name="IMU_VICON_SUB")
+        Hg.add_subscriber!(nodeio, node.imu_vicon_buf, imu_vicon_sub, )
+        # Adding the Quad Info Subscriber to the Node
+        state_pub = Hg.ZmqPublisher(nodeio.ctx, filtered_state_ip, filtered_state_port;
+                                    name="FILTERED_STATE_PUB")
+        Hg.add_publisher!(nodeio, node.state, state_pub )
+    end
+
 
     # Wait until weve heard from the subscriber once
     function Hg.startup(node::StateEsitmatorNode)
@@ -283,17 +288,8 @@ module StateEstimator
 
     # Launch IMU publisher
     function main(; rate=100.0, debug=false)
-        setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
-
-        imu_serial_ipaddr = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["server"]
-        imu_serial_port = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["out"]["port"]
-
-        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
-        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
-
-        node = StateEsitmatorNode(imu_serial_ipaddr, imu_serial_port,
-                                  filtered_state_ip, filtered_state_port,
-                                  rate, debug)
+        node = StateEsitmatorNode(rate, debug)
+        Hg.setupIO!(node, Hg.getIO(node))
 
         return node
     end

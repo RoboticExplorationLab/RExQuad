@@ -38,21 +38,21 @@ module LQRcontroller
     end
 
     function LQRcontrollerNode(rate::Float64, debug::Bool, )
-            # Adding the Ground Vicon Subscriber to the Node
-            lqrIO = Hg.NodeIO(ZMQ.Context(1); rate = rate)
-            state = RExQuad.zero_FILTERED_STATE()
+        # Adding the Ground Vicon Subscriber to the Node
+        lqrIO = Hg.NodeIO(ZMQ.Context(1); rate = rate)
+        state = RExQuad.zero_FILTERED_STATE()
 
-            motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
-            motor_c_buf = reinterpret(UInt8, [motor_c])
-            motors_relay = run(`true`)
+        motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
+        motor_c_buf = reinterpret(UInt8, [motor_c])
+        motors_relay = run(`true`)
 
-            start_time = time()
-            end_time = time()
-            cnt = 0
-            debug = debug
+        start_time = time()
+        end_time = time()
+        cnt = 0
+        debug = debug
 
-            return LQRcontrollerNode(lqrIO, state, motor_c_buf, motors_relay, start_time, end_time, cnt, debug )
-        end
+        return LQRcontrollerNode(lqrIO, state, motor_c_buf, motors_relay, start_time, end_time, cnt, debug )
+    end
 
     function Hg.setupIO!(node::LQRcontrollerNode, nodeio::Hg.NodeIO)
         ##### Create State/Motor Publisher #####
