@@ -48,8 +48,7 @@ bool initialize_LoRaViconReceiver(uint8_t *buf, size_t msg_size)
 
     LoRa.onReceive(onLoRaReceive);
     LoRa.receive(global_receiver.msg_size);
-    // LoRa.enableCrc();
-    // LoRa.receive(global_receiver.msg_size + 2); // Add on the 2 byte CRC suffix
+    LoRa.enableCrc();
 
     return true;
 }

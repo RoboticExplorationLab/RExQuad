@@ -13,8 +13,8 @@
  Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
 
 // Vicon
-constexpr int MSG_SIZE = sizeof(rexlab::Pose<int32_t>);
-uint8_t lora_buffer[MSG_SIZE];
+constexpr int POSE_MSG_SIZE = sizeof(rexlab::Pose<int16_t>);
+uint8_t lora_buffer[POSE_MSG_SIZE];
 
 // Build buffers and message types
 constexpr int IMU_VICON_MSG_SIZE = sizeof(IMU_VICON) + 1;
@@ -39,7 +39,7 @@ void setup()
     }
 
     // Start up the lora radio
-    if (!initialize_LoRaViconReceiver(lora_buffer, MSG_SIZE))
+    if (!initialize_LoRaViconReceiver(lora_buffer, POSE_MSG_SIZE))
     {
         Serial.println("Failed to properly setup LoRaViconReceiver!!");
         while(true)
@@ -59,7 +59,7 @@ void setup()
 
 void loop()
 {
-    // Limit to 1000 Hz
+    // Limit to 10 Hz
     // delay(100);
 
     // Read in VICON measurement
@@ -71,6 +71,7 @@ void loop()
     // Read in IMU measurement
     updateIMU(bno, imu_vicon);
 
+    Serial.println(POSE_MSG_SIZE);
     // Send IMU/Vicon Message
     // Serial.printf(" Quat: [%1.3f, %1.3f, %1.3f, %1.3f]\n", imu_vicon.quat_w, imu_vicon.quat_x, imu_vicon.quat_y, imu_vicon.quat_z);
     sendJetsonMessage(imu_vicon);
