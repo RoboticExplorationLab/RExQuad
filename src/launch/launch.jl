@@ -28,10 +28,11 @@ function launch_jetson_link()
 end
 
 function launch_state_estimator(; rate = 100.0, debug = false)
-    node = StateEstimator.main(; rate = rate, debug=debug);
+    node = StateEstimator.StateEsitmatorNode(rate, debug)
+    Hg.setupIO!(node, Hg.getIO(node))
     node_task = Threads.@spawn Hg.launch(node)
-    push!(RUNNING_NODES, node)
 
+    push!(RUNNING_NODES, node)
     return
 end
 

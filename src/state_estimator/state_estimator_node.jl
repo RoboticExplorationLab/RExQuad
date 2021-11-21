@@ -13,9 +13,6 @@ module StateEstimator
     using Printf
     using TOML
 
-    include("$(@__DIR__)/serial_relay_start.jl")
-    import .SerialRelayStart
-
     struct IMU_VICON_C
         # IMU
         acc_x::Cfloat;
@@ -106,7 +103,7 @@ module StateEstimator
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         imu_serial_device = setup_dict["serial"]["jetson"]["imu_arduino"]["serial_port"]
-        imu_serial_device = "/dev/tty.usbmodem14201"
+        # imu_serial_device = "/dev/tty.usbmodem14201"
         imu_baud_rate = setup_dict["serial"]["jetson"]["imu_arduino"]["baud_rate"]
 
         imu_serial_ipaddr = setup_dict["zmq"]["jetson"]["imu_vicon_relay"]["in"]["server"]
@@ -284,13 +281,5 @@ module StateEstimator
     # Make sure to kill the serial relay process
     function Hg.finishup(node::StateEsitmatorNode)
         close(node.imu_vicon_serial_relay)
-    end
-
-    # Launch IMU publisher
-    function main(; rate=100.0, debug=false)
-        node = StateEsitmatorNode(rate, debug)
-        Hg.setupIO!(node, Hg.getIO(node))
-
-        return node
     end
 end

@@ -127,12 +127,4 @@ module LQRcontroller
             end
         end
     end
-
-    # Launch IMU publisher
-    function main(; rate = 100.0, debug = false)
-        node = LQRcontrollerNode(rate, debug)
-        Hg.setupIO!(node, Hg.getIO(node))
-
-        return node
-    end
 end
