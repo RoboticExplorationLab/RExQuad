@@ -10,71 +10,74 @@ module JetsonLink
     mutable struct JetsonLinkNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
-        rate::Float64
-        should_finish::Bool
-
         # Specific to GroundLinkNode
         # ProtoBuf Messages
         ground_info::GROUND_INFO
         state::FILTERED_STATE
         # motors::MOTORS
         quad_info::QUAD_INFO
-
         # Random
         debug::Bool
+    end
 
-        function JetsonLinkNode(
-            ground_info_sub_ip::String,
-            ground_info_sub_port::String,
-            state_sub_ip::String,
-            state_sub_port::String,
-            motors_sub_ip::String,
-            motors_sub_port::String,
-            quad_info_pub_ip::String,
-            quad_info_pub_port::String,
-            rate::Float64,
-            debug::Bool,
+    function JetsonLinkNode(rate::Float64, debug::Bool)
+        jetsonLinkNodeIO = Hg.NodeIO(ZMQ.Context(1); rate = rate)
+
+        ground_info = RExQuad.zero_GROUND_INFO()
+        state = RExQuad.zero_FILTERED_STATE()
+        motors = RExQuad.zero_MOTORS()
+        quad_info = QUAD_INFO(state = state, input = motors, time = 0.0)
+
+        debug=debug
+
+        return JetsonLinkNode(
+            jetsonLinkNodeIO,
+            ground_info,
+            state,
+            # motors,
+            quad_info,
+            debug
         )
-            # Adding the Ground Vicon Subscriber to the Node
-            jetsonLinkNodeIO = Hg.NodeIO(ZMQ.Context(1); rate = rate)
-            should_finish = false
+    end
 
-            ground_info = RExQuad.zero_GROUND_INFO()
-            ground_info_sub = Hg.ZmqSubscriber(jetsonLinkNodeIO.ctx, ground_info_sub_ip, ground_info_sub_port;
-                                            name="GROUND_INFO_SUB")
-            Hg.add_subscriber!(jetsonLinkNodeIO, ground_info, ground_info_sub)
+    function Hg.setupIO(node::JetsonLinkNode, nodeio::Hg.NodeIO)
+        # ground_info_sub_ip::String,
+        # ground_info_sub_port::String,
+        # state_sub_ip::String,
+        # state_sub_port::String,
+        # motors_sub_ip::String,
+        # motors_sub_port::String,
+        # quad_info_pub_ip::String,
+        # quad_info_pub_port::String,
+        setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
-            state = RExQuad.zero_FILTERED_STATE()
-            state_sub = Hg.ZmqSubscriber(jetsonLinkNodeIO.ctx, state_sub_ip, state_sub_port;
-                                        name="FILTERED_STATE_SUB")
-            Hg.add_subscriber!(jetsonLinkNodeIO, state, state_sub)
+        ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
+        ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
 
-            motors = RExQuad.zero_MOTORS()
-            # motors_sub = Hg.ZmqSubscriber(jetsonLinkNodeIO.ctx, motors_sub_ip, motors_sub_port;
-            #                               name="MOTORS_SUB")
-            # Hg.add_subscriber!(jetsonLinkNodeIO, motors, motors_sub)
+        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
+        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
-            # Adding the Quad Info Subscriber to the Node
-            quad_info = QUAD_INFO(
-                state = state,
-                input = motors,
-                time = 0.0,
-            )
-            quad_info_sub = Hg.ZmqPublisher(jetsonLinkNodeIO.ctx, quad_info_pub_ip, quad_info_pub_port;
-                                            name="QUAD_INFO_PUB")
-            Hg.add_publisher!(jetsonLinkNodeIO, quad_info, quad_info_sub)
+        motors_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
+        motors_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
 
-            return new(
-                jetsonLinkNodeIO,
-                rate,
-                should_finish,
-                ground_info,
-                state,
-                motors,
-                quad_info,
-                debug,
-            )
-        end
+        quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
+        quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
+
+        ground_info_sub = Hg.ZmqSubscriber(nodeio.ctx, ground_info_ip, ground_info_port;
+                                           name="GROUND_INFO_SUB")
+        Hg.add_subscriber!(nodeio, node.ground_info, ground_info_sub)
+
+        state_sub = Hg.ZmqSubscriber(nodeio.ctx, filtered_state_ip, filtered_state_port;
+                                     name="FILTERED_STATE_SUB")
+        Hg.add_subscriber!(nodeio, node.state, state_sub)
+
+        # motors_sub = Hg.ZmqSubscriber(nodeio.ctx, motors_ip, motors_port;
+        #                               name="MOTORS_SUB")
+        # Hg.add_subscriber!(nodeio, node.state, motors_sub)
+
+        quad_info_sub = Hg.ZmqPublisher(jetsonLinkNodeIO.ctx, quad_info_ip, quad_info_port;
+                                        name="QUAD_INFO_PUB")
+        Hg.add_publisher!(nodeio, node.quad_info, quad_info_sub)
     end
 
     function Hg.compute(node::JetsonLinkNode)
@@ -103,37 +106,5 @@ module JetsonLink
         end
 
         Hg.publish.(jetsonLinkNodeIO.pubs)
-    end
-
-    # Launch IMU publisher
-    function main(; rate = 33.0, debug = false)
-        setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
-
-        ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
-        ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
-
-        filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
-        filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
-
-        motors_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
-        motors_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
-
-        quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
-        # quad_info_ip = "192.168.3.117"
-        quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
-
-        node = JetsonLinkNode(
-            ground_info_ip,
-            ground_info_port,
-            filtered_state_ip,
-            filtered_state_port,
-            motors_ip,
-            motors_port,
-            quad_info_ip,
-            quad_info_port,
-            rate,
-            debug,
-        )
-        return node
     end
 end
