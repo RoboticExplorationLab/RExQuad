@@ -1,3 +1,18 @@
+/**
+ * @file IMU.ino
+ * @author Alexander Bouman (alex.bouman@gmail.com)
+ * @brief This script takes input from onboard LoRA and IMU over SPI and
+ *        publishes the message over serial to a connected computer
+ *
+ * Board: LoRa Feather M0 by Adafruit
+ *
+ * @version 0.1
+ * @date 2021-11-22
+ *
+ * @copyright Copyright (c) 2021
+ *
+ */
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>

@@ -61,20 +61,21 @@ module LQRcontroller
         filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
         filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
 
+        state_sub = Hg.ZmqSubscriber(nodeio.ctx, filtered_state_ip, filtered_state_port;
+                                     name="FILTERED_STATE_SUB")
+        Hg.add_subscriber!(nodeio, node.state, state_sub)
+
         motor_serial_ipaddr = setup_dict["zmq"]["jetson"]["motors_relay"]["in"]["server"]
         motor_serial_port = setup_dict["zmq"]["jetson"]["motors_relay"]["in"]["port"]
         motor_sub_endpoint = Hg.tcpstring(motor_serial_ipaddr, motor_serial_port)
 
-        state_sub = Hg.ZmqSubscriber(nodeio.ctx, filtered_state_ip, filtered_state_port;
-                                     name="FILTERED_STATE_SUB")
-        Hg.add_subscriber!(nodeio, node.state, state_sub)
         motor_pub = Hg.ZmqPublisher(nodeio.ctx, motor_serial_ipaddr, motor_serial_port;
                                     name="MOTOR_PUB")
         Hg.add_publisher!(nodeio, node.motor_c_buf, motor_pub)
 
         ##### Startup Motor Adafruit Feather Relay #####
         motor_serial_device = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
-        # motor_serial_device = "/dev/tty.usbmodem14201"
+        motors_serial_device = "/dev/tty.usbmodem14101"
         motor_baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
 
         motor_serial_ipaddr = setup_dict["zmq"]["jetson"]["motors_relay"]["out"]["server"]
@@ -86,11 +87,11 @@ module LQRcontroller
                                             motor_sub_endpoint,
                                             motor_pub_endpoint,
                                             )
-        return nothing
     end
 
     function Hg.compute(node::LQRcontrollerNode)
         lqrIO = Hg.getIO(node)
+        Hg.check_relay_running(node.motors_relay)
         # This vector should be constant size but you can't reinterpret SArray types
 
         motor_pub = Hg.getpublisher(node, "MOTOR_PUB").pub
@@ -107,7 +108,8 @@ module LQRcontroller
             inputs = clamp.(inputs, RExQuad.MIN_THROTLE, RExQuad.MAX_THROTLE)
 
             motor_c = MOTORS_C(inputs[1], inputs[2], inputs[3], inputs[4])
-            node.motor_c_buf = reinterpret(UInt8, [motor_c])
+            # ⚠️CRITICAL⚠️ must use .= opperator here to makesure we are writting to same piece of memory
+            node.motor_c_buf .= reinterpret(UInt8, [motor_c])
             Hg.publish.(motor_pub, node.motor_c_buf)
 
             if node.debug
@@ -127,4 +129,9 @@ module LQRcontroller
             end
         end
     end
+
+    function Hg.finishup(node::MotorSpinNode)
+        close(node.motors_relay)
+    end
+
 end

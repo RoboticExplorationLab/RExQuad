@@ -40,15 +40,7 @@ module JetsonLink
         )
     end
 
-    function Hg.setupIO(node::JetsonLinkNode, nodeio::Hg.NodeIO)
-        # ground_info_sub_ip::String,
-        # ground_info_sub_port::String,
-        # state_sub_ip::String,
-        # state_sub_port::String,
-        # motors_sub_ip::String,
-        # motors_sub_port::String,
-        # quad_info_pub_ip::String,
-        # quad_info_pub_port::String,
+    function Hg.setupIO!(node::JetsonLinkNode, nodeio::Hg.NodeIO)
         setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
 
         ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]

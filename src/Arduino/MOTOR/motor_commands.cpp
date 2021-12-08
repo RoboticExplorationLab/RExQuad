@@ -21,6 +21,16 @@ MOTORS initialize_motors(MOTOR_COMMANDS * command, int front_left_pin, int front
     return quad_motors;
 }
 
+bool valid_command(MOTOR_COMMANDS &command)
+{
+    bool valid = (MIN_THROTLE <= command.front_left && command.front_left <= MAX_THROTLE) &&
+                 (MIN_THROTLE <= command.front_right && command.front_right <= MAX_THROTLE) &&
+                 (MIN_THROTLE <= command.back_right && command.back_right <= MAX_THROTLE) &&
+                 (MIN_THROTLE <= command.back_left && command.back_left <= MAX_THROTLE);
+
+    return valid;
+}
+
 void command_motors(MOTORS &motors, MOTOR_COMMANDS &command)
 {
     if (MIN_THROTLE <= command.front_left && command.front_left <= MAX_THROTLE)
@@ -59,7 +69,7 @@ void calibrate(MOTORS &motors)
     motors.back_left_esc.writeMicroseconds(MIN_THROTLE);
     delay(8000);
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 5; i++)
     {
         blink();
     }
@@ -82,7 +92,7 @@ void arm(MOTORS &motors)
     motors.back_left_esc.writeMicroseconds(MIN_THROTLE + 200);
     delay(2000);
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 5; i++)
     {
         blink();
     }
@@ -108,15 +118,27 @@ void print_command(MOTOR_COMMANDS command)
     Serial.print(command.back_left); Serial.print("\n");
 }
 
+void led_on()
+{
+    digitalWrite(LED_PIN, HIGH);
+    led_state = true;
+}
+
+void led_off()
+{
+    digitalWrite(LED_PIN, LOW);
+    led_state = false;
+}
+
 /*
  * Blink LED 1 time
  */
 void blink()
 {
-    digitalWrite(LED_PIN, LOW);
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
+    led_off();
+    led_on();
+    delay(250);
+    led_off();
     delay(50);
 }
 
@@ -125,12 +147,10 @@ void switch_led()
 {
     if (led_state)
     {
-        digitalWrite(LED_PIN, LOW);
-        led_state = false;
+        led_off();
     }
     else
     {
-        digitalWrite(LED_PIN, HIGH);
-        led_state = true;
+        led_on();
     }
 }

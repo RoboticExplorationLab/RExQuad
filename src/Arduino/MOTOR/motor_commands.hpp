@@ -35,6 +35,8 @@ MOTORS initialize_motors(MOTOR_COMMANDS * command,
                          int back_right_pin,
                          int back_left_pin);
 
+bool valid_command(MOTOR_COMMANDS &command);
+
 void command_motors(MOTORS &motors, MOTOR_COMMANDS &command);
 
 void arm(MOTORS &motors);

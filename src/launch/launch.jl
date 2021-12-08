@@ -45,7 +45,7 @@ function launch_lqr_controller(; rate = 100.0, debug = false)
     return
 end
 
-function launch_motor_spin_up(; debug = false)
+function launch_motor_spin_up(; rate=100.0, debug = false)
     node = MotorSpinUp.MotorSpinNode(rate, debug)
     Hg.setupIO!(node, Hg.getIO(node))
     node_task = Threads.@spawn Hg.launch(node)
