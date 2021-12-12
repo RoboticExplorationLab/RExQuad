@@ -100,6 +100,10 @@ module GroundLink
         end
     end
 
+    function Hg.setupIO!(node::GroundLinkNode)
+
+    end
+
     function Hg.compute(node::GroundLinkNode)
         groundLinkNodeIO = Hg.getIO(node)
         quad_info_sub = Hg.getsubscriber(node, "QUAD_INFO_SUB")
