@@ -37,6 +37,7 @@ struct RExQuadBody <: RigidBody{UnitQuaternion}
     bm::Float64
 
     bodyframe::Bool  # velocity in body frame?
+    ned::Bool
 end
 RobotDynamics.control_dim(::RExQuadBody) = 4
 
@@ -50,9 +51,10 @@ function RExQuadBody(;
     km = 0.00029958,
     bm = -0.367697,
     bodyframe = true,
+    ned=false,
 ) where {R}
     @assert issymmetric(J)
-    RExQuadBody(mass, J, inv(J), gravity, motor_dist, kf, bf, km, bm, bodyframe, )
+    RExQuadBody(mass, J, inv(J), gravity, motor_dist, kf, bf, km, bm, bodyframe, ned, )
 end
 
 @inline RobotDynamics.velocity_frame(model::RExQuadBody) = model.bodyframe ? :body : :world
@@ -92,8 +94,13 @@ function RobotDynamics.forces(model::RExQuadBody, x, u)
     F2 = kf * w2 + bf
     F3 = kf * w3 + bf
     F4 = kf * w4 + bf
+    F = SA[0.; 0.; (F1+F2+F3+F4)]
 
-    force_body = SA[0; 0; (F1+F2+F3+F4)] + q' * (m * g)
+    if model.ned
+        F = SA[0,0,-F[3]]
+        g = -g
+    end
+    force_body = F + q' * (m * g)
 
     return force_body
 end
@@ -123,9 +130,13 @@ function RobotDynamics.moments(model::RExQuadBody, x, u)
     M4 = km * w4 + bm
 
     r = L * sqrt(2) / 4  # moment arm (m)
-    tau_body = SA[r*(F1-F2-F3+F4);
-                  r*(-F1-F2+F3+F4);
-                  (M1-M2+M3-M4)]
+    tau_body = SA[r * (F1 - F2 - F3 + F4);
+                  r * (-F1 - F2 + F3 + F4);
+                  (M1 - M2 + M3 - M4)]
+    if model.ned
+        tau_body = SA[tau_body[1], -tau_body[2], -tau_body[3]]
+    end
+
     return tau_body
 end
 

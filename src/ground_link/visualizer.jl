@@ -1,5 +1,6 @@
 using CoordinateTransformations
 using TrajOptPlots
+using RobotDynamics
 using RobotZoo
 using MeshCat
 using Colors
