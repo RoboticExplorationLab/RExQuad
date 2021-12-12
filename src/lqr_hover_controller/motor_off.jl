@@ -95,11 +95,11 @@ module MotorSpinUp
         # throt = f(time() - node.start_time)
         # motor_c = MOTORS_C(throt, throt, throt, throt)
 
-        # # Motors off
-        # motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
+        # Motors off
+        motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
 
-        # Motors on
-        motor_c = MOTORS_C(RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50)
+        # # Motors on
+        # motor_c = MOTORS_C(RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50)
 
         node.motor_c_buf .= reinterpret(UInt8, [motor_c])
 

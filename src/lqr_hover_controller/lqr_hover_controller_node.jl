@@ -110,7 +110,7 @@ module LQRcontroller
             motor_c = MOTORS_C(inputs[1], inputs[2], inputs[3], inputs[4])
             # ⚠️CRITICAL⚠️ must use .= opperator here to makesure we are writting to same piece of memory
             node.motor_c_buf .= reinterpret(UInt8, [motor_c])
-            Hg.publish.(motor_pub, node.motor_c_buf)
+            Hg.publish(motor_pub, node.motor_c_buf)
 
             if node.debug
                 node.cnt += 1
@@ -131,6 +131,18 @@ module LQRcontroller
     end
 
     function Hg.finishup(node::LQRcontrollerNode)
+        motor_pub = Hg.getpublisher(node, "MOTOR_PUB").pub
+
+        for i in 1:100
+            motor_c = MOTORS_C(RExQuad.MIN_THROTLE,
+                            RExQuad.MIN_THROTLE,
+                            RExQuad.MIN_THROTLE,
+                            RExQuad.MIN_THROTLE)
+            node.motor_c_buf .= reinterpret(UInt8, [motor_c])
+            Hg.publish(motor_pub, node.motor_c_buf)
+            sleep(0.005)
+        end
+
         close(node.motors_relay)
     end
 
