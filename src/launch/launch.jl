@@ -19,11 +19,12 @@ function launch_vicon_listener(; rate = 100.0, debug = false)
     return
 end
 
-function launch_jetson_link()
-    node = JetsonLink.main(; rate = 33.0, debug=false);
+function launch_jetson_link(; rate=33.0, debug=false)
+    node = JetsonLink.JetsonLinkNode(rate, debug)
+    Hg.setupIO!(node, Hg.getIO(node))
     node_task = Threads.@spawn Hg.launch(node)
-    push!(RUNNING_NODES, node)
 
+    push!(RUNNING_NODES, node)
     return
 end
 

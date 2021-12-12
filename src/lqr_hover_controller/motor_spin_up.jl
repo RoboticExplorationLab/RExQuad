@@ -55,7 +55,7 @@ module MotorSpinUp
         Hg.add_publisher!(nodeio, node.motor_c_buf, motor_pub)
 
         motors_serial_device = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
-        motors_serial_device = "/dev/tty.usbmodem14101"
+        # motors_serial_device = "/dev/tty.usbmodem14101"
         motors_baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
 
         motors_serial_ipaddr = setup_dict["zmq"]["jetson"]["motors_relay"]["out"]["server"]
@@ -95,8 +95,8 @@ module MotorSpinUp
         # throt = f(time() - node.start_time)
         # motor_c = MOTORS_C(throt, throt, throt, throt)
 
-        # Motors off
-        motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
+        # # Motors off
+        # motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
 
         # # Motors on
         # motor_c = MOTORS_C(RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50, RExQuad.MIN_THROTLE+50)

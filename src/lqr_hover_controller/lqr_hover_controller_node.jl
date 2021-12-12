@@ -130,7 +130,7 @@ module LQRcontroller
         end
     end
 
-    function Hg.finishup(node::MotorSpinNode)
+    function Hg.finishup(node::LQRcontrollerNode)
         close(node.motors_relay)
     end
 

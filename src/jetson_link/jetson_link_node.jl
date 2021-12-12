@@ -14,7 +14,7 @@ module JetsonLink
         # ProtoBuf Messages
         ground_info::GROUND_INFO
         state::FILTERED_STATE
-        # motors::MOTORS
+        motors::MOTORS
         quad_info::QUAD_INFO
         # Random
         debug::Bool
@@ -34,7 +34,7 @@ module JetsonLink
             jetsonLinkNodeIO,
             ground_info,
             state,
-            # motors,
+            motors,
             quad_info,
             debug
         )
@@ -45,30 +45,22 @@ module JetsonLink
 
         ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
         ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
+        ground_info_sub = Hg.ZmqSubscriber(nodeio.ctx, ground_info_ip, ground_info_port; name="GROUND_INFO_SUB")
+        Hg.add_subscriber!(nodeio, node.ground_info, ground_info_sub)
 
         filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
         filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
+        state_sub = Hg.ZmqSubscriber(nodeio.ctx, filtered_state_ip, filtered_state_port; name="FILTERED_STATE_SUB")
+        Hg.add_subscriber!(nodeio, node.state, state_sub)
 
         motors_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
         motors_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
+        motors_sub = Hg.ZmqSubscriber(nodeio.ctx, motors_ip, motors_port; name="MOTORS_SUB")
+        Hg.add_subscriber!(nodeio, node.state, motors_sub)
 
         quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
         quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
-
-        ground_info_sub = Hg.ZmqSubscriber(nodeio.ctx, ground_info_ip, ground_info_port;
-                                           name="GROUND_INFO_SUB")
-        Hg.add_subscriber!(nodeio, node.ground_info, ground_info_sub)
-
-        state_sub = Hg.ZmqSubscriber(nodeio.ctx, filtered_state_ip, filtered_state_port;
-                                     name="FILTERED_STATE_SUB")
-        Hg.add_subscriber!(nodeio, node.state, state_sub)
-
-        # motors_sub = Hg.ZmqSubscriber(nodeio.ctx, motors_ip, motors_port;
-        #                               name="MOTORS_SUB")
-        # Hg.add_subscriber!(nodeio, node.state, motors_sub)
-
-        quad_info_sub = Hg.ZmqPublisher(jetsonLinkNodeIO.ctx, quad_info_ip, quad_info_port;
-                                        name="QUAD_INFO_PUB")
+        quad_info_sub = Hg.ZmqPublisher(nodeio.ctx, quad_info_ip, quad_info_port; name="QUAD_INFO_PUB")
         Hg.add_publisher!(nodeio, node.quad_info, quad_info_sub)
     end
 
