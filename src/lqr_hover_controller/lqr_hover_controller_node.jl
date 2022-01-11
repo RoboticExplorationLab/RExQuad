@@ -29,8 +29,7 @@ module LQRcontroller
     mutable struct LQRcontrollerNode <: Hg.Node
         nodeio::Hg.NodeIO
         state::RExQuad.FILTERED_STATE         # ProtoBuf Messages
-        motor_c_buf::Vector{UInt8}
-        motors_relay::Hg.SerialZmqRelay
+        motors::RExQuad.MOTORS
         start_time::Float64
         end_time::Float64
         cnt::Int64
@@ -41,17 +40,15 @@ module LQRcontroller
         # Adding the Ground Vicon Subscriber to the Node
         lqrIO = Hg.NodeIO(ZMQ.Context(1); rate = rate)
         state = RExQuad.zero_FILTERED_STATE()
-
-        motor_c = MOTORS_C(RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE, RExQuad.MIN_THROTLE)
-        motor_c_buf = reinterpret(UInt8, [motor_c])
-        motors_relay = run(`true`)
+        motors = RExQuad.zero_MOTORS()
 
         start_time = time()
         end_time = time()
         cnt = 0
+
         debug = debug
 
-        return LQRcontrollerNode(lqrIO, state, motor_c_buf, motors_relay, start_time, end_time, cnt, debug )
+        return LQRcontrollerNode(lqrIO, state, motors, start_time, end_time, cnt, debug )
     end
 
     function Hg.setupIO!(node::LQRcontrollerNode, nodeio::Hg.NodeIO)
@@ -60,41 +57,19 @@ module LQRcontroller
 
         filtered_state_ip = setup_dict["zmq"]["jetson"]["filtered_state"]["server"]
         filtered_state_port = setup_dict["zmq"]["jetson"]["filtered_state"]["port"]
-
-        state_sub = Hg.ZmqSubscriber(nodeio.ctx, filtered_state_ip, filtered_state_port;
-                                     name="FILTERED_STATE_SUB")
+        state_sub = Hg.ZmqSubscriber(nodeio.ctx, filtered_state_ip, filtered_state_port; name="FILTERED_STATE_SUB")
         Hg.add_subscriber!(nodeio, node.state, state_sub)
 
-        motor_serial_ipaddr = setup_dict["zmq"]["jetson"]["motors_relay"]["in"]["server"]
-        motor_serial_port = setup_dict["zmq"]["jetson"]["motors_relay"]["in"]["port"]
-        motor_sub_endpoint = Hg.tcpstring(motor_serial_ipaddr, motor_serial_port)
-
-        motor_pub = Hg.ZmqPublisher(nodeio.ctx, motor_serial_ipaddr, motor_serial_port;
-                                    name="MOTOR_PUB")
-        Hg.add_publisher!(nodeio, node.motor_c_buf, motor_pub)
-
-        ##### Startup Motor Adafruit Feather Relay #####
-        motor_serial_device = setup_dict["serial"]["jetson"]["motors_arduino"]["serial_port"]
-        motors_serial_device = "/dev/tty.usbmodem14101"
-        motor_baud_rate = setup_dict["serial"]["jetson"]["motors_arduino"]["baud_rate"]
-
-        motor_serial_ipaddr = setup_dict["zmq"]["jetson"]["motors_relay"]["out"]["server"]
-        motor_serial_port = setup_dict["zmq"]["jetson"]["motors_relay"]["out"]["port"]
-        motor_pub_endpoint = Hg.tcpstring(motor_serial_ipaddr, motor_serial_port)
-
-        node.motors_relay = Hg.launch_relay(motor_serial_device,
-                                            motor_baud_rate,
-                                            motor_sub_endpoint,
-                                            motor_pub_endpoint,
-                                            )
+        motors_ip = setup_dict["zmq"]["jetson"]["motors"]["server"]
+        motors_port = setup_dict["zmq"]["jetson"]["motors"]["port"]
+        motors_pub = Hg.ZmqPublisher(nodeio.ctx, motors_ip, motors_port; name="MOTORS_PUB")
+        Hg.add_publisher!(nodeio, node.motors, motors_pub)
     end
 
     function Hg.compute(node::LQRcontrollerNode)
         lqrIO = Hg.getIO(node)
-        Hg.check_relay_running(node.motors_relay)
-        # This vector should be constant size but you can't reinterpret SArray types
 
-        motor_pub = Hg.getpublisher(node, "MOTOR_PUB").pub
+        motors_pub = Hg.getpublisher(node, "MOTOR_PUB").pub
         state_sub = Hg.getsubscriber(node, "FILTERED_STATE_SUB")
 
         Hg.on_new(state_sub) do state
@@ -107,10 +82,10 @@ module LQRcontroller
             inputs = -lqr_K * state_err + u_hover
             inputs = clamp.(inputs, RExQuad.MIN_THROTLE, RExQuad.MAX_THROTLE)
 
-            motor_c = MOTORS_C(inputs[1], inputs[2], inputs[3], inputs[4])
-            # ⚠️CRITICAL⚠️ must use .= opperator here to makesure we are writting to same piece of memory
-            node.motor_c_buf .= reinterpret(UInt8, [motor_c])
-            Hg.publish(motor_pub, node.motor_c_buf)
+            node.motors.front_left = inputs[1]
+            node.motors.front_right = inputs[2]
+            node.motors.back_right = inputs[3]
+            node.motors.back_left = inputs[4]
 
             if node.debug
                 node.cnt += 1
@@ -118,32 +93,17 @@ module LQRcontroller
                     node.end_time = time()
 
                     @info "Control rate: $(floor(lqrIO.opts.rate)/ (node.end_time - node.start_time))"
-
                     @printf("State Error: \t[%1.3f, %1.3f, %1.3f, %1.3f, %1.3f, %1.3f, %1.3f]\n",
                             state_err[1:7]...)
                     @printf("Motor PWM Commands: \t[%1.3f, %1.3f, %1.3f, %1.3f]\n",
-                            motor_c.front_left, motor_c.front_right, motor_c.back_right, motor_c.back_left)
+                            node.motors.front_left, node.motors.front_right,
+                            node.motors.back_right, node.motors.back_left)
 
                     node.start_time = time()
                 end
             end
+
+            Hg.publish(motors_pub, nod.motors)
         end
     end
-
-    function Hg.finishup(node::LQRcontrollerNode)
-        motor_pub = Hg.getpublisher(node, "MOTOR_PUB").pub
-
-        for i in 1:100
-            motor_c = MOTORS_C(RExQuad.MIN_THROTLE,
-                               RExQuad.MIN_THROTLE,
-                               RExQuad.MIN_THROTLE,
-                               RExQuad.MIN_THROTLE)
-            node.motor_c_buf .= reinterpret(UInt8, [motor_c])
-            Hg.publish(motor_pub, node.motor_c_buf)
-            sleep(0.005)
-        end
-
-        close(node.motors_relay)
-    end
-
 end

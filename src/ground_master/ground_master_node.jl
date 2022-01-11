@@ -1,5 +1,5 @@
 # Node for communicating with the Jetson (run on the ground station)
-module GroundLink
+module GroundMaster
     using ..RExQuad
 
     import Mercury as Hg
@@ -28,8 +28,7 @@ module GroundLink
         time_us::UInt32
     end
 
-
-    mutable struct GroundLinkNode <: Hg.Node
+    mutable struct GroundMasterNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
         serialized_vicon_buf::Vector{UInt8}
@@ -80,8 +79,8 @@ module GroundLink
         open(vis)
     end
 
-    function Hg.compute(node::GroundLinkNode)
-        groundLinkNodeIO = Hg.getIO(node)
+    function Hg.compute(node::GroundMasterNode)
+        groundMasterNodeIO = Hg.getIO(node)
         quad_info_sub = Hg.getsubscriber(node, "QUAD_INFO_SUB")
         ground_vicon_sub = Hg.getsubscriber(node, "GROUND_VICON_SUB")
 
@@ -144,6 +143,6 @@ module GroundLink
             end
         end
 
-        Hg.publish.(groundLinkNodeIO.pubs)
+        Hg.publish.(groundMasterNodeIO.pubs)
     end
 end
