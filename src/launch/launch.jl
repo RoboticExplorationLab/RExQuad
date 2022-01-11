@@ -2,19 +2,12 @@ import Mercury as Hg
 
 RUNNING_NODES = Vector{Hg.Node}()
 
-GROUND_LINK_TASK = Task(_->1+1)
-JETSON_LINK_TASK = Task(_->1+1)
-STATE_ESTIMATOR_TASK = Task(_->1+1)
-LQR_CONTROLLER_TASK = Task(_->1+1)
-MOTOR_SPIN_UP_TASK = Task(_->1+1)
-
-
-function launch_ground_link()
-    node = GroundLink.main(; rate = 33.0, debug = false);
+function launch_ground_link(; rate = 33.0, debug = false)
+    node = GroundLink.GroundLinkNode(rate, debug);
+    Hg.setupIO!(node, Hg.getIO(node))
     node_task = Threads.@spawn Hg.launch(node)
 
     push!(RUNNING_NODES, node)
-    GROUND_LINK_TASK = node_task
     return
 end
 

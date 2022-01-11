@@ -1,5 +1,3 @@
-using Revise
-import RExQuad
 import Distributed
 
 
@@ -20,9 +18,9 @@ begin
 
     @info "Launching Nodes"
     f1 = Distributed.@spawnat    link_proc           RExQuad.launch_jetson_link(; rate = 33., debug = false);
-    f2 = Distributed.@spawnat    state_est_proc      RExQuad.launch_state_estimator(; rate = 100., debug = false);
+    # f2 = Distributed.@spawnat    state_est_proc      RExQuad.launch_state_estimator(; rate = 100., debug = false);
     # f3 = Distributed.@spawnat    controller_proc     RExQuad.launch_motor_spin_up(; rate=100.0, debug = false);
-    f3 = Distributed.@spawnat    controller_proc     RExQuad.launch_lqr_controller(; rate = 100.0, debug = false);
+    # f3 = Distributed.@spawnat    controller_proc     RExQuad.launch_lqr_controller(; rate = 100.0, debug = false);
 
     # Add async check which shuts down all processes if any of them fail out
     # t1 = Distributed.fetch(f1)
@@ -44,6 +42,6 @@ begin
 
     # println(istaskdone(t1), " ", istaskdone(t2))
 
-    sleep(2)
-    shutdown_quadrotor()
+    # sleep(2)
+    # shutdown_quadrotor()
 end

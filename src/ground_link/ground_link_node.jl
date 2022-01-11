@@ -28,80 +28,56 @@ module GroundLink
         time_us::UInt32
     end
 
+
     mutable struct GroundLinkNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
-
-        # Serialized Vicon message buffer
         serialized_vicon_buf::Vector{UInt8}
-
-        # Specific to GroundLinkNode
-        # ProtoBuf Messages
-        quad_info::QUAD_INFO
-        ground_info::GROUND_INFO
-
-        # Random
+        quad_info::QUAD_INFO # ProtoBuf Messages
+        ground_info::GROUND_INFO # ProtoBuf Messages
         vis::QuadVisualizer
         debug::Bool
-
-        function GroundLinkNode(
-            vicon_ground_sub_ip::String,
-            vicon_ground_sub_port::String,
-            quad_info_sub_ip::String,
-            quad_info_sub_port::String,
-            ground_info_pub_ip::String,
-            ground_info_pub_port::String,
-            rate::Float64,
-            debug::Bool,
-        )
-            # Adding the Ground Vicon Subscriber to the Node
-            groundLinkNodeIO = Hg.NodeIO(Context(1); rate = rate)
-
-            serialized_vicon_buf = zeros(UInt8, sizeof(SerializedVICON_C))
-            ground_vicon_sub = Hg.ZmqSubscriber(
-                groundLinkNodeIO.ctx,
-                vicon_ground_sub_ip,
-                vicon_ground_sub_port;
-                name="GROUND_VICON_SUB"
-            )
-            Hg.add_subscriber!(groundLinkNodeIO, serialized_vicon_buf, ground_vicon_sub)
-
-            # Adding the Quad Info Subscriber to the Node
-            quad_info = RExQuad.zero_QUAD_INFO()
-            quad_info_sub = Hg.ZmqSubscriber(
-                groundLinkNodeIO.ctx,
-                quad_info_sub_ip,
-                quad_info_sub_port;
-                name = "QUAD_INFO_SUB",
-            )
-            Hg.add_subscriber!(groundLinkNodeIO, quad_info, quad_info_sub)
-
-            # Adding the Ground Info Publisher to the Node
-            ground_info = RExQuad.zero_GROUND_INFO()
-            ground_info_pub = Hg.ZmqPublisher(
-                groundLinkNodeIO.ctx,
-                ground_info_pub_ip,
-                ground_info_pub_port
-            )
-            Hg.add_publisher!(groundLinkNodeIO, ground_info, ground_info_pub)
-
-            vis = QuadVisualizer()
-            open(vis)
-            add_copy!(vis)
-
-            return new(
-                groundLinkNodeIO,
-                serialized_vicon_buf,
-                quad_info,
-                ground_info,
-                vis,
-                debug,
-            )
-        end
     end
 
-    function Hg.setupIO!(node::GroundLinkNode)
+    function GroundLinkNode(rate::Float64, debug::Bool)
+        # Adding the Ground Vicon Subscriber to the Node
+        groundLinkNodeIO = Hg.NodeIO(Context(1); rate = rate)
+        serialized_vicon_buf = zeros(UInt8, sizeof(SerializedVICON_C))
+        quad_info = RExQuad.zero_QUAD_INFO()
+        ground_info = RExQuad.zero_GROUND_INFO()
+        vis = QuadVisualizer()
+        add_copy!(vis)
 
+        return GroundLinkNode(
+            groundLinkNodeIO,
+            serialized_vicon_buf,
+            quad_info,
+            ground_info,
+            vis,
+            debug,
+        )
+    end
+
+    function Hg.setupIO!(node::GroundLinkNode, nodeio::Hg.NodeIO)
+        setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
+
+        ground_vicon_ip = setup_dict["zmq"]["ground"]["vicon"]["server"]
+        ground_vicon_port = setup_dict["zmq"]["ground"]["vicon"]["port"]
+        ground_vicon_sub = Hg.ZmqSubscriber(nodeio.ctx, ground_vicon_ip, ground_vicon_port; name="GROUND_VICON_SUB")
+        Hg.add_subscriber!(nodeio, node.serialized_vicon_buf, ground_vicon_sub)
+
+        quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
+        quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
+        quad_info_sub = Hg.ZmqSubscriber(nodeio.ctx, quad_info_ip, quad_info_port; name = "QUAD_INFO_SUB")
+        Hg.add_subscriber!(nodeio, node.quad_info, quad_info_sub)
+
+        ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
+        ground_info_ip = "192.168.3.152"
+        ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
+        ground_info_pub = Hg.ZmqPublisher(nodeio.ctx, ground_info_ip, ground_info_port)
+        Hg.add_publisher!(nodeio, node.ground_info, ground_info_pub)
+
+        open(vis)
     end
 
     function Hg.compute(node::GroundLinkNode)
@@ -169,32 +145,5 @@ module GroundLink
         end
 
         Hg.publish.(groundLinkNodeIO.pubs)
-    end
-
-    # Launch IMU publisher
-    function main(; rate = 100.0, debug = false)
-        setup_dict = TOML.tryparsefile("$(@__DIR__)/../setup.toml")
-
-        vicon_ground_ip = setup_dict["zmq"]["ground"]["vicon"]["server"]
-        vicon_ground_port = setup_dict["zmq"]["ground"]["vicon"]["port"]
-
-        quad_info_ip = setup_dict["zmq"]["jetson"]["quad_info"]["server"]
-        quad_info_port = setup_dict["zmq"]["jetson"]["quad_info"]["port"]
-
-        ground_info_ip = setup_dict["zmq"]["ground"]["ground_info"]["server"]
-        ground_info_ip = "192.168.3.152"
-        ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
-
-        node = GroundLinkNode(
-            vicon_ground_ip,
-            vicon_ground_port,
-            quad_info_ip,
-            quad_info_port,
-            ground_info_ip,
-            ground_info_port,
-            rate,
-            debug,
-        )
-        return node
     end
 end
