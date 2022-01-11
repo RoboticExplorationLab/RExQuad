@@ -19,12 +19,9 @@ module MotorSpinUp
     end
 
     mutable struct MotorSpinNode <: Hg.Node
-        # Required by Abstract Node type
         nodeio::Hg.NodeIO
-        # Specific to GroundLinkNode
         motor_c_buf::Vector{UInt8}
         motors_relay::Hg.SerialZmqRelay
-        # Random
         last_time::Float64
         start_time::Float64
         debug::Bool

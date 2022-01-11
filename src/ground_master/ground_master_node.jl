@@ -1,5 +1,5 @@
 # Node for communicating with the Jetson (run on the ground station)
-module GroundLink
+module GroundMaster
     using ..RExQuad
 
     import Mercury as Hg
@@ -28,14 +28,14 @@ module GroundLink
         time_us::UInt32
     end
 
-    mutable struct GroundLinkNode <: Hg.Node
+    mutable struct GroundMasterNode <: Hg.Node
         # Required by Abstract Node type
         nodeio::Hg.NodeIO
 
         # Serialized Vicon message buffer
         serialized_vicon_buf::Vector{UInt8}
 
-        # Specific to GroundLinkNode
+        # Specific to GroundMasterNode
         # ProtoBuf Messages
         quad_info::QUAD_INFO
         ground_info::GROUND_INFO
@@ -44,7 +44,7 @@ module GroundLink
         vis::QuadVisualizer
         debug::Bool
 
-        function GroundLinkNode(
+        function GroundMasterNode(
             vicon_ground_sub_ip::String,
             vicon_ground_sub_port::String,
             quad_info_sub_ip::String,
@@ -55,42 +55,42 @@ module GroundLink
             debug::Bool,
         )
             # Adding the Ground Vicon Subscriber to the Node
-            groundLinkNodeIO = Hg.NodeIO(Context(1); rate = rate)
+            groundMasterNodeIO = Hg.NodeIO(Context(1); rate = rate)
 
             serialized_vicon_buf = zeros(UInt8, sizeof(SerializedVICON_C))
             ground_vicon_sub = Hg.ZmqSubscriber(
-                groundLinkNodeIO.ctx,
+                groundMasterNodeIO.ctx,
                 vicon_ground_sub_ip,
                 vicon_ground_sub_port;
                 name="GROUND_VICON_SUB"
             )
-            Hg.add_subscriber!(groundLinkNodeIO, serialized_vicon_buf, ground_vicon_sub)
+            Hg.add_subscriber!(groundMasterNodeIO, serialized_vicon_buf, ground_vicon_sub)
 
             # Adding the Quad Info Subscriber to the Node
             quad_info = RExQuad.zero_QUAD_INFO()
             quad_info_sub = Hg.ZmqSubscriber(
-                groundLinkNodeIO.ctx,
+                groundMasterNodeIO.ctx,
                 quad_info_sub_ip,
                 quad_info_sub_port;
                 name = "QUAD_INFO_SUB",
             )
-            Hg.add_subscriber!(groundLinkNodeIO, quad_info, quad_info_sub)
+            Hg.add_subscriber!(groundMasterNodeIO, quad_info, quad_info_sub)
 
             # Adding the Ground Info Publisher to the Node
             ground_info = RExQuad.zero_GROUND_INFO()
             ground_info_pub = Hg.ZmqPublisher(
-                groundLinkNodeIO.ctx,
+                groundMasterNodeIO.ctx,
                 ground_info_pub_ip,
                 ground_info_pub_port
             )
-            Hg.add_publisher!(groundLinkNodeIO, ground_info, ground_info_pub)
+            Hg.add_publisher!(groundMasterNodeIO, ground_info, ground_info_pub)
 
             vis = QuadVisualizer()
             open(vis)
             add_copy!(vis)
 
             return new(
-                groundLinkNodeIO,
+                groundMasterNodeIO,
                 serialized_vicon_buf,
                 quad_info,
                 ground_info,
@@ -100,12 +100,12 @@ module GroundLink
         end
     end
 
-    function Hg.setupIO!(node::GroundLinkNode)
+    function Hg.setupIO!(node::GroundMasterNode)
 
     end
 
-    function Hg.compute(node::GroundLinkNode)
-        groundLinkNodeIO = Hg.getIO(node)
+    function Hg.compute(node::GroundMasterNode)
+        groundMasterNodeIO = Hg.getIO(node)
         quad_info_sub = Hg.getsubscriber(node, "QUAD_INFO_SUB")
         ground_vicon_sub = Hg.getsubscriber(node, "GROUND_VICON_SUB")
 
@@ -168,7 +168,7 @@ module GroundLink
             end
         end
 
-        Hg.publish.(groundLinkNodeIO.pubs)
+        Hg.publish.(groundMasterNodeIO.pubs)
     end
 
     # Launch IMU publisher
@@ -185,7 +185,7 @@ module GroundLink
         ground_info_ip = "192.168.3.152"
         ground_info_port = setup_dict["zmq"]["ground"]["ground_info"]["port"]
 
-        node = GroundLinkNode(
+        node = GroundMasterNode(
             vicon_ground_ip,
             vicon_ground_port,
             quad_info_ip,
