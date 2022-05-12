@@ -13,7 +13,8 @@ class QuadMotors {
   void Kill();
   void Calibrate();
   void Arm();
-  void SendPWMCommand(int pwm_fl, int pwm_fr, int pwm_br, int pwm_bl);
+  void SendCommandPWM(int pwm_fl, int pwm_fr, int pwm_br, int pwm_bl);
+  void SendConstantCommandPWM(int pwm);
 
  private:
 

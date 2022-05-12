@@ -3,6 +3,7 @@
 
 #include "sensors.hpp"
 #include "pose.hpp"
+#include "motors.hpp"
 
 // Accelerometer SPI
 #define LSM_CS 6 
@@ -15,6 +16,7 @@
 #define FRONT_RIGHT_PIN 11 
 #define BACK_RIGHT_PIN 10 
 #define BACK_LEFT_PIN 9 
+rexquad::QuadMotors motors(FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK_LEFT_PIN);
 
 // LoRa
 #define RFM95_CS 8
@@ -23,9 +25,10 @@
 #define RF95_FREQ 915.0
 #define LED_PIN 13
 
-// Accelerometer
+// IMU 
 Adafruit_LSM6DSO32 dso32;
 rexquad::IMU imu(LSM_CS);
+
 
 using Pose = rexquad::PoseMsg;
 constexpr int MSG_SIZE = sizeof(Pose) + 1;
@@ -46,8 +49,38 @@ void setup() {
   Serial.begin(256000);
   Serial1.begin(256000);
 
+  // Motors
+  while (!Serial) { 
+    digitalWrite(LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(LED_PIN, LOW);
+    delay(100);
+  }
+  digitalWrite(LED_PIN, HIGH);
+  Serial.println("Calibrate Motors? (y/n)");
+  String user_response = Serial.readStringUntil('\n');
+  while (user_response.length() == 0) {
+    user_response = Serial.readStringUntil('\n');
+  }
+  user_response.toLowerCase();
+  // if (user_response.equals("y")) {
+  //   Serial.println("Calibrating motors...");
+  //   motors.Calibrate();
+  // }
+
+  // Serial.println("Arming motors...");
+  // motors.Arm();
+  // Serial.println("Motors armed!");
+
+  Serial.println("Sending test command...");
+  int cmd = rexquad::kMinInput + 100;
+  motors.SendConstantCommandPWM(cmd);
+  Serial.println("Waiting 1 second...");
+  delay(1000);
+  Serial.println("Killing motors");
+  motors.Kill();
+
   // Accelerometer Setup
-  while (!Serial) { delay(10); }
   Serial.println("Sensor test!");
   // if (!dso32.begin_SPI(LSM_CS, LSM_SCK, LSM_MISO, LSM_MOSI)) {
   while (!imu.Connect()) {

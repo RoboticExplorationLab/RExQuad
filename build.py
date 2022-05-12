@@ -43,6 +43,7 @@ targets = [
     "lora_tx_serial",
     "lora_rx_serial",
     "feather_parrot",
+    "motor_control",
 ]
 parser = argparse.ArgumentParser()
 parser.add_argument("target",
