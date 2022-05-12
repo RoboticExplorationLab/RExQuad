@@ -1,0 +1,4 @@
+# `common` Directory
+This directory defines types and methods that needed to be shared across both the 
+Arudino scripts and the C++ code running on other computers. This provided target 
+should have no dependencies.
