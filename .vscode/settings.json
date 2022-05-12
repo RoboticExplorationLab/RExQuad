@@ -1,0 +1,4 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/src/mocap",
+    "editor.tabSize": 2
+}

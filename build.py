@@ -27,7 +27,7 @@ def arduino_cli(scriptfile: str, fqbn: str, action="compile", verbose=False, por
         os.system(cmd)
 
 def build_feather(script, action, **kwargs):
-    dir = os.path.join(rootdir, "src", "Arduino", script)
+    dir = os.path.join(rootdir, "src", "firmware", script)
     scriptfile = os.path.join(dir, script + ".ino")
     boardname = "adafruit:samd:adafruit_feather_m0"
     arduino_cli(scriptfile, boardname, action, **kwargs)
@@ -68,7 +68,7 @@ args = parser.parse_args()
 
 # Set directories
 rootdir = os.path.dirname(os.path.realpath(__file__))
-arduino_libs_dir = os.path.join(rootdir, "src", "Arduino", "libraries")
+arduino_libs_dir = os.path.join(rootdir, "src", "firmware", "libraries")
 common_lib_dir = os.path.join(rootdir, "src", "common")
 bin_dir = os.path.join(rootdir, "bin", args.target)
 cache_dir = os.path.join(bin_dir, "cache")
