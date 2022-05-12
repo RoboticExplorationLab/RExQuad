@@ -1,0 +1,8 @@
+/video_experiments
+
+*.DS_Store
+/--library
+/bin
+/build
+.cache
+*.pts
