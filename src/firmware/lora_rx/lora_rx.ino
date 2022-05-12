@@ -5,11 +5,18 @@
 #include "pose.hpp"
 
 // Accelerometer SPI
-#define LSM_CS 11 
+#define LSM_CS 6 
 #define LSM_SCK 15 
 #define LSM_MISO 14 
 #define LSM_MOSI 16 
 
+// Motors
+#define FRONT_LEFT_PIN 12 
+#define FRONT_RIGHT_PIN 11 
+#define BACK_RIGHT_PIN 10 
+#define BACK_LEFT_PIN 9 
+
+// LoRa
 #define RFM95_CS 8
 #define RFM95_RST 4
 #define RFM95_INT 3
