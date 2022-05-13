@@ -12,6 +12,7 @@
 #define LSM_MOSI 16 
 
 // Motors
+// Ordering when flat side of connector is down
 #define FRONT_LEFT_PIN 9 
 #define FRONT_RIGHT_PIN 10 
 #define BACK_RIGHT_PIN 11 
@@ -57,20 +58,6 @@ void setup() {
     delay(100);
   }
   digitalWrite(LED_PIN, HIGH);
-  Serial.println("Calibrate Motors? (y/n)");
-  String user_response = Serial.readStringUntil('\n');
-  while (user_response.length() == 0) {
-    user_response = Serial.readStringUntil('\n');
-  }
-  user_response.toLowerCase();
-  // if (user_response.equals("y")) {
-  //   Serial.println("Calibrating motors...");
-  //   motors.Calibrate();
-  // }
-
-  // Serial.println("Arming motors...");
-  // motors.Arm();
-  // Serial.println("Motors armed!");
 
   Serial.println("Sending test command...");
   int cmd = rexquad::kMinInput + 100;
