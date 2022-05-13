@@ -79,8 +79,8 @@ cache_dir = os.path.join(bin_dir, "cache")
 
 # Call the right build function
 if args.target == "default":
-    build_feather("lora_tx", args.action, verbose=args.verbose, port="/dev/ttyACM0")
-    build_feather("lora_rx", args.action, verbose=args.verbose, port="/dev/ttyACM1")
+    build_feather("lora_tx_test", args.action, verbose=args.verbose, port="/dev/ttyACM0")
+    build_feather("lora_rx_test", args.action, verbose=args.verbose, port="/dev/ttyACM1")
 else:
     build_feather(args.target, args.action, verbose=args.verbose, port=args.port)
     

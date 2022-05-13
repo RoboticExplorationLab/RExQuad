@@ -23,10 +23,10 @@
 // #define RFM95_INT 3
 
 using Pose = rexquad::PoseMsg;
-// constexpr int MSG_SIZE = sizeof(Pose) + 1;
-// constexpr uint8_t MsgID = Pose::MsgID();
-constexpr int MSG_SIZE = 5;
-constexpr uint8_t MsgID = 120;
+constexpr int MSG_SIZE = sizeof(Pose) + 1;
+constexpr uint8_t MsgID = Pose::MsgID();
+// constexpr int MSG_SIZE = 5;
+// constexpr uint8_t MsgID = 120;
 
 char buf[200];
 char msg[MSG_SIZE];
@@ -87,6 +87,7 @@ void setup()
     while (1);
   }
   Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
+  // rf95.setModemConfig(RH_RF95::Bw500Cr45Sf64);
   
   // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
 
@@ -94,6 +95,10 @@ void setup()
   // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
   // you can set transmitter powers from 5 to 23 dBm:
   rf95.setTxPower(23, false);
+  // rf95.set_dragons();
+  // rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128);
+  rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
+  // rf95.setModemConfig(RH_RF95::Bw500Cr45Sf64);
 }
 
 int16_t packetnum = 0;  // packet counter, we increment per xmission

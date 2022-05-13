@@ -2,12 +2,12 @@
 
 #include "pose.hpp"
 
-// #define RFM95_CS 8
-// #define RFM95_RST 4
-// #define RFM95_INT 3
-#define RFM95_CS 10   // "B"
-#define RFM95_RST 11  // "A"
-#define RFM95_INT 6
+#define RFM95_CS 8
+#define RFM95_RST 4
+#define RFM95_INT 3
+// #define RFM95_CS 10   // "B"
+// #define RFM95_RST 11  // "A"
+// #define RFM95_INT 6   // "D"
 #define RF95_FREQ 915.0
 #define LED_PIN 13
 
@@ -30,10 +30,10 @@ void send_lora(void* buf, int len) {
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
-  if (!Serial) { 
-    Serial.println("Waiting for Serial.");
-    delay(100); 
-  }
+  // if (!Serial) { 
+  //   Serial.println("Waiting for Serial.");
+  //   delay(100); 
+  // }
   Serial.begin(256000);
   Serial1.begin(256000);
 

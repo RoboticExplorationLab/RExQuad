@@ -33,7 +33,7 @@ int main() {
   fmt::print("Connected to Receiver\n");
 
   // Send and receive floats
-  const int nsamples = 400;
+  const int nsamples = 20;
   char buf[MSG_SIZE+1];
   char recv[100];
   Pose msg;
@@ -56,13 +56,13 @@ int main() {
   memcpy(&msg, buf+1, MSG_SIZE);
   float x = msg.x;
   fmt::print("  Sent x = {}\n", x);
-  tx.SetTimeout(100);
+  tx.SetTimeout(200);
   auto t_send = std::chrono::high_resolution_clock::now();
   int bytes_sent = tx.WriteBytes(buf, MSG_SIZE+1);
 
   // Receiving
   fmt::print("Receiving...\n");
-  int bytes_received = sp_blocking_read(rx, recv, 100, 1000);
+  int bytes_received = sp_blocking_read(rx, recv, MSG_SIZE + 1, 1000);
   auto t_recv = std::chrono::high_resolution_clock::now();
   auto latency = std::chrono::duration_cast<fmillisecond>(t_recv - t_send);
 
@@ -84,7 +84,7 @@ int main() {
   fmt::print("  Got x = {}\n", x_recv);
   fmt::print("Latency {}\n\n", latency);
 
-  return 0;
+  // return 0;
   tx.SetTimeout(2);
   for (int i = 0; i < nsamples; ++i) {
     float x_sent = i * 0.001;
@@ -100,7 +100,7 @@ int main() {
     int bytes_sent = tx.WriteBytes(buf, MSG_SIZE+1);
 
     // Receive
-    int bytes_received = sp_blocking_read(rx, recv, MSG_SIZE+1, 20);
+    int bytes_received = sp_blocking_read(rx, recv, MSG_SIZE+1, 200);
     auto trecv = std::chrono::duration_cast<fmillisecond>(
         std::chrono::high_resolution_clock::now() - tstart);
 
@@ -123,7 +123,7 @@ int main() {
 
     datasent.emplace_back(std::make_pair(tsend.count(), x_sent));
     datarecv.emplace_back(std::make_pair(trecv.count(), msg.x));
-    // usleep(1 * 1000);
+    usleep(20 * 1000);
   }
   
   // Write data to file

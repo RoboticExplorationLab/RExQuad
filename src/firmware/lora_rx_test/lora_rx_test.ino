@@ -37,16 +37,15 @@ rexquad::QuadMotors motors(FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK
 
 // Define message payload
 using Pose = rexquad::PoseMsg;
-// constexpr int MSG_SIZE = sizeof(Pose) + 1;
-// constexpr uint8_t MsgID = Pose::MsgID();
-constexpr int MSG_SIZE = 5;
-constexpr uint8_t MsgID = 120;
+constexpr int MSG_SIZE = sizeof(Pose) + 1;
+constexpr uint8_t MsgID = Pose::MsgID();
+// constexpr int MSG_SIZE = 5; 
+// constexpr uint8_t MsgID = 120;
 
 // Radio driver 
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 
-void setup()
-{
+void setup() {
   // Serial setup
   pinMode(LED_PIN, OUTPUT);
   Serial.begin(256000);
@@ -89,6 +88,8 @@ void setup()
     Serial.println("setFrequency failed");
     while (1);
   }
+  // rf95.setModemConfig(RH_RF95::Bw500Cr45Sf64);
+
   // Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
 
   // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
@@ -97,37 +98,24 @@ void setup()
   // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then
   // you can set transmitter powers from 5 to 23 dBm:
   rf95.setTxPower(23, false);
+  // rf95.set_dragons();
+  // rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128);
+  rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
+  // rf95.setModemConfig(RH_RF95::Bw500Cr45Sf64);
 }
 
 uint8_t buf[MSG_SIZE];
-void loop()
-{
-  if (rf95.available())
-  {
-    // Should be a message for us now
-    // uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+void loop() {
+  // imu.ReadSensor();
+  // imu.PrintData(Serial);
+  // delay(100);
+  if (rf95.available()) {
     uint8_t len = sizeof(buf);
 
-    if (rf95.recv(buf, &len))
-    {
+    if (rf95.recv(buf, &len)) {
       digitalWrite(LED, HIGH);
       Serial.write(buf, len);
-      // RH_RF95::printBuffer("Received: ", buf, len);
-      // Serial.print("Got: ");
-      // Serial.println((char*)buf);
-      // Serial.print("RSSI: ");
-      // Serial.println(rf95.lastRssi(), DEC);
-
-      // Send a reply
-      // uint8_t data[] = "And hello back to you";
-      // rf95.send(data, sizeof(data));
-      // rf95.waitPacketSent();
-      // Serial.println("Sent a reply");
       digitalWrite(LED, LOW);
-    }
-    else
-    {
-      Serial.println("Receive failed");
     }
   }
 }
