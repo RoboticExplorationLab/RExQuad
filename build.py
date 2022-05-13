@@ -83,4 +83,4 @@ if args.target == "default":
     build_feather("lora_rx_test", args.action, verbose=args.verbose, port="/dev/ttyACM1")
 else:
     build_feather(args.target, args.action, verbose=args.verbose, port=args.port)
-    
+     
