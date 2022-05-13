@@ -82,4 +82,23 @@ class PrintAtRate {
  */
 void print_rate();
 
+/**
+ * @brief Give a user a prompt over a Serial connection and store the response 
+ * 
+ * Will loop indefinitely until the user provides a response.
+ * 
+ * @param prompt A prompt to provide the user for context about what input is needed
+ * @return The user's response, entered in the command line. Does not include a terminating 
+ * newline character.
+ */
+template <class SerialClass>
+String GetUserResponse(SerialClass Serial, String prompt) {
+  Serial.println(prompt);
+  String user_response = Serial.readStringUntil('\n');
+  while (user_response.length() == 0) {
+    user_response = Serial.readStringUntil('\n');
+  }
+  return user_response;
+}
+
 }  // namespace rexquad

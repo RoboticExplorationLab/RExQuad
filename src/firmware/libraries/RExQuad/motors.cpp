@@ -22,52 +22,31 @@ void QuadMotors::SendCommandPWM(int pwm_fl, int pwm_fr, int pwm_br, int pwm_bl) 
 }
 
 void QuadMotors::SendConstantCommandPWM(int pwm) {
-  front_left_esc_.writeMicroseconds(pwm);
-  front_right_esc_.writeMicroseconds(pwm);
-  back_right_esc_.writeMicroseconds(pwm);
-  back_left_esc_.writeMicroseconds(pwm);
+  SendCommandPWM(pwm, pwm, pwm, pwm);
+}
+
+void QuadMotors::Ramp(int cmd_start, int cmd_end, int rate_per_10ms) {
+  int dir = 1;
+  if (cmd_start > cmd_end) {
+    dir = -1;
+  }
+  for (int cmd = cmd_start; cmd > cmd_end; cmd += rate_per_10ms*dir) {
+    SendConstantCommandPWM(cmd);
+    delay(10);
+  }
 }
 
 void QuadMotors::Arm() {
-  front_left_esc_.writeMicroseconds(kMaxInput);
-  front_right_esc_.writeMicroseconds(kMaxInput);
-  back_right_esc_.writeMicroseconds(kMaxInput);
-  back_left_esc_.writeMicroseconds(kMaxInput);
-  delay(2000);
-
-  front_left_esc_.writeMicroseconds(kMinInput + 200);
-  front_right_esc_.writeMicroseconds(kMinInput + 200);
-  back_right_esc_.writeMicroseconds(kMinInput + 200);
-  back_left_esc_.writeMicroseconds(kMinInput + 200);
-  delay(2000);
-}
-
-void QuadMotors::Calibrate() {
-  front_left_esc_.writeMicroseconds(kMaxInput);
-  front_right_esc_.writeMicroseconds(kMaxInput);
-  back_right_esc_.writeMicroseconds(kMaxInput);
-  back_left_esc_.writeMicroseconds(kMaxInput);
-  delay(7000);
-
-  front_left_esc_.writeMicroseconds(kMinInput);
-  front_right_esc_.writeMicroseconds(kMinInput);
-  back_right_esc_.writeMicroseconds(kMinInput);
-  back_left_esc_.writeMicroseconds(kMinInput);
-  delay(8000);
+  int mid = (kMaxInput + kMinInput) / 2;
+  Ramp(mid, kMinInput - 100, 50);
 }
 
 void QuadMotors::Kill() {
-  front_left_esc_.writeMicroseconds(kMinInput);
-  front_right_esc_.writeMicroseconds(kMinInput);
-  back_right_esc_.writeMicroseconds(kMinInput);
-  back_left_esc_.writeMicroseconds(kMinInput);
-  delay(7000);
+  SendConstantCommandPWM(kMinInput-100);
+}
 
-  front_left_esc_.writeMicroseconds(kMinInput);
-  front_right_esc_.writeMicroseconds(kMinInput);
-  back_right_esc_.writeMicroseconds(kMinInput);
-  back_left_esc_.writeMicroseconds(kMinInput);
-  delay(8000);
+void QuadMotors::DeArm() {
+  SendConstantCommandPWM(0);
 }
 
 }  // namespace rexquad
