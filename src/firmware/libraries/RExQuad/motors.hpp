@@ -24,8 +24,10 @@ class QuadMotors {
   void Arm();
   void DeArm();
   void SendCommandPWM(int pwm_fl, int pwm_fr, int pwm_br, int pwm_bl);
+  void SendCommandPWMSingleMotor(Motor motor_id, int pwm);
   void SendConstantCommandPWM(int pwm);
   void Ramp(int cmd_start, int cmd_end, int rate_per_10ms);
+  void Stop();
 
   /**
    * @brief Calibrates the motors

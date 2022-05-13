@@ -12,6 +12,7 @@ QuadMotors::QuadMotors(int front_left_pin, int front_right_pin, int back_right_p
   front_right_esc_.attach(front_right_pin, kMinInput, kMaxInput);
   back_right_esc_.attach(back_right_pin, kMinInput, kMaxInput);
   back_left_esc_.attach(back_left_pin, kMinInput, kMaxInput);
+  SendConstantCommandPWM(kMinInput-100);
 }
 
 void QuadMotors::SendCommandPWM(int pwm_fl, int pwm_fr, int pwm_br, int pwm_bl) {
@@ -19,6 +20,29 @@ void QuadMotors::SendCommandPWM(int pwm_fl, int pwm_fr, int pwm_br, int pwm_bl) 
   front_right_esc_.writeMicroseconds(constrain(pwm_fr, kMinInput, kMaxInput));
   back_right_esc_.writeMicroseconds(constrain(pwm_br, kMinInput, kMaxInput));
   back_left_esc_.writeMicroseconds(constrain(pwm_bl, kMinInput, kMaxInput));
+}
+
+void QuadMotors::SendCommandPWMSingleMotor(Motor motor, int pwm) {
+  switch (motor) {
+    case Motor::kFrontLeft:
+      front_left_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
+      break;
+
+    case Motor::kFrontRight:
+      front_right_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
+      break;
+
+    case Motor::kBackRight:
+      back_right_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
+      break;
+
+    case Motor::kBackLeft:
+      back_left_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
+      break;
+
+    case Motor::kAllMotors:
+      SendConstantCommandPWM(pwm);
+  }
 }
 
 void QuadMotors::SendConstantCommandPWM(int pwm) {
@@ -47,6 +71,10 @@ void QuadMotors::Kill() {
 
 void QuadMotors::DeArm() {
   SendConstantCommandPWM(0);
+}
+
+void QuadMotors::Stop() {
+  SendConstantCommandPWM(kIdleInput);
 }
 
 }  // namespace rexquad
