@@ -49,37 +49,6 @@ void setup() {
   Serial.begin(256000);
   Serial1.begin(256000);
 
-  // Motors
-  while (!Serial) { 
-    digitalWrite(LED_PIN, HIGH);
-    delay(100);
-    digitalWrite(LED_PIN, LOW);
-    delay(100);
-  }
-  digitalWrite(LED_PIN, HIGH);
-  Serial.println("Calibrate Motors? (y/n)");
-  String user_response = Serial.readStringUntil('\n');
-  while (user_response.length() == 0) {
-    user_response = Serial.readStringUntil('\n');
-  }
-  user_response.toLowerCase();
-  // if (user_response.equals("y")) {
-  //   Serial.println("Calibrating motors...");
-  //   motors.Calibrate();
-  // }
-
-  // Serial.println("Arming motors...");
-  // motors.Arm();
-  // Serial.println("Motors armed!");
-
-  Serial.println("Sending test command...");
-  int cmd = rexquad::kMinInput + 100;
-  motors.SendConstantCommandPWM(cmd);
-  Serial.println("Waiting 1 second...");
-  delay(1000);
-  Serial.println("Killing motors");
-  motors.Kill();
-
   // Accelerometer Setup
   Serial.println("Sensor test!");
   // if (!dso32.begin_SPI(LSM_CS, LSM_SCK, LSM_MISO, LSM_MOSI)) {
@@ -96,10 +65,10 @@ void setup() {
 
   // Lora Settings
   LoRa.setPins(RFM95_CS, RFM95_RST, RFM95_INT);
-  // if (!LoRa.begin(915E6)) {
-  //   while (1)
-  //     ;
-  // }
+  if (!LoRa.begin(915E6)) {
+    while (1)
+      ;
+  }
   LoRa.setSpreadingFactor(6);
   LoRa.setSignalBandwidth(500E3);
   LoRa.onReceive(onReceive);
@@ -107,15 +76,15 @@ void setup() {
 }
 
 void loop() {
-  imu.ReadSensor();
-  imu.PrintData(Serial);
+  // imu.ReadSensor();
+  // imu.PrintData(Serial);
 
-  delay(100);
+  // delay(100);
 
-  // int bytes_available = Serial1.available();
-  // bool did_receive = bytes_available >= MSG_SIZE;
-  // if (did_receive) {
-  //   Serial1.readBytes(buf, bytes_available);
-  //   Serial.write(buf, MSG_SIZE);
-  // }
+  int bytes_available = Serial1.available();
+  bool did_receive = bytes_available >= MSG_SIZE;
+  if (did_receive) {
+    Serial1.readBytes(buf, bytes_available);
+    Serial.write(buf, MSG_SIZE);
+  }
 }

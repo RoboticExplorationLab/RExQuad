@@ -83,10 +83,10 @@ void setup() {
 
   // Lora Settings
   LoRa.setPins(RFM95_CS, RFM95_RST, RFM95_INT);
-  // if (!LoRa.begin(915E6)) {
-  //   while (1)
-  //     ;
-  // }
+  if (!LoRa.begin(915E6)) {
+    while (1)
+      ;
+  }
   LoRa.setSpreadingFactor(6);
   LoRa.setSignalBandwidth(500E3);
   LoRa.onReceive(onReceive);

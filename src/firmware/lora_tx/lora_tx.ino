@@ -2,9 +2,12 @@
 
 #include "pose.hpp"
 
-#define RFM95_CS 8
-#define RFM95_RST 4
-#define RFM95_INT 3
+// #define RFM95_CS 8
+// #define RFM95_RST 4
+// #define RFM95_INT 3
+#define RFM95_CS 10   // "B"
+#define RFM95_RST 11  // "A"
+#define RFM95_INT 6
 #define RF95_FREQ 915.0
 #define LED_PIN 13
 
@@ -27,14 +30,21 @@ void send_lora(void* buf, int len) {
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
+  if (!Serial) { 
+    Serial.println("Waiting for Serial.");
+    delay(100); 
+  }
   Serial.begin(256000);
   Serial1.begin(256000);
 
   LoRa.setPins(RFM95_CS, RFM95_RST, RFM95_INT);
   if (!LoRa.begin(915E6)) {
-    Serial.println("Starting LoRa failed!");
-    while (1);
+    while (1) {
+      Serial.println("Starting LoRa failed!");
+      delay(1000);
+    };
   }
+  Serial.println("Found LoRa!");
   LoRa.setSpreadingFactor(6);
   LoRa.setSignalBandwidth(500E3);
   LoRa.enableCrc();
@@ -57,6 +67,7 @@ void loop() {
     memcpy(msg, buf+start_index, MSG_SIZE);
     // Serial1.write(msg, MSG_SIZE);
     send_lora(msg, MSG_SIZE);
+    Serial.println("Hi");
   }
   return;
 

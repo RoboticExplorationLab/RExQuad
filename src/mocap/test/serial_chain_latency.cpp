@@ -62,7 +62,7 @@ int main() {
 
   // Receiving
   fmt::print("Receiving...\n");
-  int bytes_received = sp_blocking_read(rx, recv, 100, 100);
+  int bytes_received = sp_blocking_read(rx, recv, 100, 1000);
   auto t_recv = std::chrono::high_resolution_clock::now();
   auto latency = std::chrono::duration_cast<fmillisecond>(t_recv - t_send);
 
@@ -84,7 +84,7 @@ int main() {
   fmt::print("  Got x = {}\n", x_recv);
   fmt::print("Latency {}\n\n", latency);
 
-  // return 0;
+  return 0;
   tx.SetTimeout(2);
   for (int i = 0; i < nsamples; ++i) {
     float x_sent = i * 0.001;

@@ -45,6 +45,8 @@ targets = [
     "feather_parrot",
     "motor_control",
     "onboard",
+    "lora_tx_test",
+    "lora_rx_test",
 ]
 parser = argparse.ArgumentParser()
 parser.add_argument("target",
