@@ -2,10 +2,31 @@ import Pkg; Pkg.activate(@__DIR__)
 using ZMQ
 using Sockets
 using MeshCat
+using StaticArrays
+using Statistics
+using Printf
 
 include("dynamics.jl")
 include("ratelimiter.jl")
 include("visualization.jl")
+
+function floattobytes!(buf::AbstractVector{UInt8}, f::Float32, offset = 0)
+    mask = 0x0000_00ff
+    fi = reinterpret(UInt32, f)
+    buf[1 + offset] = fi & mask
+    buf[2 + offset] = (fi >> 8) & mask
+    buf[3 + offset] = (fi >> 16) & mask
+    buf[4 + offset] = (fi >> 24) & mask
+    buf 
+end
+
+function bytestofloat(buf::AbstractVector{UInt8}, offset=0)
+    reinterpret(Float32, view(buf, (1:4) .+ offset))[1]
+end
+
+function bytestofloat2(buf)
+    reinterpret(Float32, UInt32(buf[1]) | UInt32(buf[2]) << 8 | UInt32(buf[3]) << 16 | UInt32(buf[4]) << 24)
+end
 
 struct MeasurementMsg
     x::Float32   # position
@@ -66,23 +87,61 @@ function MeasurementMsg(buf::AbstractVector{UInt8})
     )
 end
 
-
-function floattobytes!(buf::AbstractVector{UInt8}, f::Float32, offset = 0)
-    mask = 0x0000_00ff
-    fi = reinterpret(UInt32, f)
-    buf[1 + offset] = fi & mask
-    buf[2 + offset] = (fi >> 8) & mask
-    buf[3 + offset] = (fi >> 16) & mask
-    buf[4 + offset] = (fi >> 24) & mask
-    buf 
+struct PoseMsg
+    x::Float32   # position
+    y::Float32
+    z::Float32
+    qw::Float32  # orientation
+    qx::Float32
+    qy::Float32
+    qz::Float32
+end
+function PoseMsg(buf::AbstractVector{UInt8}, off::Integer = 0)
+    PoseMsg(
+        bytestofloat(buf, 0 * 4 + off),
+        bytestofloat(buf, 1 * 4 + off),
+        bytestofloat(buf, 2 * 4 + off),
+        bytestofloat(buf, 3 * 4 + off),
+        bytestofloat(buf, 4 * 4 + off),
+        bytestofloat(buf, 5 * 4 + off),
+        bytestofloat(buf, 6 * 4 + off),
+    )
+end
+function Base.copyto!(buf::AbstractVector{UInt8}, msg::PoseMsg, off::Integer=0)
+    floattobytes!(buf, msg.x, 0 * 4 + off)
+    floattobytes!(buf, msg.y, 1 * 4 + off)
+    floattobytes!(buf, msg.z, 2 * 4 + off)
+    floattobytes!(buf, msg.qw, 3 * 4 + off)
+    floattobytes!(buf, msg.qx, 4 * 4 + off)
+    floattobytes!(buf, msg.qy, 5 * 4 + off)
+    floattobytes!(buf, msg.qz, 6 * 4 + off)
 end
 
-function bytestofloat(buf::AbstractVector{UInt8}, offset=0)
-    reinterpret(Float32, view(buf, (1:4) .+ offset))[1]
+struct ControlMsg
+    u1::Float32  # front left
+    u2::Float32  # front right
+    u3::Float32  # back right
+    u4::Float32  # back left
 end
-
-function bytestofloat2(buf)
-    reinterpret(Float32, UInt32(buf[1]) | UInt32(buf[2]) << 8 | UInt32(buf[3]) << 16 | UInt32(buf[4]) << 24)
+function ControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
+    ControlMsg(
+        bytestofloat(buf, 0 * 4 + off),
+        bytestofloat(buf, 1 * 4 + off),
+        bytestofloat(buf, 2 * 4 + off),
+        bytestofloat(buf, 3 * 4 + off),
+    )
+end
+function Base.copyto!(buf::AbstractVector{UInt8}, msg::PoseMsg, off::Integer=0)
+    floattobytes!(buf, msg.u1, 0 * 4 + off)
+    floattobytes!(buf, msg.u2, 1 * 4 + off)
+    floattobytes!(buf, msg.u3, 2 * 4 + off)
+    floattobytes!(buf, msg.u4, 3 * 4 + off)
+end
+function tovector(msg::ControlMsg)
+    SA[msg.u1, msg.u2, msg.u3, msg.u4]
+end
+function ControlMsg(u::AbstractVector{<:Real})
+    ControlMsg(u[1], u[2], u[3], u[4])
 end
 
 const ZMQ_CONFLATE = 54
@@ -107,6 +166,9 @@ struct Simulator
     pub::ZMQ.Socket
     sub::ZMQ.Socket
     vis::Visualizer
+    msg_meas::Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}
+    msg_pose::Vector{NamedTuple{(:tsim,:twall,:x), Tuple{Float64, Float64, PoseMsg}}}
+    msg_ctrl::Vector{NamedTuple{(:tsim,:twall,:u), Tuple{Float64, Float64, ControlMsg}}}
 end
 
 function Simulator(pub_port=5555, sub_port=5556)
@@ -139,25 +201,66 @@ function Simulator(pub_port=5555, sub_port=5556)
 
     vis = Visualizer()
     RobotMeshes.setdrone!(vis)
-    Simulator(buf_out, ctx, pub, sub, vis)
+
+    # logs
+    msg_meas = Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}()
+    msg_pose = Vector{NamedTuple{(:tsim,:twall,:x), Tuple{Float64, Float64, PoseMsg}}}()
+    msg_ctrl = Vector{NamedTuple{(:tsim,:twall,:u), Tuple{Float64, Float64, PoseMsg}}}()
+    Simulator(buf_out, ctx, pub, sub, vis, msg_meas, msg_pose, msg_ctrl)
+end
+
+function reset!(sim::Simulator)
+    empty!(sim.msg_ctrl)
+    empty!(sim.msg_meas)
+    empty!(sim.msg_pose)
 end
 
 function finish(sim::Simulator)
     ZMQ.close(sim.pub)
 end
 
-function runsim(sim::Simulator, x0; dt=0.01)
+function runsim(sim::Simulator, x0; dt=0.0, tf=Inf)
     
     x = copy(x0)
     t = 0.0
-    buf = ZMQ.Message(sizeof(MeasurementMsg))
     freq = 1/dt  # Hz
-    lrl = LoopRateLimiter(freq)
-    while true
+    lrl = LoopRateLimiter(10)
+    t_start = time()
+    u = trim_controls() 
+
+    # TODO: flush out publishers / subscribers
+    buf = ZMQ.Message(100)
+    while ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT) >= 0 end
+    latency = Float64[]
+    if tf < Inf
+        sizehint!(latency, round(Int, tf / dt))
+    else
+        sizehint!(latency, 10_000)
+    end
+    while t < tf
         startloop(lrl)
 
+        # Get measurement
+        y = getmeasurement(sim, x, u, t)
+
+        # Send measurement
+        tsend = time() - t_start
+        push!(sim.msg_meas, (;tsim=t, twall=tsend, y))
+        sendmeasurement(sim, y, t)
+
         # Get control
-        u = getcontrol(sim, x, t) 
+        umsg = getcontrol(sim, x, t) 
+        trecv = time() - t_start
+        push!(sim.msg_ctrl, (;tsim=t, twall=trecv, u=umsg))
+        u = tovector(umsg)
+
+        # Get Pose
+        tpose = time() - t_start
+        xpose = getpose(sim, x, u, t)
+        if !isnothing(xpose)
+            push!(sim.msg_pose, (;tsim=t, twall=tpose, x=xpose))
+        end
+        push!(latency, tpose - tsend)
 
         # Propagate dynamics
         x = dynamics_rk4(x, u, dt)
@@ -165,21 +268,17 @@ function runsim(sim::Simulator, x0; dt=0.01)
         # Visualize
         RobotMeshes.visualize!(sim.vis, sim, x)
 
-        # Get measurement
-        y = getmeasurement(sim, x, u, t)
-
-        # Send measurement
-        sendmeasurement(sim, y, t)
-
         println("time = ", t)
         t += dt
-        sleep(lrl)
+        # sleep(lrl)
     end
+    @printf("Latency: %.3f ± %.3f ms\n", mean(latency) * 1000, std(latency) * 1000)
 end
 
 function getcontrol(sim, x, t)
     # TODO: Get this from ZMQ
-    return trim_controls() .+ 0.1
+    u = trim_controls() .+ 0.1
+    return ControlMsg(u)
 end
 
 function getmeasurement(vis::Simulator, x, u, t)
@@ -193,16 +292,68 @@ function getmeasurement(vis::Simulator, x, u, t)
     )
 end
 
+function getpose(sim::Simulator, x, u, t)
+    # TODO: add noise
+    buf = ZMQ.Message(100)
+    bytes_read = ZMQ.msg_recv(sim.sub, buf, 0)::Int32
+    ZMQ.getproperty(sub.socket, :events)
+    if bytes_read > sizeof(PoseMsg)
+        PoseMsg(buf, 1)
+    else
+        return nothing
+    end
+end
+
 function sendmeasurement(sim::Simulator, y::MeasurementMsg, t)
     zmsg = ZMQ.Message(sizeof(MeasurementMsg))
     copyto!(zmsg, y)
     ZMQ.send(sim.pub, zmsg)
 end
 
-sim = Simulator(5565, 5566)
+##
+sim = Simulator(5561, 5562)
 open(sim.vis)
+
+##
 x = [zeros(3); 1; zeros(3); zeros(6)]
-runsim(sim, x, dt=0.01)
+reset!(sim)
+length(sim.msg_meas)
+runsim(sim, x, dt=0.01, tf=1.0)
+tout = getfield.(sim.msg_meas, :twall) 
+zout = map(msg->msg.y.z, sim.msg_meas)
+tin = getfield.(sim.msg_pose, :twall) 
+zin = map(msg->msg.x.z, sim.msg_pose)
+
+j = 1
+idx = zeros(Int,length(tin)) 
+for i = 1:length(tin)
+    z = zin[i]
+    for k = j:length(tout)
+        if zout[k] ≈ z
+            idx[i] = k
+            j = k  # start search at current time step
+        end
+    end
+end
+idx_in = findall(iszero |> !, idx)
+idx_out = idx[idx_in]
+matches = map(1:length(idx_out)) do k
+    i = idx_in[k]
+    j = idx_out[k]
+    (
+        tout=tout[j], tin=tin[i], 
+        zout=zout[j], zin=zin[i]
+    )
+end
+matches
+all(x->x.zout == x.zin, matches)
+all(x->x.tin > x.tout, matches)
+latency = map(x->(x.tin - x.tout) * 1000, matches)
+mean(latency)
+std(latency)
+
+sim.msg_meas
+sim.msg_pose
 t = 0.0
 u = trim_controls() 
 x[1] += 0.001
@@ -212,4 +363,14 @@ buf = sendmeasurement(sim, y, t)
 recv_task = @async ZMQ.recv(sim.sub)
 istaskdone(recv_task)
 msg = fetch(recv_task)
+posemsg = PoseMsg(msg, 1)
+posemsg.x == y.x
+posemsg.y == y.y
+posemsg.z == y.z
+posemsg.qw == y.qw
+posemsg.qx == y.qx
+posemsg.qy == y.qy
+posemsg.qz == y.qz
+Int(msg[1]) == 11
+
 finish(sim)

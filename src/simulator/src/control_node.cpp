@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   // Set up ZMQ publisher
   void* context = zmq_ctx_new();
   void* pub = zmq_socket(context, ZMQ_PUB);
-  std::string tcpaddress = "tcp://127.0.0.1:" + port; 
+  std::string tcpaddress = "tcp://127.0.0.1:" + port;
   int rc = zmq_bind(pub, tcpaddress.c_str());
   if (rc != 0) {
     printf("Failed to connect.\n");
@@ -34,10 +34,11 @@ int main(int argc, char** argv) {
   }
 
   constexpr int len = sizeof(rexquad::PoseMsg) + 1;
-  char buf_in[len];
   char buf_out[len];
+  char buf_in[len];
   const int timeout_ms = 100;
   rexquad::PoseMsg posemsg = {};
+
   while (true) {
     int bytes_received = sp_blocking_read(rx, buf_in, len, timeout_ms);
     if (bytes_received >= len) {
