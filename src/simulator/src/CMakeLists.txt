@@ -1,3 +1,14 @@
+add_executable(measurement_node
+  measurement_node.cpp
+)
+target_link_libraries(measurement_node
+  PRIVATE
+  libzmq
+  fmt::fmt
+  libserialport
+  quadutils
+)
+
 add_executable(server
   server.c
 )
@@ -14,4 +25,6 @@ target_link_libraries(client
   PRIVATE
   libzmq
   fmt::fmt
+  libserialport
+  quadutils
 )

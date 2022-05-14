@@ -49,6 +49,18 @@ FetchContent_Declare(libzmq
 FetchContent_MakeAvailable(libzmq)
 set(ZMQ_BUILD_TESTS "OFF" CACHE BOOL "" FORCE)
 
+# libserialport
+find_package(PkgConfig)
+pkg_check_modules(LIBSP libserialport)
+add_library(libserialport INTERFACE)
+target_link_libraries(libserialport
+  INTERFACE
+  ${LIBSP_LINK_LIBRARIES}
+)
+target_include_directories(libserialport
+  INTERFACE
+  ${LIBSP_INCLUDE_DIRS}
+)
 
 #############################################
 # Compilation
@@ -56,6 +68,9 @@ set(ZMQ_BUILD_TESTS "OFF" CACHE BOOL "" FORCE)
 # Add compile options
 add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-error=unknown-pragmas)
 add_compile_options(-mavx2 -mfma)
+
+add_subdirectory("../common" "common")
+add_subdirectory("../utils" "utils")
 
 add_subdirectory(src)
 # add_executable(measurement_node

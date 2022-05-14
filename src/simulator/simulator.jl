@@ -4,6 +4,8 @@ using Sockets
 using MeshCat
 
 include("dynamics.jl")
+include("ratelimiter.jl")
+include("visualization.jl")
 
 struct MeasurementMsg
     x::Float32   # position
@@ -78,6 +80,10 @@ function bytestofloat(buf::AbstractVector{UInt8}, offset=0)
     reinterpret(Float32, view(buf, (1:4) .+ offset))[1]
 end
 
+function bytestofloat2(buf)
+    reinterpret(Float32, UInt32(buf[1]) | UInt32(buf[2]) << 8 | UInt32(buf[3]) << 16 | UInt32(buf[4]) << 24)
+end
+
 struct Simulator
     buf_out::ZMQ.Message
     ctx::ZMQ.Context
@@ -105,7 +111,11 @@ function runsim(sim::Simulator, x0; dt=0.01)
     x = copy(x0)
     t = 0.0
     buf = ZMQ.Message(sizeof(MeasurementMsg))
+    freq = 1/dt  # Hz
+    lrl = LoopRateLimiter(freq)
     while true
+        startloop(lrl)
+
         # Get control
         u = getcontrol(sim, x, t) 
 
@@ -116,18 +126,20 @@ function runsim(sim::Simulator, x0; dt=0.01)
         RobotMeshes.visualize!(sim.vis, sim, x)
 
         # Get measurement
-        y = getmeasurement(vis, x, u, t)
+        y = getmeasurement(sim, x, u, t)
 
         # Send measurement
         sendmeasurement(sim, y, t)
 
+        println("time = ", t)
         t += dt
+        sleep(lrl)
     end
 end
 
 function getcontrol(sim, x, t)
     # TODO: Get this from ZMQ
-    return zeros(4)
+    return trim_controls() .+ 0.1
 end
 
 function getmeasurement(vis::Simulator, x, u, t)
@@ -142,13 +154,19 @@ function getmeasurement(vis::Simulator, x, u, t)
 end
 
 function sendmeasurement(sim::Simulator, y::MeasurementMsg, t)
-    copyto!(sim.buf_out, y)
-    ZMQ.send(sim.pub, sim.buf_out)
+    zmsg = ZMQ.Message(sizeof(MeasurementMsg))
+    copyto!(zmsg, y)
+    @show sum(zmsg)
+    ZMQ.send(sim.pub, zmsg)
 end
 
 
-vis = Visualizer()
-open(vis)
-RobotMeshes.setdrone!(vis)
-x = [0,0,1, 1,0,0,0, 0,0,0, 0,0,0.]
-RobotMeshes.visualize!(vis, (), x)
+sim = Simulator(5557)
+open(sim.vis)
+x = [zeros(3); 1; zeros(3); zeros(6)]
+runsim(sim, x, dt=0.01)
+t = 0.0
+u = zeros(4)
+x[1] += 0.001
+y = getmeasurement(sim, x, u, t)
+buf = sendmeasurement(sim, y, t)
