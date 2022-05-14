@@ -7,6 +7,7 @@ target_link_libraries(measurement_node
   fmt::fmt
   libserialport
   quadutils
+  quadcommon
 )
 
 add_executable(server

@@ -166,7 +166,7 @@ open(sim.vis)
 x = [zeros(3); 1; zeros(3); zeros(6)]
 runsim(sim, x, dt=0.01)
 t = 0.0
-u = zeros(4)
+u = trim_controls() 
 x[1] += 0.001
 y = getmeasurement(sim, x, u, t)
 buf = sendmeasurement(sim, y, t)

@@ -8,6 +8,7 @@
 #include <libserialport.h>
 #include <zmq.h>
 
+#include "common/pose.hpp"
 #include "utils/serial.hpp"
 
 float bytestofloat(uint8_t* buf, int off) {
@@ -91,11 +92,30 @@ int main(void) {
   printf("Waiting for messages...\n");
   int len = sizeof(MeasurementMsg);
   uint8_t buffer[sizeof(MeasurementMsg)];
-  MeasurementMsg msg = {};
+  char buf_pose[sizeof(rexquad::PoseMsg)+1];
+  int posemsg_len = sizeof(buf_pose);
+  const int send_timeout = 100;  // ms
+
+  MeasurementMsg measmsg = {};
+  rexquad::PoseMsg posemsg = {};
   while (1) {
     zmq_recv(sub, buffer, len, 0);
-    MeasurementMsgFromBytes(msg, buffer);
-    print_msg(msg);
+    MeasurementMsgFromBytes(measmsg, buffer);
+
+    // Extract Pose information
+    posemsg.x = measmsg.x;
+    posemsg.y = measmsg.y;
+    posemsg.z = measmsg.z;
+    posemsg.qw = measmsg.qw;
+    posemsg.qx = measmsg.qx;
+    posemsg.qy = measmsg.qy;
+    posemsg.qz = measmsg.qz;
+    rexquad::PoseToBytes(buf_pose, posemsg);
+    enum sp_return bytes_sent = sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout);
+    (void) bytes_sent;
+
+    print_msg(measmsg);
+    fmt::print("\n");
   }
   zmq_close(sub);
   zmq_ctx_destroy(context);
