@@ -7,6 +7,7 @@
 #include <fmt/ostream.h>
 #include <libserialport.h>
 #include <zmq.h>
+#include <string>
 
 #include "common/pose.hpp"
 #include "utils/serial.hpp"
@@ -59,7 +60,12 @@ void print_msg(const MeasurementMsg& msg) {
   fmt::print("Ang Velocity: [{:.3f}, {:.3f}, {:.3f}]\n", msg.wx, msg.wy, msg.wz);
 }
 
-int main(void) {
+int main(int argc, char** argv) {
+  std::string port = "5555";
+  if (argc == 2) {
+    port = argv[1];
+  }
+
   // Open Serial port
   std::string rx_name = "/dev/ttyACM0";
   int baudrate = 57600;
@@ -78,7 +84,8 @@ int main(void) {
     printf("Failed to set conflate.\n");
     return 1;
   }
-  rc = zmq_connect(sub, "tcp://127.0.0.1:5557");
+  std::string tcpaddress = "tcp://127.0.0.1:" + port;
+  rc = zmq_connect(sub, tcpaddress.c_str());
   if (rc != 0) {
     printf("Failed to connect.\n");
     return 1;

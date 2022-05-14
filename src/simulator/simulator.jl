@@ -66,6 +66,7 @@ function MeasurementMsg(buf::AbstractVector{UInt8})
     )
 end
 
+
 function floattobytes!(buf::AbstractVector{UInt8}, f::Float32, offset = 0)
     mask = 0x0000_00ff
     fi = reinterpret(UInt32, f)
@@ -84,22 +85,61 @@ function bytestofloat2(buf)
     reinterpret(Float32, UInt32(buf[1]) | UInt32(buf[2]) << 8 | UInt32(buf[3]) << 16 | UInt32(buf[4]) << 24)
 end
 
+const ZMQ_CONFLATE = 54
+function set_conflate(socket::ZMQ.Socket, option_val::Integer)
+    rc = ccall(
+        (:zmq_setsockopt, ZMQ.libzmq),
+        Cint,
+        (Ptr{Cvoid}, Cint, Ref{Cint}, Csize_t),
+        socket,
+        ZMQ_CONFLATE,
+        option_val,
+        sizeof(Cint),
+    )
+    if rc != 0
+        throw(ZMQ.StateError(ZMQ.jl_zmq_error_str()))
+    end
+end
+
 struct Simulator
     buf_out::ZMQ.Message
     ctx::ZMQ.Context
     pub::ZMQ.Socket
+    sub::ZMQ.Socket
     vis::Visualizer
 end
 
-function Simulator(pub_port=5555)
+function Simulator(pub_port=5555, sub_port=5556)
     buf_out = ZMQ.Message(sizeof(MeasurementMsg))
     ctx = ZMQ.Context()
     pub = ZMQ.Socket(ctx, ZMQ.PUB)
-    ZMQ.bind(pub, "tcp://*:$pub_port")
+    try
+        ZMQ.bind(pub, "tcp://*:$pub_port")
+    catch err
+        if err isa StateError
+            throw(StateError("Error opening Pubisher"))
+        else
+            rethrow(err)
+        end
+    end
+
+    sub = ZMQ.Socket(ctx, ZMQ.SUB)
+    try
+        ZMQ.subscribe(sub)
+        set_conflate(sub, 1)
+        ZMQ.connect(sub, "tcp://127.0.0.1:$sub_port")
+    catch err
+        close(pub)
+        if err isa StateError
+            throw(StateError("Error opening Subscriber"))
+        else
+            rethrow(err)
+        end
+    end
 
     vis = Visualizer()
     RobotMeshes.setdrone!(vis)
-    Simulator(buf_out, ctx, pub, vis)
+    Simulator(buf_out, ctx, pub, sub, vis)
 end
 
 function finish(sim::Simulator)
@@ -159,8 +199,7 @@ function sendmeasurement(sim::Simulator, y::MeasurementMsg, t)
     ZMQ.send(sim.pub, zmsg)
 end
 
-
-sim = Simulator(5557)
+sim = Simulator(5565, 5566)
 open(sim.vis)
 x = [zeros(3); 1; zeros(3); zeros(6)]
 runsim(sim, x, dt=0.01)
@@ -169,3 +208,8 @@ u = trim_controls()
 x[1] += 0.001
 y = getmeasurement(sim, x, u, t)
 buf = sendmeasurement(sim, y, t)
+
+recv_task = @async ZMQ.recv(sim.sub)
+istaskdone(recv_task)
+msg = fetch(recv_task)
+finish(sim)

@@ -12,7 +12,7 @@
 #include "utils/serial.hpp"
 
 int main(int argc, char** argv) {
-  std::string port = "5555";
+  std::string port = "5556";
   if (argc == 2) {
     port = argv[1];
   }
@@ -33,18 +33,22 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  char buf[sizeof(rexquad::PoseMsg) + 1];
-  const int len = sizeof(buf);
+  constexpr int len = sizeof(rexquad::PoseMsg) + 1;
+  char buf_in[len];
+  char buf_out[len];
   const int timeout_ms = 100;
   rexquad::PoseMsg posemsg = {};
   while (true) {
-    int bytes_received = sp_blocking_read(rx, buf, len, timeout_ms);
+    int bytes_received = sp_blocking_read(rx, buf_in, len, timeout_ms);
     if (bytes_received >= len) {
-      rexquad::PoseFromBytes(posemsg, buf);
+      rexquad::PoseFromBytes(posemsg, buf_in);
       fmt::print("\nGot Pose:\n");
       fmt::print("  x = [{:.3f}, {:.3f}, {:.3f}]\n", posemsg.x, posemsg.y, posemsg.z);
       fmt::print("  q = [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", posemsg.qw, posemsg.qx,
                  posemsg.qy, posemsg.qz);
+      memcpy(buf_out, buf_in, len);
+      zmq_send(pub, buf_out, len, 0);
+      fmt::print("  ZMQ Message sent.\n");
     }
   }
 }
