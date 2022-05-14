@@ -156,7 +156,6 @@ end
 function sendmeasurement(sim::Simulator, y::MeasurementMsg, t)
     zmsg = ZMQ.Message(sizeof(MeasurementMsg))
     copyto!(zmsg, y)
-    @show sum(zmsg)
     ZMQ.send(sim.pub, zmsg)
 end
 

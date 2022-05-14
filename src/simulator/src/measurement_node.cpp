@@ -64,7 +64,7 @@ int main(void) {
   std::string rx_name = "/dev/ttyACM0";
   int baudrate = 57600;
   struct sp_port* tx = rexquad::InitializeSerialPort(rx_name, baudrate);
-  fmt::print("Connected to Receiver\n");
+  fmt::print("Connected to Transmitter\n");
   (void)tx;
 
   // Set up ZMQ Subscriber

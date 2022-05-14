@@ -10,6 +10,18 @@ target_link_libraries(measurement_node
   quadcommon
 )
 
+add_executable(control_node
+  control_node.cpp
+)
+target_link_libraries(control_node
+  PRIVATE
+  libzmq
+  fmt::fmt
+  libserialport
+  quadutils
+  quadcommon
+)
+
 add_executable(server
   server.c
 )
