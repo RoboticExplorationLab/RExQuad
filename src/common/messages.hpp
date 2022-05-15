@@ -20,8 +20,14 @@ struct MeasurementMsg {
   float wz;
 };
 
-void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf);
-void MeasurementMsgToBytes(const MeasurementMsg& msg, uint8_t* buf);
+void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off = 0);
+void MeasurementMsgToBytes(const MeasurementMsg& msg, uint8_t* buf, int off = 0);
+
+struct ControlMsg {
+  float data[4];
+};
+void ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off = 0);
+void ControlMsgToBytes(const ControlMsg& msg, uint8_t* buf, int off = 0);
 
 
 }  // rexquad
