@@ -1,12 +1,64 @@
 #include "sensors.hpp"
 
+#include <inttypes.h>
+
+#include "messages.hpp"
+
 namespace rexquad {
+IMUSimulated::IMUSimulated() {
+  accel_.version = sizeof(sensors_event_t);
+  gyro_.version = sizeof(sensors_event_t);
+  temp_.version = sizeof(sensors_event_t);
+  int32_t sensor_id = 54321;
+  accel_.sensor_id = sensor_id;
+  gyro_.sensor_id = sensor_id;
+  temp_.sensor_id = sensor_id;
+  int32_t sensor_type = 54321;
+  accel_.type = sensor_type;
+  gyro_.type = sensor_type;
+  temp_.type = sensor_type;
+  temp_.temperature = 0.0;
+}
+
+void IMUSimulated::ReadSensor() {
+  // TODO: make this a utility function
+  const int msg_size = sizeof(MeasurementMsg) + 1;
+  const uint8_t msg_id = MeasurementMsg::MsgID;
+  int bytes_available = Serial.available();
+  if (bytes_available > msg_size) {
+    int bytes_received = Serial.readBytes((char*)recvbuf_, bytes_available);
+    int start_index = 0;
+    for (int i = 0; i < bytes_received; ++i) {
+      if (recvbuf_[i] == msg_id) {
+        start_index = i;
+        break;
+      }
+    }
+    // Copy memory into message buffer
+    memcpy(msgbuf_, recvbuf_ + start_index, msg_size);
+
+    // Copy to measurement measurement types
+    MeasurementMsgToBytes(msg_, msgbuf_);
+
+    // Copy measurement message to sensor_event_t types
+    accel_.acceleration.x = msg_.ax;
+    accel_.acceleration.y = msg_.ay;
+    accel_.acceleration.z = msg_.az;
+    gyro_.gyro.x = msg_.wx;
+    gyro_.gyro.y = msg_.wy;
+    gyro_.gyro.z = msg_.wz;
+  }
+}
+
+const sensors_event_t& IMUSimulated::GetAccel() const { return accel_; }
+
+const sensors_event_t& IMUSimulated::GetGyro() const { return gyro_; }
+
+const sensors_event_t& IMUSimulated::GetTemp() const { return temp_; }
 
 IMU::IMU(int pin_cs) : pin_cs_(pin_cs) {}
 
-bool IMU::Connect() {
-  return dso32_.begin_SPI(pin_cs_);
-}
+bool IMU::Connect() { return dso32_.begin_SPI(pin_cs_); }
 
 void IMU::SetAccelRange(AccelRange range) {
   switch (range) {
@@ -26,7 +78,7 @@ void IMU::SetAccelRange(AccelRange range) {
 }
 
 void IMU::SetAccelRate(DataRate rate) {
-  switch(rate) {
+  switch (rate) {
     case DataRate::Rate0Hz:
       dso32_.setAccelDataRate(LSM6DS_RATE_SHUTDOWN);
       break;
@@ -121,20 +173,12 @@ void IMU::SetGyroRate(DataRate rate) {
   }
 }
 
-void IMU::ReadSensor() {
-  dso32_.getEvent(&accel_, &gyro_, &temp_);
-}
+void IMU::ReadSensor() { dso32_.getEvent(&accel_, &gyro_, &temp_); }
 
-const sensors_event_t& IMU::GetAccel() const {
-  return accel_;
-}
+const sensors_event_t& IMU::GetAccel() const { return accel_; }
 
-const sensors_event_t& IMU::GetGyro() const {
-  return gyro_;
-}
+const sensors_event_t& IMU::GetGyro() const { return gyro_; }
 
-const sensors_event_t& IMU::GetTemp() const {
-  return temp_;
-}
+const sensors_event_t& IMU::GetTemp() const { return temp_; }
 
 }  // namespace rexquad

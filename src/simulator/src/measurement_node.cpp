@@ -58,24 +58,37 @@ using namespace rexquad;
 // }
 
 void print_msg(const MeasurementMsg& msg) {
-  fmt::print("Translation:  [{:.3f}, {:.3f}, {:.3f}]\n", msg.x, msg.y, msg.z);
-  fmt::print("Orientation:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.qw, msg.qx, msg.qy, msg.qz);
-  fmt::print("Lin Accel:    [{:.3f}, {:.3f}, {:.3f}]\n", msg.ax, msg.ay, msg.az);
-  fmt::print("Ang Velocity: [{:.3f}, {:.3f}, {:.3f}]\n", msg.wx, msg.wy, msg.wz);
+  fmt::print("  Translation:  [{:.3f}, {:.3f}, {:.3f}]\n", msg.x, msg.y, msg.z);
+  fmt::print("  Orientation:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.qw, msg.qx, msg.qy, msg.qz);
+  fmt::print("  Lin Accel:    [{:.3f}, {:.3f}, {:.3f}]\n", msg.ax, msg.ay, msg.az);
+  fmt::print("  Ang Velocity: [{:.3f}, {:.3f}, {:.3f}]\n", msg.wx, msg.wy, msg.wz);
+}
+
+void print_msg(const PoseMsg& msg) {
+  fmt::print("  Translation:  [{:.3f}, {:.3f}, {:.3f}]\n", msg.x, msg.y, msg.z);
+  fmt::print("  Orientation:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.qw, msg.qx, msg.qy, msg.qz);
 }
 
 int main(int argc, char** argv) {
-  std::string port = "5555";
-  if (argc == 2) {
-    port = argv[1];
+  std::string pubport = "5555";
+  std::string subport = "5556";
+  if (argc > 1) {
+    subport = argv[1];
+  }
+  if (argc > 2) {
+    pubport = argv[2];
   }
 
-  // Open Serial port
-  std::string rx_name = "/dev/ttyACM0";
+  // Open Serial port to transmitter
+  std::string tx_name = "/dev/ttyACM0";
   int baudrate = 57600;
-  struct sp_port* tx = rexquad::InitializeSerialPort(rx_name, baudrate);
+  struct sp_port* tx = rexquad::InitializeSerialPort(tx_name, baudrate);
   fmt::print("Connected to Transmitter\n");
-  (void)tx;
+
+  // Open Serial port to onboard Feather 
+  std::string rx_name = "/dev/ttyACM1";
+  struct sp_port* onboard = rexquad::InitializeSerialPort(rx_name, baudrate);
+  fmt::print("Connected to Onboard Feather\n");
 
   // Set up ZMQ Subscriber
   void* context = zmq_ctx_new();
@@ -88,11 +101,13 @@ int main(int argc, char** argv) {
     printf("Failed to set conflate.\n");
     return 1;
   }
-  std::string tcpaddress = "tcp://127.0.0.1:" + port;
-  rc = zmq_connect(sub, tcpaddress.c_str());
+  std::string tcpaddress_sub = "tcp://127.0.0.1:" + subport;
+  rc = zmq_connect(sub, tcpaddress_sub.c_str());
   if (rc != 0) {
-    printf("Failed to connect.\n");
+    printf("Failed to connect subscriber.\n");
     return 1;
+  } else {
+    fmt::print("Connected subscriber at {}\n", tcpaddress_sub);
   }
   rc = zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0);
   if (rc != 0) {
@@ -100,18 +115,39 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  // Set up ZMQ publisher
+  void* pub = zmq_socket(context, ZMQ_PUB);
+  std::string tcpaddress_pub = "tcp://127.0.0.1:" + pubport;
+  rc = zmq_connect(pub, tcpaddress_pub.c_str());
+  if (rc != 0) {
+    printf("Failed to connect publisher.\n");
+    return 1;
+  } else {
+    fmt::print("Connected publisher at {}\n", tcpaddress_pub);
+  }
+
   printf("Waiting for messages...\n");
   int len = sizeof(MeasurementMsg);
   uint8_t buffer[sizeof(MeasurementMsg)];
   char buf_pose[sizeof(rexquad::PoseMsg)+1];
   int posemsg_len = sizeof(buf_pose);
-  const int send_timeout = 100;  // ms
+  const int send_timeout_ms = 100;  // ms
+
+  // Receiving
+  constexpr int lenrecv = sizeof(PoseMsg) + 1 + sizeof(ControlMsg) + 1;
+  char bufrecv[lenrecv];
+  const int recv_timeout_ms = 1000; 
+  PoseMsg pose_recv = {};
 
   MeasurementMsg measmsg = {};
   rexquad::PoseMsg posemsg = {};
   while (1) {
     zmq_recv(sub, buffer, len, 0);
     MeasurementMsgFromBytes(measmsg, buffer);
+
+    // Send entire message to onboard feather over serial
+    // sp_blocking_write(onboard, buffer, len, send_timeout_ms);
+    (void) onboard;
 
     // Extract Pose information
     posemsg.x = measmsg.x;
@@ -122,11 +158,16 @@ int main(int argc, char** argv) {
     posemsg.qy = measmsg.qy;
     posemsg.qz = measmsg.qz;
     rexquad::PoseToBytes(buf_pose, posemsg);
-    enum sp_return bytes_sent = sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout);
-    (void) bytes_sent;
+    sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
 
+    fmt::print("\nMessage sent:\n");
     print_msg(measmsg);
-    fmt::print("\n");
+
+    // Receive the pose message back
+    sp_return bytes_received = sp_blocking_read(onboard, bufrecv, lenrecv, recv_timeout_ms);
+    rexquad::PoseFromBytes(pose_recv, bufrecv);  // first byte should be msgid
+    fmt::print("Receieved {} / {} bytes:\n", (int) bytes_received, lenrecv);
+    print_msg(pose_recv);
   }
   zmq_close(sub);
   zmq_ctx_destroy(context);

@@ -5,6 +5,7 @@
 namespace rexquad {
 
 struct MeasurementMsg {
+  static constexpr uint8_t MsgID = 109;  // 'm'
   float x;
   float y;
   float z;
@@ -24,6 +25,7 @@ void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off = 0);
 void MeasurementMsgToBytes(const MeasurementMsg& msg, uint8_t* buf, int off = 0);
 
 struct ControlMsg {
+  static constexpr uint8_t MsgID = 99;  // 'c'
   float data[4];
 };
 void ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off = 0);

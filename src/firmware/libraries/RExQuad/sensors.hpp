@@ -2,6 +2,8 @@
 
 #include <Adafruit_LSM6DSO32.h>
 
+#include "messages.hpp"
+
 namespace rexquad {
 
 class IMUBase {
@@ -11,6 +13,8 @@ public:
   virtual const sensors_event_t& GetAccel() const = 0;
   virtual const sensors_event_t& GetGyro() const = 0;
   virtual const sensors_event_t& GetTemp() const = 0;
+
+  virtual ~IMUBase() = default;
 
   template <class Serial>
   void PrintData(Serial serial) {
@@ -47,8 +51,16 @@ public:
 class IMUSimulated : public IMUBase {
 
 public:
+  IMUSimulated();
+  void ReadSensor() override;
+  const sensors_event_t& GetAccel() const override;
+  const sensors_event_t& GetTemp() const override;
+  const sensors_event_t& GetGyro() const override;
 
 private:
+  uint8_t recvbuf_[sizeof(MeasurementMsg) + 1];
+  uint8_t msgbuf_[sizeof(MeasurementMsg) + 1];
+  MeasurementMsg msg_;
   sensors_event_t accel_;
   sensors_event_t gyro_;
   sensors_event_t temp_;
@@ -75,12 +87,13 @@ class IMU : public IMUBase {
   IMU(int pin_cs);
   bool Connect();
 
+  // TODO: Add method to estimate out the bias
   void SetAccelRange(AccelRange range);
   void SetAccelRate(DataRate rate);
   void SetGyroRange(GyroRange range);
   void SetGyroRate(DataRate rate);
 
-  void ReadSensor();
+  void ReadSensor() override;
   const sensors_event_t& GetAccel() const override;
   const sensors_event_t& GetTemp() const override;
   const sensors_event_t& GetGyro() const override;

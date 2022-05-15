@@ -189,7 +189,7 @@ function Simulator(pub_port=5555, sub_port=5556)
     try
         ZMQ.subscribe(sub)
         set_conflate(sub, 1)
-        ZMQ.connect(sub, "tcp://127.0.0.1:$sub_port")
+        ZMQ.bind(sub, "tcp://127.0.0.1:$sub_port")
     catch err
         close(pub)
         if err isa StateError
@@ -311,14 +311,14 @@ function sendmeasurement(sim::Simulator, y::MeasurementMsg, t)
 end
 
 ##
-sim = Simulator(5561, 5562)
+sim = Simulator(5560, 5561)
 open(sim.vis)
 
 ##
 x = [zeros(3); 1; zeros(3); zeros(6)]
 reset!(sim)
 length(sim.msg_meas)
-runsim(sim, x, dt=0.01, tf=1.0)
+runsim(sim, x, dt=0.01, tf=10.0)
 tout = getfield.(sim.msg_meas, :twall) 
 zout = map(msg->msg.y.z, sim.msg_meas)
 tin = getfield.(sim.msg_pose, :twall) 
@@ -352,13 +352,12 @@ latency = map(x->(x.tin - x.tout) * 1000, matches)
 mean(latency)
 std(latency)
 
-sim.msg_meas
-sim.msg_pose
-t = 0.0
+##
 u = trim_controls() 
 x[1] += 0.001
 y = getmeasurement(sim, x, u, t)
 buf = sendmeasurement(sim, y, t)
+isopen(sim.pub)
 
 recv_task = @async ZMQ.recv(sim.sub)
 istaskdone(recv_task)
