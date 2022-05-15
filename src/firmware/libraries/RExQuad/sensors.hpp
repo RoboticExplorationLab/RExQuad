@@ -44,6 +44,16 @@ public:
 
 };
 
+class IMUSimulated : public IMUBase {
+
+public:
+
+private:
+  sensors_event_t accel_;
+  sensors_event_t gyro_;
+  sensors_event_t temp_;
+};
+
 class IMU : public IMUBase {
  public:
   enum class AccelRange { Accel4g, Accel8g, Accel16g, Accel32g };

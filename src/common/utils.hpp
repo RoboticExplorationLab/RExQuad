@@ -3,7 +3,6 @@
 
 namespace rexquad {
 
-
 std::string MakeTcpAddress(const std::string& addr);
 
 class TcpAddress {
@@ -19,5 +18,8 @@ public:
   std::string addr_;
   int port_ = kAnyPort;
 };
+
+float bytestofloat(uint8_t* buf, int off);
+void floattobytes(uint8_t* buf, float x, int off);
 
 }

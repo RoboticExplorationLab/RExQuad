@@ -9,49 +9,53 @@
 #include <zmq.h>
 #include <string>
 
+#include "common/messages.hpp"
 #include "common/pose.hpp"
+#include "common/utils.hpp"
 #include "utils/serial.hpp"
 
-float bytestofloat(uint8_t* buf, int off) {
-  uint32_t b0 = static_cast<uint32_t>(buf[0 + off]);
-  uint32_t b1 = static_cast<uint32_t>(buf[1 + off]) << 8;
-  uint32_t b2 = static_cast<uint32_t>(buf[2 + off]) << 16;
-  uint32_t b3 = static_cast<uint32_t>(buf[3 + off]) << 24;
-  uint32_t b = b0 | b1 | b2 | b3;
-  return reinterpret_cast<float&>(b);
-}
+using namespace rexquad;
 
-struct MeasurementMsg {
-  float x;
-  float y;
-  float z;
-  float qw;
-  float qx;
-  float qy;
-  float qz;
-  float ax;
-  float ay;
-  float az;
-  float wx;
-  float wy;
-  float wz;
-};
+// float bytestofloat(uint8_t* buf, int off) {
+//   uint32_t b0 = static_cast<uint32_t>(buf[0 + off]);
+//   uint32_t b1 = static_cast<uint32_t>(buf[1 + off]) << 8;
+//   uint32_t b2 = static_cast<uint32_t>(buf[2 + off]) << 16;
+//   uint32_t b3 = static_cast<uint32_t>(buf[3 + off]) << 24;
+//   uint32_t b = b0 | b1 | b2 | b3;
+//   return reinterpret_cast<float&>(b);
+// }
 
-void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf) {
-  msg.x = bytestofloat(buf, 0 * 4);
-  msg.y = bytestofloat(buf, 1 * 4);
-  msg.z = bytestofloat(buf, 2 * 4);
-  msg.qw = bytestofloat(buf, 3 * 4);
-  msg.qx = bytestofloat(buf, 4 * 4);
-  msg.qy = bytestofloat(buf, 5 * 4);
-  msg.qz = bytestofloat(buf, 6 * 4);
-  msg.ax = bytestofloat(buf, 7 * 4);
-  msg.ay = bytestofloat(buf, 8 * 4);
-  msg.az = bytestofloat(buf, 9 * 4);
-  msg.wx = bytestofloat(buf, 10 * 4);
-  msg.wy = bytestofloat(buf, 11 * 4);
-  msg.wz = bytestofloat(buf, 12 * 4);
-}
+// struct MeasurementMsg {
+//   float x;
+//   float y;
+//   float z;
+//   float qw;
+//   float qx;
+//   float qy;
+//   float qz;
+//   float ax;
+//   float ay;
+//   float az;
+//   float wx;
+//   float wy;
+//   float wz;
+// };
+
+// void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf) {
+//   msg.x = bytestofloat(buf, 0 * 4);
+//   msg.y = bytestofloat(buf, 1 * 4);
+//   msg.z = bytestofloat(buf, 2 * 4);
+//   msg.qw = bytestofloat(buf, 3 * 4);
+//   msg.qx = bytestofloat(buf, 4 * 4);
+//   msg.qy = bytestofloat(buf, 5 * 4);
+//   msg.qz = bytestofloat(buf, 6 * 4);
+//   msg.ax = bytestofloat(buf, 7 * 4);
+//   msg.ay = bytestofloat(buf, 8 * 4);
+//   msg.az = bytestofloat(buf, 9 * 4);
+//   msg.wx = bytestofloat(buf, 10 * 4);
+//   msg.wy = bytestofloat(buf, 11 * 4);
+//   msg.wz = bytestofloat(buf, 12 * 4);
+// }
 
 void print_msg(const MeasurementMsg& msg) {
   fmt::print("Translation:  [{:.3f}, {:.3f}, {:.3f}]\n", msg.x, msg.y, msg.z);
