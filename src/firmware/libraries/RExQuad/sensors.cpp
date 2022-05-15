@@ -125,15 +125,15 @@ void IMU::ReadSensor() {
   dso32_.getEvent(&accel_, &gyro_, &temp_);
 }
 
-sensors_event_t IMU::GetAccel() {
+const sensors_event_t& IMU::GetAccel() const {
   return accel_;
 }
 
-sensors_event_t IMU::GetGyro() {
+const sensors_event_t& IMU::GetGyro() const {
   return gyro_;
 }
 
-sensors_event_t IMU::GetTemp() {
+const sensors_event_t& IMU::GetTemp() const {
   return temp_;
 }
 

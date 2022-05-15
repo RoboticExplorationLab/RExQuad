@@ -4,7 +4,47 @@
 
 namespace rexquad {
 
-class IMU {
+class IMUBase {
+
+public:
+  virtual void ReadSensor() = 0;
+  virtual const sensors_event_t& GetAccel() const = 0;
+  virtual const sensors_event_t& GetGyro() const = 0;
+  virtual const sensors_event_t& GetTemp() const = 0;
+
+  template <class Serial>
+  void PrintData(Serial serial) {
+    sensors_event_t accel = GetAccel();
+    sensors_event_t temp = GetTemp();
+    sensors_event_t gyro = GetGyro();
+
+    serial.print("\t\tTemperature ");
+    serial.print(temp.temperature);
+    serial.println(" deg C");
+
+    /* Display the results (acceleration is measured in m/s^2) */
+    serial.print("\t\tAccel X: ");
+    serial.print(accel.acceleration.x);
+    serial.print(" \tY: ");
+    serial.print(accel.acceleration.y);
+    serial.print(" \tZ: ");
+    serial.print(accel.acceleration.z);
+    serial.println(" m/s^2 ");
+
+    /* Display the results (rotation is measured in rad/s) */
+    serial.print("\t\tGyro X: ");
+    serial.print(gyro.gyro.x);
+    serial.print(" \tY: ");
+    serial.print(gyro.gyro.y);
+    serial.print(" \tZ: ");
+    serial.print(gyro.gyro.z);
+    serial.println(" radians/s ");
+    serial.println();
+  }
+
+};
+
+class IMU : public IMUBase {
  public:
   enum class AccelRange { Accel4g, Accel8g, Accel16g, Accel32g };
   enum class GyroRange { Gyro125dps, Gyro250dps, Gyro500dps, Gyro1000dps, Gyro2000dps };
@@ -31,9 +71,9 @@ class IMU {
   void SetGyroRate(DataRate rate);
 
   void ReadSensor();
-  sensors_event_t GetAccel();
-  sensors_event_t GetTemp();
-  sensors_event_t GetGyro();
+  const sensors_event_t& GetAccel() const override;
+  const sensors_event_t& GetTemp() const override;
+  const sensors_event_t& GetGyro() const override;
 
   template <class Serial>
   void PrintSettings(Serial serial) {
@@ -147,32 +187,6 @@ class IMU {
         serial.println("6.66 KHz");
         break;
     }
-  }
-
-  template <class Serial>
-  void PrintData(Serial serial) {
-    serial.print("\t\tTemperature ");
-    serial.print(temp_.temperature);
-    serial.println(" deg C");
-
-    /* Display the results (acceleration is measured in m/s^2) */
-    serial.print("\t\tAccel X: ");
-    serial.print(accel_.acceleration.x);
-    serial.print(" \tY: ");
-    serial.print(accel_.acceleration.y);
-    serial.print(" \tZ: ");
-    serial.print(accel_.acceleration.z);
-    serial.println(" m/s^2 ");
-
-    /* Display the results (rotation is measured in rad/s) */
-    serial.print("\t\tGyro X: ");
-    serial.print(gyro_.gyro.x);
-    serial.print(" \tY: ");
-    serial.print(gyro_.gyro.y);
-    serial.print(" \tZ: ");
-    serial.print(gyro_.gyro.z);
-    serial.println(" radians/s ");
-    serial.println();
   }
 
  private:
