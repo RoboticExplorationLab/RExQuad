@@ -69,6 +69,10 @@ void print_msg(const PoseMsg& msg) {
   fmt::print("  Orientation:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.qw, msg.qx, msg.qy, msg.qz);
 }
 
+void print_msg(const ControlMsg& msg) {
+  fmt::print("  Controls:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.data[0], msg.data[1], msg.data[2], msg.data[3]);
+}
+
 int main(int argc, char** argv) {
   std::string pubport = "5555";
   std::string subport = "5556";
@@ -126,21 +130,25 @@ int main(int argc, char** argv) {
     fmt::print("Connected publisher at {}\n", tcpaddress_pub);
   }
 
-  printf("Waiting for messages...\n");
+  // Sending
   int len = sizeof(MeasurementMsg);
   uint8_t buffer[sizeof(MeasurementMsg)];
   char buf_pose[sizeof(rexquad::PoseMsg)+1];
   int posemsg_len = sizeof(buf_pose);
   const int send_timeout_ms = 100;  // ms
+  MeasurementMsg measmsg = {};
+  rexquad::PoseMsg posemsg = {};
 
   // Receiving
   constexpr int lenrecv = sizeof(PoseMsg) + 1 + sizeof(ControlMsg) + 1;
-  char bufrecv[lenrecv];
+  uint8_t bufrecv[lenrecv];
   const int recv_timeout_ms = 1000; 
   PoseMsg pose_recv = {};
+  ControlMsg control_recv = {};
 
-  MeasurementMsg measmsg = {};
-  rexquad::PoseMsg posemsg = {};
+
+  fmt::print("Size of control: {}\n", sizeof(rexquad::ControlMsg));
+  printf("Waiting for messages...\n");
   while (1) {
     zmq_recv(sub, buffer, len, 0);
     MeasurementMsgFromBytes(measmsg, buffer);
@@ -165,9 +173,16 @@ int main(int argc, char** argv) {
 
     // Receive the pose message back
     sp_return bytes_received = sp_blocking_read(onboard, bufrecv, lenrecv, recv_timeout_ms);
-    rexquad::PoseFromBytes(pose_recv, bufrecv);  // first byte should be msgid
+    rexquad::PoseFromBytes(pose_recv, (char*) bufrecv);  // first byte should be msgid
+    rexquad::ControlMsgFromBytes(control_recv, bufrecv, posemsg_len + 1);
     fmt::print("Receieved {} / {} bytes:\n", (int) bytes_received, lenrecv);
     print_msg(pose_recv);
+    print_msg(control_recv);
+    // fmt::print("  Payload = [ ");
+    // for (int i = posemsg_len; i < bytes_received; ++i) {
+    //   fmt::print("{} ", bufrecv[i]);
+    // }
+    // fmt::print("]\n");
   }
   zmq_close(sub);
   zmq_ctx_destroy(context);

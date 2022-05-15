@@ -135,8 +135,12 @@ void loop() {
 
         // TODO: Copy controls
         bufsend[lenrecv] = kControlID;
-        for (int i = 0; i < 4; ++i) {
-          bufsend[lenrecv + i + 1] = -100;
+        uint8_t bufctrl[16];
+        rexquad::ControlMsg ctrl = {-100, -100, -100, -100};
+        rexquad::ControlMsgToBytes(ctrl, bufctrl);
+
+        for (int i = 0; i < 16; ++i) {
+          bufsend[lenrecv + 1 + i] = bufctrl[i];
         }
 
         // Send pose and controls back over serial

@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "common/messages.hpp"
 #include "common/pose.hpp"
 #include "utils/serial.hpp"
 
