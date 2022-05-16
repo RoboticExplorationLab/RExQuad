@@ -1,0 +1,3 @@
+[submodule "src/firmware/libraries/slap"]
+	path = src/firmware/libraries/slap
+	url = https://github.com/bjack205/slap.git

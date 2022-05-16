@@ -8,6 +8,7 @@ target_link_libraries(measurement_node
   libserialport
   quadutils
   quadcommon
+  slap
 )
 
 add_executable(control_node

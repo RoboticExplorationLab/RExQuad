@@ -62,6 +62,9 @@ target_include_directories(libserialport
   ${LIBSP_INCLUDE_DIRS}
 )
 
+# slap
+add_subdirectory("${PROJECT_SOURCE_DIR}/../firmware/libraries/slap" "slap")
+
 #############################################
 # Compilation
 #############################################
