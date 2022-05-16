@@ -58,4 +58,17 @@ struct StateControlMsg {
 bool StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off = 0);
 void StateControlMsgToBytes(const StateControlMsg& msg, uint8_t* buf, int off = 0);
 
+struct IMUMeasurementMsg {
+  static constexpr uint8_t MsgID = 105;  // 'i'
+  float ax;
+  float ay;
+  float az;
+  float wx;
+  float wy;
+  float wz;
+};
+bool IMUMeasurementMsgFromBytes(IMUMeasurementMsg& msg, uint8_t* buf, int off = 0);
+void IMUMeasurementMsgToBytes(const IMUMeasurementMsg& msg, uint8_t* buf, int off = 0);
+
+
 }  // rexquad

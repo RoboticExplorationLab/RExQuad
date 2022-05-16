@@ -1,10 +1,12 @@
 #include <SPI.h>
 #include <RH_RF95.h>
+#include <cstring>
 
 #include "sensors.hpp"
 #include "pose.hpp"
 #include "motors.hpp"
 #include "messages.hpp"
+#include "estimator.hpp"
 
 // Options
 constexpr bool kWaitForSerial = false;
@@ -55,6 +57,16 @@ uint8_t bufpose[kPoseSize];
 
 Pose pose_mocap;
 StateControl statecontrol;
+
+// State estimator
+rexquad::StateEstimator filter;
+uint64_t tstart;
+
+double curtime() {
+  uint64_t t_micros = micros() - tstart;
+  double t_cur = static_cast<double>(t_micros) * 1e-6;
+  return t_cur;
+}
 
 void setup() {
   // Serial setup
@@ -113,6 +125,15 @@ void setup() {
   // rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128);
   rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
   // rf95.setModemConfig(RH_RF95::Bw500Cr45Sf64);
+
+  // TODO: Get the IMU Bias sitting on the ground
+  float bias[6];
+  memset(bias, 0, sizeof(bias));
+  filter.SetBias(bias);
+  
+  // TODO: do a takeoff maneuver and settle into level flight
+
+  tstart = micros();  // resets after about 70 minutes per Arduino docs
 }
 
 void loop() {
@@ -131,15 +152,11 @@ void loop() {
     if (rf95.recv(bufrecv, &lenrecv)) {
       // Convert bytes into pose message
       rexquad::PoseFromBytes(pose_mocap, (char*)bufrecv);
+      double t_pose = curtime();
 
       // TODO: Update state estimate
-      statecontrol.x = pose_mocap.x;
-      statecontrol.y = pose_mocap.y;
-      statecontrol.z = pose_mocap.z;
-      statecontrol.qw = pose_mocap.qw;
-      statecontrol.qx = pose_mocap.qx;
-      statecontrol.qy = pose_mocap.qy;
-      statecontrol.qz = pose_mocap.qz;
+      filter.PoseMeasurement(pose_mocap, t_pose);
+      filter.GetStateEstimate(statecontrol);
 
       // TODO: Implement control policy
       statecontrol.u[0] = -100;

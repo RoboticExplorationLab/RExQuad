@@ -13,6 +13,7 @@ public:
   virtual const sensors_event_t& GetAccel() const = 0;
   virtual const sensors_event_t& GetGyro() const = 0;
   virtual const sensors_event_t& GetTemp() const = 0;
+  virtual const IMUMeasurementMsg& GetMeasurement() const = 0;
 
   virtual ~IMUBase() = default;
 
@@ -56,11 +57,13 @@ public:
   const sensors_event_t& GetAccel() const override;
   const sensors_event_t& GetTemp() const override;
   const sensors_event_t& GetGyro() const override;
+  const IMUMeasurementMsg& GetMeasurement() const override;
 
 private:
   uint8_t recvbuf_[sizeof(MeasurementMsg) + 1];
   uint8_t msgbuf_[sizeof(MeasurementMsg) + 1];
   MeasurementMsg msg_;
+  IMUMeasurementMsg imumsg_;
   sensors_event_t accel_;
   sensors_event_t gyro_;
   sensors_event_t temp_;
@@ -97,6 +100,7 @@ class IMU : public IMUBase {
   const sensors_event_t& GetAccel() const override;
   const sensors_event_t& GetTemp() const override;
   const sensors_event_t& GetGyro() const override;
+  const IMUMeasurementMsg& GetMeasurement() const override;
 
   template <class Serial>
   void PrintSettings(Serial serial) {
@@ -217,6 +221,7 @@ class IMU : public IMUBase {
   sensors_event_t accel_;
   sensors_event_t gyro_;
   sensors_event_t temp_;
+  IMUMeasurementMsg imumsg_;
   Adafruit_LSM6DSO32 dso32_;
 };
 

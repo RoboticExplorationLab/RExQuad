@@ -105,4 +105,27 @@ void StateControlMsgToBytes(const StateControlMsg& msg, uint8_t* buf, int off) {
   floattobytes(buf, msg.u[3], 16 * 4 + off);
 }
 
+bool IMUMeasurementMsgFromBytes(IMUMeasurementMsg& msg, uint8_t* buf, int off) {
+  const uint8_t msgid = buf[off];
+  ++off;
+  msg.ax = bytestofloat(buf, 0 * 4 + off);
+  msg.ay = bytestofloat(buf, 1 * 4 + off);
+  msg.az = bytestofloat(buf, 2 * 4 + off);
+  msg.wx = bytestofloat(buf, 3 * 4 + off);
+  msg.wy = bytestofloat(buf, 4 * 4 + off);
+  msg.wz = bytestofloat(buf, 5 * 4 + off);
+  return msgid == IMUMeasurementMsg::MsgID;
+}
+
+void IMUMeasurementMsgToBytes(const IMUMeasurementMsg& msg, uint8_t* buf, int off) {
+  buf[off] = IMUMeasurementMsg::MsgID;
+  ++off;
+  floattobytes(buf, msg.ax, 0 * 4 + off);
+  floattobytes(buf, msg.ay, 1 * 4 + off);
+  floattobytes(buf, msg.az, 2 * 4 + off);
+  floattobytes(buf, msg.wx, 3 * 4 + off);
+  floattobytes(buf, msg.wy, 4 * 4 + off);
+  floattobytes(buf, msg.wz, 5 * 4 + off);
+}
+
 }  // namespace rexquad

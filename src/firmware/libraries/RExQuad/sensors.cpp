@@ -48,6 +48,13 @@ void IMUSimulated::ReadSensor() {
     gyro_.gyro.x = msg_.wx;
     gyro_.gyro.y = msg_.wy;
     gyro_.gyro.z = msg_.wz;
+
+    imumsg_.ax = msg_.ax;
+    imumsg_.ay = msg_.ay;
+    imumsg_.az = msg_.az;
+    imumsg_.wx = msg_.wx;
+    imumsg_.wy = msg_.wy;
+    imumsg_.wz = msg_.wz;
   }
 }
 
@@ -56,6 +63,10 @@ const sensors_event_t& IMUSimulated::GetAccel() const { return accel_; }
 const sensors_event_t& IMUSimulated::GetGyro() const { return gyro_; }
 
 const sensors_event_t& IMUSimulated::GetTemp() const { return temp_; }
+
+const IMUMeasurementMsg& IMUSimulated::GetMeasurement() const {
+  return imumsg_;
+}
 
 IMU::IMU(int pin_cs) : pin_cs_(pin_cs) {}
 
@@ -174,12 +185,24 @@ void IMU::SetGyroRate(DataRate rate) {
   }
 }
 
-void IMU::ReadSensor() { dso32_.getEvent(&accel_, &gyro_, &temp_); }
+void IMU::ReadSensor() { 
+  dso32_.getEvent(&accel_, &gyro_, &temp_); 
+  imumsg_.ax = accel_.acceleration.x; 
+  imumsg_.ay = accel_.acceleration.y; 
+  imumsg_.az = accel_.acceleration.z; 
+  imumsg_.wx = gyro_.gyro.x;
+  imumsg_.wy = gyro_.gyro.y;
+  imumsg_.wz = gyro_.gyro.z;
+}
 
 const sensors_event_t& IMU::GetAccel() const { return accel_; }
 
 const sensors_event_t& IMU::GetGyro() const { return gyro_; }
 
 const sensors_event_t& IMU::GetTemp() const { return temp_; }
+
+const IMUMeasurementMsg& IMU::GetMeasurement() const {
+  return imumsg_;
+}
 
 }  // namespace rexquad
