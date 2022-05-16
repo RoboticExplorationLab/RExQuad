@@ -34,8 +34,7 @@ struct Simulator
     sub::ZMQ.Socket
     vis::Visualizer
     msg_meas::Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}
-    msg_pose::Vector{NamedTuple{(:tsim,:twall,:x), Tuple{Float64, Float64, PoseMsg}}}
-    msg_ctrl::Vector{NamedTuple{(:tsim,:twall,:u), Tuple{Float64, Float64, ControlMsg}}}
+    msg_data::Vector{NamedTuple{(:tsim,:twall,:xu), Tuple{Float64, Float64, StateControlMsg}}}
 end
 
 function Simulator(pub_port=5555, sub_port=5556)
@@ -71,15 +70,13 @@ function Simulator(pub_port=5555, sub_port=5556)
 
     # logs
     msg_meas = Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}()
-    msg_pose = Vector{NamedTuple{(:tsim,:twall,:x), Tuple{Float64, Float64, PoseMsg}}}()
-    msg_ctrl = Vector{NamedTuple{(:tsim,:twall,:u), Tuple{Float64, Float64, PoseMsg}}}()
-    Simulator(buf_out, ctx, pub, sub, vis, msg_meas, msg_pose, msg_ctrl)
+    msg_data = Vector{NamedTuple{(:tsim,:twall,:xu), Tuple{Float64, Float64, StateControlMsg}}}()
+    Simulator(buf_out, ctx, pub, sub, vis, msg_meas, msg_data)
 end
 
 function reset!(sim::Simulator)
-    empty!(sim.msg_ctrl)
     empty!(sim.msg_meas)
-    empty!(sim.msg_pose)
+    empty!(sim.msg_data)
 end
 
 function finish(sim::Simulator)
@@ -115,19 +112,14 @@ function runsim(sim::Simulator, x0; dt=0.0, tf=Inf)
         push!(sim.msg_meas, (;tsim=t, twall=tsend, y))
         sendmeasurement(sim, y, t)
 
-        # Get control
-        umsg = getcontrol(sim, x, t) 
+        # Get response from onboard computer
+        statecontrol = getdata(sim, t)
         trecv = time() - t_start
-        push!(sim.msg_ctrl, (;tsim=t, twall=trecv, u=umsg))
-        u = tovector(umsg)
-
-        # Get Pose
-        tpose = time() - t_start
-        xpose = getpose(sim, x, u, t)
-        if !isnothing(xpose)
-            push!(sim.msg_pose, (;tsim=t, twall=tpose, x=xpose))
+        if !isnothing(statecontrol)
+            push!(sim.msg_data, (;tsim=t, twall=trecv, xu=statecontrol))
+            push!(latency, trecv - tsend)
+            u .= getcontrol(statecontrol)
         end
-        push!(latency, tpose - tsend)
 
         # Propagate dynamics
         x = dynamics_rk4(x, u, dt)
@@ -148,7 +140,7 @@ function getcontrol(sim, x, t)
     return ControlMsg(u)
 end
 
-function getmeasurement(vis::Simulator, x, u, t)
+function getmeasurement(sim::Simulator, x, u, t)
     # TODO: add noise
     xdot = cont_dynamics(x, u)
     MeasurementMsg(
@@ -159,13 +151,13 @@ function getmeasurement(vis::Simulator, x, u, t)
     )
 end
 
-function getpose(sim::Simulator, x, u, t)
+function getdata(sim::Simulator, t)
     # TODO: add noise
     buf = ZMQ.Message(100)
     bytes_read = ZMQ.msg_recv(sim.sub, buf, 0)::Int32
-    ZMQ.getproperty(sub.socket, :events)
-    if bytes_read > sizeof(PoseMsg)
-        PoseMsg(buf, 1)
+    ZMQ.getproperty(sim.sub, :events)
+    if bytes_read >= msgsize(StateControlMsg)
+        return StateControlMsg(buf)
     else
         return nothing
     end
@@ -185,11 +177,11 @@ open(sim.vis)
 x = [zeros(3); 1; zeros(3); zeros(6)]
 reset!(sim)
 length(sim.msg_meas)
-runsim(sim, x, dt=0.01, tf=10.0)
+runsim(sim, x, dt=0.01, tf=1.0)
 tout = getfield.(sim.msg_meas, :twall) 
 zout = map(msg->msg.y.z, sim.msg_meas)
-tin = getfield.(sim.msg_pose, :twall) 
-zin = map(msg->msg.x.z, sim.msg_pose)
+tin = getfield.(sim.msg_data, :twall) 
+zin = map(msg->msg.xu.z, sim.msg_data)
 
 j = 1
 idx = zeros(Int,length(tin)) 
@@ -232,7 +224,6 @@ cont_dynamics(x, u)
 y = getmeasurement(sim, x, u, t)
 sendmeasurement(sim, y, t)
 ##
-msgsize(y)
 isopen(sim.pub)
 isopen(sim.sub)
 
@@ -248,6 +239,6 @@ posemsg.qw == y.qw
 posemsg.qx == y.qx
 posemsg.qy == y.qy
 posemsg.qz == y.qz
-Int(msg[1]) == 11
+Int(msg[1]) == msgid(StateControlMsg) 
 
 finish(sim)

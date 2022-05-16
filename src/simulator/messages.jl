@@ -19,6 +19,14 @@ end
 
 msgsize(msg::T) where T = sizeof(T) + 1
 
+struct MessageIDError <: Exception 
+    expected::Int
+    actual::Int
+end
+function Base.showerror(io::IO, e::MessageIDError)
+    print("got bad message ID. Expected $(e.expected), got $(e.actual).") 
+end
+
 struct MeasurementMsg
     x::Float32   # position
     y::Float32
@@ -65,6 +73,7 @@ end
 
 function MeasurementMsg(buf::AbstractVector{UInt8}, off::Integer=0)
     msgid_is_correct = buf[1+off] == msgid(MeasurementMsg)
+    msgid_is_correct || throw(MessageIDError(msgid(MeasurementMsg), buf[1+off]))
     off += 1
     MeasurementMsg(
         bytestofloat(buf, 0 * 4 + off),
@@ -81,7 +90,6 @@ function MeasurementMsg(buf::AbstractVector{UInt8}, off::Integer=0)
         bytestofloat(buf, 11 * 4 + off),
         bytestofloat(buf, 12 * 4 + off),
     )
-    return msgid_is_correct
 end
 
 struct PoseMsg
@@ -97,6 +105,7 @@ msgid(::Type{PoseMsg}) = UInt8(11)
 
 function PoseMsg(buf::AbstractVector{UInt8}, off::Integer = 0)
     msgid_is_correct = buf[1+off] == msgid(PoseMsg)
+    msgid_is_correct || throw(MessageIDError(msgid(MeasurementMsg), buf[1+off]))
     off += 1
     PoseMsg(
         bytestofloat(buf, 0 * 4 + off),
@@ -107,7 +116,6 @@ function PoseMsg(buf::AbstractVector{UInt8}, off::Integer = 0)
         bytestofloat(buf, 5 * 4 + off),
         bytestofloat(buf, 6 * 4 + off),
     )
-    return msgid_is_correct
 end
 function Base.copyto!(buf::AbstractVector{UInt8}, msg::PoseMsg, off::Integer=0)
     buf[1 + off] = msgid(PoseMsg)
@@ -131,6 +139,7 @@ msgid(::Type{ControlMsg}) = UInt8('c')
 
 function ControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
     msgid_is_correct = buf[1+off] == msgid(ControlMsg)
+    msgid_is_correct || throw(MessageIDError(msgid(MeasurementMsg), buf[1+off]))
     off += 1
     ControlMsg(
         bytestofloat(buf, 0 * 4 + off),
@@ -138,7 +147,6 @@ function ControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
         bytestofloat(buf, 2 * 4 + off),
         bytestofloat(buf, 3 * 4 + off),
     )
-    return msgid_is_correct
 end
 function Base.copyto!(buf::AbstractVector{UInt8}, msg::PoseMsg, off::Integer=0)
     buf[1+off] = msgid(PoseMsg)
@@ -198,6 +206,7 @@ end
 
 function StateControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
     msgid_is_correct = buf[1+off] == msgid(StateControlMsg)
+    msgid_is_correct || throw(MessageIDError(msgid(MeasurementMsg), buf[1+off]))
     off += 1
     u = SA_F32[
       bytestofloat(buf, 13 * 4 + off),
@@ -221,5 +230,6 @@ function StateControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
         bytestofloat(buf, 12 * 4 + off),
         u
     )
-    return msgid_is_correct
 end
+
+getcontrol(xu::StateControlMsg) = xu.u 
