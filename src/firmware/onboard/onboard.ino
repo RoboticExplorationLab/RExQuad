@@ -37,16 +37,24 @@ RH_RF95 rf95(RFM95_CS, RFM95_INT);
 // Aliases
 using Pose = rexquad::PoseMsg;
 using Control = rexquad::ControlMsg;
+using StateControl = rexquad::StateControlMsg;
 
 // Constants
 constexpr int kPoseSize = sizeof(Pose) + 1;
 constexpr uint8_t kPoseID = Pose::MsgID();
 constexpr int kControlSize = sizeof(Control) + 1;
 constexpr uint8_t kControlID = Control::MsgID;
+constexpr int kStateControlSize = sizeof(StateControl) + 1;
+constexpr uint8_t kStateControlID = StateControl::MsgID;
+
 
 // Buffers
-char bufsend[kPoseSize + kControlSize];  // buffer for sending pose and control info back
+uint8_t bufsend[kStateControlSize];  // buffer for sending state estimate and control info back
 uint8_t bufrecv[kPoseSize];  // buffer for receiving pose of LoRa
+uint8_t bufpose[kPoseSize];
+
+Pose pose_mocap;
+StateControl statecontrol;
 
 void setup() {
   // Serial setup
@@ -121,8 +129,23 @@ void loop() {
     uint8_t lensend = sizeof(bufsend);
 
     if (rf95.recv(bufrecv, &lenrecv)) {
-      // TODO: Convert bytes into pose message
+      // Convert bytes into pose message
+      rexquad::PoseFromBytes(pose_mocap, (char*)bufrecv);
+
       // TODO: Update state estimate
+      statecontrol.x = pose_mocap.x;
+      statecontrol.y = pose_mocap.y;
+      statecontrol.z = pose_mocap.z;
+      statecontrol.qw = pose_mocap.qw;
+      statecontrol.qx = pose_mocap.qx;
+      statecontrol.qy = pose_mocap.qy;
+      statecontrol.qz = pose_mocap.qz;
+
+      // TODO: Implement control policy
+      statecontrol.u[0] = -100;
+      statecontrol.u[1] = -100;
+      statecontrol.u[2] = -100;
+      statecontrol.u[3] = -100;
 
       if (kIsSim) {
         // In simulation mode, the IMU data gets sent over serial
@@ -130,18 +153,21 @@ void loop() {
         // This reads the imu data sent over serial
         // imu->ReadSensor();
 
-        // Copy LoRa pose into out buffer
-        memcpy(bufsend, bufrecv, lenrecv);
+        // Create StateControl message
 
-        // TODO: Copy controls
-        bufsend[lenrecv] = kControlID;
-        uint8_t bufctrl[16];
-        rexquad::ControlMsg ctrl = {-100, -100, -100, -100};
-        rexquad::ControlMsgToBytes(ctrl, bufctrl);
+        // // Copy LoRa pose into out buffer
+        // memcpy(bufsend, bufrecv, lenrecv);
 
-        for (int i = 0; i < 16; ++i) {
-          bufsend[lenrecv + 1 + i] = bufctrl[i];
-        }
+        // // TODO: Copy controls
+        // bufsend[lenrecv] = kControlID;
+        // uint8_t bufctrl[16];
+        // rexquad::ControlMsg ctrl = {-100, -100, -100, -100};
+        // rexquad::ControlMsgToBytes(ctrl, bufctrl);
+
+        // for (int i = 0; i < 16; ++i) {
+        //   bufsend[lenrecv + 1 + i] = bufctrl[i];
+        // }
+        rexquad::StateControlMsgToBytes(statecontrol, bufsend);
 
         // Send pose and controls back over serial
         Serial.write(bufsend, lensend);

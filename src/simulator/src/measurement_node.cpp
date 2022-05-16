@@ -73,6 +73,14 @@ void print_msg(const ControlMsg& msg) {
   fmt::print("  Controls:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.data[0], msg.data[1], msg.data[2], msg.data[3]);
 }
 
+void print_msg(const StateControlMsg& msg) {
+  fmt::print("  Translation:  [{:.3f}, {:.3f}, {:.3f}]\n", msg.x, msg.y, msg.z);
+  fmt::print("  Orientation:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.qw, msg.qx, msg.qy, msg.qz);
+  fmt::print("  Lin Velocity: [{:.3f}, {:.3f}, {:.3f}]\n", msg.vx, msg.vy, msg.vz);
+  fmt::print("  Ang Velocity: [{:.3f}, {:.3f}, {:.3f}]\n", msg.wx, msg.wy, msg.wz);
+  fmt::print("  Controls:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.u[0], msg.u[1], msg.u[2], msg.u[3]);
+}
+
 int main(int argc, char** argv) {
   std::string pubport = "5555";
   std::string subport = "5556";
@@ -140,12 +148,11 @@ int main(int argc, char** argv) {
   rexquad::PoseMsg posemsg = {};
 
   // Receiving
-  constexpr int lenrecv = sizeof(PoseMsg) + 1 + sizeof(ControlMsg) + 1;
+  // constexpr int lenrecv = sizeof(PoseMsg) + 1 + sizeof(ControlMsg) + 1;
+  constexpr int lenrecv = sizeof(StateControlMsg) + 1;
   uint8_t bufrecv[lenrecv];
   const int recv_timeout_ms = 1000; 
-  PoseMsg pose_recv = {};
-  ControlMsg control_recv = {};
-
+  StateControlMsg statecontrol_recv = {};
 
   fmt::print("Size of control: {}\n", sizeof(rexquad::ControlMsg));
   printf("Waiting for messages...\n");
@@ -173,11 +180,13 @@ int main(int argc, char** argv) {
 
     // Receive the pose message back
     sp_return bytes_received = sp_blocking_read(onboard, bufrecv, lenrecv, recv_timeout_ms);
-    rexquad::PoseFromBytes(pose_recv, (char*) bufrecv);  // first byte should be msgid
-    rexquad::ControlMsgFromBytes(control_recv, bufrecv, posemsg_len + 1);
+    rexquad::StateControlMsgFromBytes(statecontrol_recv, bufrecv);
+    // rexquad::PoseFromBytes(pose_recv, (char*) bufrecv);  // first byte should be msgid
+    // rexquad::ControlMsgFromBytes(control_recv, bufrecv, posemsg_len + 1);
     fmt::print("Receieved {} / {} bytes:\n", (int) bytes_received, lenrecv);
-    print_msg(pose_recv);
-    print_msg(control_recv);
+    print_msg(statecontrol_recv);
+    // print_msg(pose_recv);
+    // print_msg(control_recv);
     // fmt::print("  Payload = [ ");
     // for (int i = posemsg_len; i < bytes_received; ++i) {
     //   fmt::print("{} ", bufrecv[i]);

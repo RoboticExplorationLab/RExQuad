@@ -31,5 +31,31 @@ struct ControlMsg {
 void ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off = 0);
 void ControlMsgToBytes(const ControlMsg& msg, uint8_t* buf, int off = 0);
 
+/**
+ * @brief 
+ * 
+ * This message is used in simulation mode to send the state estimate and control
+ * command from the onboard computer back to the simulator.
+ */
+struct StateControlMsg {
+  static constexpr uint8_t MsgID = 214;  // 's' + 'c'
+  float x;
+  float y;
+  float z;
+  float qw;
+  float qx;
+  float qy;
+  float qz;
+  float vx;
+  float vy;
+  float vz;
+  float wx;
+  float wy;
+  float wz;
+  float u[4];
+};
+
+void StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off = 0);
+void StateControlMsgToBytes(const StateControlMsg& msg, uint8_t* buf, int off = 0);
 
 }  // rexquad
