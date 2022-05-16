@@ -21,14 +21,14 @@ struct MeasurementMsg {
   float wz;
 };
 
-void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off = 0);
+bool MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off = 0);
 void MeasurementMsgToBytes(const MeasurementMsg& msg, uint8_t* buf, int off = 0);
 
 struct ControlMsg {
   static constexpr uint8_t MsgID = 99;  // 'c'
   float data[4];
 };
-void ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off = 0);
+bool ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off = 0);
 void ControlMsgToBytes(const ControlMsg& msg, uint8_t* buf, int off = 0);
 
 /**
@@ -55,7 +55,7 @@ struct StateControlMsg {
   float u[4];
 };
 
-void StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off = 0);
+bool StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off = 0);
 void StateControlMsgToBytes(const StateControlMsg& msg, uint8_t* buf, int off = 0);
 
 }  // rexquad

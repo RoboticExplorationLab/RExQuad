@@ -4,7 +4,9 @@
 
 namespace rexquad {
 
-void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off) {
+bool MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off) {
+  const uint8_t msgid = buf[off];
+  ++off;
   msg.x = bytestofloat(buf, 0 * 4 + off);
   msg.y = bytestofloat(buf, 1 * 4 + off);
   msg.z = bytestofloat(buf, 2 * 4 + off);
@@ -18,9 +20,12 @@ void MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off) {
   msg.wx = bytestofloat(buf, 10 * 4 + off);
   msg.wy = bytestofloat(buf, 11 * 4 + off);
   msg.wz = bytestofloat(buf, 12 * 4 + off);
+  return msgid == MeasurementMsg::MsgID;
 }
 
 void MeasurementMsgToBytes(const MeasurementMsg& msg, uint8_t* buf, int off) {
+  buf[off] = MeasurementMsg::MsgID;
+  ++off;
   floattobytes(buf, msg.x, 0 * 4 + off);
   floattobytes(buf, msg.y, 1 * 4 + off);
   floattobytes(buf, msg.z, 2 * 4 + off);
@@ -36,21 +41,28 @@ void MeasurementMsgToBytes(const MeasurementMsg& msg, uint8_t* buf, int off) {
   floattobytes(buf, msg.wz, 12 * 4 + off);
 }
 
-void ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off) {
+bool ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off) {
+  const uint8_t msgid = buf[off];
+  ++off;
   msg.data[0] = bytestofloat(buf, 0 * 4 + off);
   msg.data[1] = bytestofloat(buf, 1 * 4 + off);
   msg.data[2] = bytestofloat(buf, 2 * 4 + off);
   msg.data[3] = bytestofloat(buf, 3 * 4 + off);
+  return msgid == ControlMsg::MsgID;
 }
 
 void ControlMsgToBytes(const ControlMsg& msg, uint8_t* buf, int off) {
+  buf[off] = ControlMsg::MsgID;
+  ++off;
   floattobytes(buf, msg.data[0], 0 * 4 + off);
   floattobytes(buf, msg.data[1], 1 * 4 + off);
   floattobytes(buf, msg.data[2], 2 * 4 + off);
   floattobytes(buf, msg.data[3], 3 * 4 + off);
 }
 
-void StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off) {
+bool StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off) {
+  const uint8_t msgid = buf[off];
+  ++off;
   msg.x = bytestofloat(buf, 0 * 4 + off);
   msg.y = bytestofloat(buf, 1 * 4 + off);
   msg.z = bytestofloat(buf, 2 * 4 + off);
@@ -68,9 +80,12 @@ void StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off) {
   msg.u[1] = bytestofloat(buf, 14 * 4 + off);
   msg.u[2] = bytestofloat(buf, 15 * 4 + off);
   msg.u[3] = bytestofloat(buf, 16 * 4 + off);
+  return msgid == StateControlMsg::MsgID;
 }
 
 void StateControlMsgToBytes(const StateControlMsg& msg, uint8_t* buf, int off) {
+  buf[off] = StateControlMsg::MsgID;
+  ++off;
   floattobytes(buf, msg.x, 0 * 4 + off);
   floattobytes(buf, msg.y, 1 * 4 + off);
   floattobytes(buf, msg.z, 2 * 4 + off);

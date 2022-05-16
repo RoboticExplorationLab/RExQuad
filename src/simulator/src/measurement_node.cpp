@@ -147,18 +147,23 @@ int main(int argc, char** argv) {
   MeasurementMsg measmsg = {};
   rexquad::PoseMsg posemsg = {};
 
-  // Receiving
-  // constexpr int lenrecv = sizeof(PoseMsg) + 1 + sizeof(ControlMsg) + 1;
-  constexpr int lenrecv = sizeof(StateControlMsg) + 1;
-  uint8_t bufrecv[lenrecv];
+  // Receiving StateControl over Serial
+  constexpr int len_serialrecv = sizeof(StateControlMsg) + 1;
+  uint8_t buf_serialrecv[len_serialrecv];
   const int recv_timeout_ms = 1000; 
-  StateControlMsg statecontrol_recv = {};
+  StateControlMsg statecontrol_onboard = {};
+
+  // Sending StateControl over ZMQ
+  constexpr int len_zmqsend = sizeof(StateControlMsg) + 1;
+  uint8_t buf_zmqsend[len_zmqsend];
 
   fmt::print("Size of control: {}\n", sizeof(rexquad::ControlMsg));
   printf("Waiting for messages...\n");
   while (1) {
-    zmq_recv(sub, buffer, len, 0);
-    MeasurementMsgFromBytes(measmsg, buffer);
+    int zmq_bytes_received = zmq_recv(sub, buffer, len, 0);
+    fmt::print("\nReceived {} bytes over ZMQ\n", zmq_bytes_received);
+    bool good_conversion = MeasurementMsgFromBytes(measmsg, buffer);
+    fmt::print("  Successful conversion to MeasurementMsg: {}\n", good_conversion);
 
     // Send entire message to onboard feather over serial
     // sp_blocking_write(onboard, buffer, len, send_timeout_ms);
@@ -175,23 +180,22 @@ int main(int argc, char** argv) {
     rexquad::PoseToBytes(buf_pose, posemsg);
     sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
 
-    fmt::print("\nMessage sent:\n");
+    fmt::print("Message sent:\n");
     print_msg(measmsg);
 
-    // Receive the pose message back
-    sp_return bytes_received = sp_blocking_read(onboard, bufrecv, lenrecv, recv_timeout_ms);
-    rexquad::StateControlMsgFromBytes(statecontrol_recv, bufrecv);
+    // Receive the state and control message back
+    sp_return bytes_received = sp_blocking_read(onboard, buf_serialrecv, len_serialrecv, recv_timeout_ms);
+    rexquad::StateControlMsgFromBytes(statecontrol_onboard, buf_serialrecv);
     // rexquad::PoseFromBytes(pose_recv, (char*) bufrecv);  // first byte should be msgid
     // rexquad::ControlMsgFromBytes(control_recv, bufrecv, posemsg_len + 1);
-    fmt::print("Receieved {} / {} bytes:\n", (int) bytes_received, lenrecv);
-    print_msg(statecontrol_recv);
-    // print_msg(pose_recv);
-    // print_msg(control_recv);
-    // fmt::print("  Payload = [ ");
-    // for (int i = posemsg_len; i < bytes_received; ++i) {
-    //   fmt::print("{} ", bufrecv[i]);
-    // }
-    // fmt::print("]\n");
+    fmt::print("Receieved {} / {} bytes:\n", (int) bytes_received, len_serialrecv);
+    print_msg(statecontrol_onboard);
+
+    // Send state and control back to simulator
+    memcpy(buf_zmqsend, buf_serialrecv, len_serialrecv);
+    zmq_send(pub, buf_zmqsend, len_zmqsend, 0);
+    fmt::print("  ZMQ Message Sent\n");
+
   }
   zmq_close(sub);
   zmq_ctx_destroy(context);

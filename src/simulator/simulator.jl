@@ -172,7 +172,7 @@ function getpose(sim::Simulator, x, u, t)
 end
 
 function sendmeasurement(sim::Simulator, y::MeasurementMsg, t)
-    zmsg = ZMQ.Message(sizeof(MeasurementMsg))
+    zmsg = ZMQ.Message(msgsize(y))
     copyto!(zmsg, y)
     ZMQ.send(sim.pub, zmsg)
 end
@@ -220,17 +220,21 @@ mean(latency)
 std(latency)
 
 ##
+x = [zeros(3); 1; zeros(3); zeros(6)]
 u = trim_controls() 
 t = 0.0
 x[1] += 0.001
 y = getmeasurement(sim, x, u, t)
 buf = sendmeasurement(sim, y, t)
+msgsize(y)
 isopen(sim.pub)
+isopen(sim.sub)
 
 recv_task = @async ZMQ.recv(sim.sub)
 istaskdone(recv_task)
 msg = fetch(recv_task)
-posemsg = PoseMsg(msg, 1)
+posemsg = StateControlMsg(msg, 0)
+Int(msg[1])
 posemsg.x == y.x
 posemsg.y == y.y
 posemsg.z == y.z
