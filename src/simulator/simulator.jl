@@ -223,12 +223,15 @@ std(latency)
 x = [zeros(3); 1; zeros(3); zeros(6)]
 u = trim_controls() 
 t = 0.0
+
+##
 x[1] += 0.001
 x[11] += 10.0
 x[13] += -0.1
 cont_dynamics(x, u)
 y = getmeasurement(sim, x, u, t)
 sendmeasurement(sim, y, t)
+##
 msgsize(y)
 isopen(sim.pub)
 isopen(sim.sub)

@@ -139,6 +139,9 @@ void setup() {
 void loop() {
   if (!kIsSim) {
     imureal.ReadSensor();
+    const rexquad::IMUMeasurementMsg& imudata = imureal.GetMeasurement();
+    double t_imu = curtime();
+    filter.IMUMeasurement(imudata, t_imu);
   }
   // imu->PrintData(Serial);
   // delay(100);
@@ -170,17 +173,22 @@ void loop() {
         // This reads the imu data sent over serial
         Serial.setTimeout(1000);
         imusim.ReadSensor();
+        double t_imu = curtime();
         Serial.setTimeout(10);
-        const sensors_event_t& accel = imusim.GetAccel();
-        const sensors_event_t& gyro = imusim.GetGyro();
-        statecontrol.vx = accel.acceleration.x;
-        statecontrol.vy = accel.acceleration.y;
-        statecontrol.vz = accel.acceleration.z;
-        statecontrol.wx = gyro.gyro.x;
-        statecontrol.wy = gyro.gyro.y;
-        statecontrol.wz = gyro.gyro.z; 
+        const rexquad::IMUMeasurementMsg& imudata =  imusim.GetMeasurement();
+        filter.IMUMeasurement(imudata, t_imu);
+
+        // const sensors_event_t& accel = imusim.GetAccel();
+        // const sensors_event_t& gyro = imusim.GetGyro();
+        // statecontrol.vx = accel.acceleration.x;
+        // statecontrol.vy = accel.acceleration.y;
+        // statecontrol.vz = accel.acceleration.z;
+        // statecontrol.wx = gyro.gyro.x;
+        // statecontrol.wy = gyro.gyro.y;
+        // statecontrol.wz = gyro.gyro.z; 
 
         // Create StateControl message
+        filter.GetStateEstimate(statecontrol);
 
         // // Copy LoRa pose into out buffer
         // memcpy(bufsend, bufrecv, lenrecv);
