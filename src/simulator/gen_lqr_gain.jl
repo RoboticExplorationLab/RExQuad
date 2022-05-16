@@ -45,11 +45,10 @@ function generate_LQR_hover_gains(xhover, uhover, dt;
 end
 
 function print_gains(K, uhover)
-    tofloatstring(x) = string(x) * "f"
-    Kinclude = "const float kFeedbackGain[$(length(K))] = {"
-    Kinclude *= join(tofloatstring.(K), ", ") * "};"
-    uinclude = "const float kUhover[4] = {";
-    uinclude *= join(tofloatstring.(uhover), ", ") * "};"
+    Kinclude = "const double kFeedbackGain[$(length(K))] = {"
+    Kinclude *= join(string.(K), ", ") * "};"
+    uinclude = "const double kUhover[4] = {";
+    uinclude *= join(string.(uhover), ", ") * "};"
     """
     #pragma once
     namespace rexquad {

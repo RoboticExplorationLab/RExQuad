@@ -1,3 +1,9 @@
 [submodule "src/firmware/libraries/slap"]
 	path = src/firmware/libraries/slap
 	url = https://github.com/bjack205/slap.git
+[submodule "src/simulator/--force"]
+	path = src/simulator/--force
+	url = https://github.com/bjack205/slap.git
+[submodule "src/simulator/slap"]
+	path = src/simulator/slap
+	url = https://github.com/bjack205/slap.git

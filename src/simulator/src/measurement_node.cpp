@@ -9,10 +9,15 @@
 #include <zmq.h>
 #include <string>
 
+#include "common/lqr_constants.hpp"
 #include "common/messages.hpp"
 #include "common/pose.hpp"
 #include "common/utils.hpp"
 #include "utils/serial.hpp"
+
+extern "C" {
+  #include "slap/matrix.h"
+}
 
 using namespace rexquad;
 
@@ -82,6 +87,10 @@ void print_msg(const StateControlMsg& msg) {
 }
 
 int main(int argc, char** argv) {
+  Matrix K = slap_NewMatrix(4, 12);
+  slap_MatrixCopyFromArray(&K, rexquad::kFeedbackGain);
+  slap_PrintMatrix(&K);
+  slap_FreeMatrix(&K);
   std::string pubport = "5555";
   std::string subport = "5556";
   if (argc > 1) {
