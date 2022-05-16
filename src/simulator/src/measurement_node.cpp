@@ -90,6 +90,7 @@ int main(int argc, char** argv) {
   if (argc > 2) {
     pubport = argv[2];
   }
+  const bool poseonly = false;
 
   // Open Serial port to transmitter
   std::string tx_name = "/dev/ttyACM0";
@@ -169,7 +170,9 @@ int main(int argc, char** argv) {
     fmt::print("  Ang Velocity = [{:.3f}, {:.3f}, {:.3f}]\n", measmsg.wx, measmsg.wy, measmsg.wz);
 
     // Send entire message to onboard feather over serial
-    sp_blocking_write(onboard, buf_zmqrecv, len_zmqrecv, send_timeout_ms);
+    if (!poseonly) {
+      sp_blocking_write(onboard, buf_zmqrecv, len_zmqrecv, send_timeout_ms);
+    }
     (void) onboard;
 
     // Extract Pose information

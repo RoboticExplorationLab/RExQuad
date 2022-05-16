@@ -10,7 +10,8 @@
 
 // Options
 constexpr bool kWaitForSerial = false;
-constexpr bool kIsSim = true;  // is running in simulation environment
+constexpr bool kIsSim = true;      // is running in simulation environment
+constexpr bool kPoseOnly = false;  // only use pose measurements
 
 // Accelerometer SPI
 #define LSM_CS 6 
@@ -171,12 +172,14 @@ void loop() {
         // In simulation mode, the IMU data gets sent over serial
         //   before the pose information gets sent over LoRa
         // This reads the imu data sent over serial
-        Serial.setTimeout(1000);
-        imusim.ReadSensor();
-        double t_imu = curtime();
-        Serial.setTimeout(10);
-        const rexquad::IMUMeasurementMsg& imudata =  imusim.GetMeasurement();
-        filter.IMUMeasurement(imudata, t_imu);
+        if (!kPoseOnly) {
+          Serial.setTimeout(1000);
+          imusim.ReadSensor();
+          double t_imu = curtime();
+          Serial.setTimeout(10);
+          const rexquad::IMUMeasurementMsg& imudata =  imusim.GetMeasurement();
+          filter.IMUMeasurement(imudata, t_imu);
+        }
 
         // const sensors_event_t& accel = imusim.GetAccel();
         // const sensors_event_t& gyro = imusim.GetGyro();
