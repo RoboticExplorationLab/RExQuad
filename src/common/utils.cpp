@@ -1,4 +1,5 @@
 #include "utils.hpp"
+#include <cstring>
 
 
 namespace rexquad {
@@ -36,12 +37,16 @@ float bytestofloat(uint8_t* buf, int off) {
   uint32_t b2 = static_cast<uint32_t>(buf[2 + off]) << 16;
   uint32_t b3 = static_cast<uint32_t>(buf[3 + off]) << 24;
   uint32_t b = b0 | b1 | b2 | b3;
-  return reinterpret_cast<float&>(b);
+  float f = 0;
+  memcpy(&f, &b, sizeof(f));
+  return f;
 }
 
 void floattobytes(uint8_t* buf, float x, int off) {
   uint32_t mask = 0xff;
-  uint32_t xint = reinterpret_cast<uint32_t&>(x);
+  uint32_t xint = 0;
+  memcpy(&xint, &x, sizeof(xint));
+  // uint32_t xint = reinterpret_cast<uint32_t&>(x);
   buf[0 + off] = static_cast<uint8_t>(xint & mask);
   buf[1 + off] = static_cast<uint8_t>((xint >> 8) & mask);
   buf[2 + off] = static_cast<uint8_t>((xint >> 16) & mask);
