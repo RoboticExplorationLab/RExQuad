@@ -16,7 +16,7 @@ constexpr bool kIsSim = true;  // is running in simulation environment
 #define LSM_MISO 14 
 #define LSM_MOSI 16 
 rexquad::IMU imureal(LSM_CS);
-rexquad::IMUSimulated imusim();
+rexquad::IMUSimulated imusim;
 
 // Motors
 #define FRONT_LEFT_PIN 9 
@@ -151,7 +151,17 @@ void loop() {
         // In simulation mode, the IMU data gets sent over serial
         //   before the pose information gets sent over LoRa
         // This reads the imu data sent over serial
-        // imu->ReadSensor();
+        Serial.setTimeout(1000);
+        imusim.ReadSensor();
+        Serial.setTimeout(10);
+        const sensors_event_t& accel = imusim.GetAccel();
+        const sensors_event_t& gyro = imusim.GetGyro();
+        statecontrol.vx = accel.acceleration.x;
+        statecontrol.vy = accel.acceleration.y;
+        statecontrol.vz = accel.acceleration.z;
+        statecontrol.wx = gyro.gyro.x;
+        statecontrol.wy = gyro.gyro.y;
+        statecontrol.wz = gyro.gyro.z; 
 
         // Create StateControl message
 

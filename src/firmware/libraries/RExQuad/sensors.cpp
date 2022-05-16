@@ -25,7 +25,8 @@ void IMUSimulated::ReadSensor() {
   const int msg_size = sizeof(MeasurementMsg) + 1;
   const uint8_t msg_id = MeasurementMsg::MsgID;
   int bytes_available = Serial.available();
-  if (bytes_available > msg_size) {
+  // if (bytes_available > msg_size) {
+  if (1) {
     int bytes_received = Serial.readBytes((char*)recvbuf_, bytes_available);
     int start_index = 0;
     for (int i = 0; i < bytes_received; ++i) {
@@ -38,7 +39,7 @@ void IMUSimulated::ReadSensor() {
     memcpy(msgbuf_, recvbuf_ + start_index, msg_size);
 
     // Copy to measurement measurement types
-    MeasurementMsgToBytes(msg_, msgbuf_);
+    MeasurementMsgFromBytes(msg_, recvbuf_);
 
     // Copy measurement message to sensor_event_t types
     accel_.acceleration.x = msg_.ax;

@@ -138,9 +138,11 @@ int main(int argc, char** argv) {
     fmt::print("Connected publisher at {}\n", tcpaddress_pub);
   }
 
+  // Receiving ZMQ message from simulator
+  constexpr int len_zmqrecv = sizeof(MeasurementMsg) + 1;
+  uint8_t buf_zmqrecv[len_zmqrecv];
+
   // Sending
-  int len = sizeof(MeasurementMsg);
-  uint8_t buffer[sizeof(MeasurementMsg)];
   char buf_pose[sizeof(rexquad::PoseMsg)+1];
   int posemsg_len = sizeof(buf_pose);
   const int send_timeout_ms = 100;  // ms
@@ -160,13 +162,14 @@ int main(int argc, char** argv) {
   fmt::print("Size of control: {}\n", sizeof(rexquad::ControlMsg));
   printf("Waiting for messages...\n");
   while (1) {
-    int zmq_bytes_received = zmq_recv(sub, buffer, len, 0);
+    int zmq_bytes_received = zmq_recv(sub, buf_zmqrecv, len_zmqrecv, 0);
     fmt::print("\nReceived {} bytes over ZMQ\n", zmq_bytes_received);
-    bool good_conversion = MeasurementMsgFromBytes(measmsg, buffer);
+    bool good_conversion = MeasurementMsgFromBytes(measmsg, buf_zmqrecv);
     fmt::print("  Successful conversion to MeasurementMsg: {}\n", good_conversion);
+    fmt::print("  Ang Velocity = [{:.3f}, {:.3f}, {:.3f}]\n", measmsg.wx, measmsg.wy, measmsg.wz);
 
     // Send entire message to onboard feather over serial
-    // sp_blocking_write(onboard, buffer, len, send_timeout_ms);
+    sp_blocking_write(onboard, buf_zmqrecv, len_zmqrecv, send_timeout_ms);
     (void) onboard;
 
     // Extract Pose information
@@ -178,8 +181,9 @@ int main(int argc, char** argv) {
     posemsg.qy = measmsg.qy;
     posemsg.qz = measmsg.qz;
     rexquad::PoseToBytes(buf_pose, posemsg);
-    sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
 
+    // Send pose to LoRa tx
+    sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
     fmt::print("Message sent:\n");
     print_msg(measmsg);
 
