@@ -22,33 +22,27 @@
  *
  */
 
-#include <RH_RF95.h>
-#include <SPI.h>
-#include <unistd.h>
-
-#include "constants.hpp"
 #include "control.hpp"
-#include "estimator.hpp"
-#include "lqr_constants.hpp"
-#include "messages.hpp"
+#include "quad_utils.hpp"
 #include "motors.hpp"
-#include "pose.hpp"
 #include "sensors.hpp"
+#include "pose.hpp"
 #include "serial_utils.hpp"
 
-// Options
-constexpr bool kWaitForSerial = true;
-const int kBurnInTimeMs = 500;
-const int kTestRunTimeMs = 1000;
-#define EIGEN_NO_MALLOC
+// Pin Setup
+#define LED_PIN 13
 
-// Accelerometer SPI
-#define LSM_CS 6
-#define LSM_SCK 15
-#define LSM_MISO 14
-#define LSM_MOSI 16
-rexquad::IMU imureal(LSM_CS);
-rexquad::IMUSimulated imusim;
+// IMU (I2C)
+#define LSM_SCL 21
+#define LSM_SDA 20
+rexquad::IMU imureal;
+
+// Radio Setup
+#define RFM69_CS 8
+#define RFM69_INT 3
+#define RFM69_RST 4
+#define RF69_FREQ 915.0
+RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // Motors
 #define FRONT_LEFT_PIN 9
@@ -57,37 +51,20 @@ rexquad::IMUSimulated imusim;
 #define BACK_LEFT_PIN 12
 rexquad::QuadMotors motors(FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK_LEFT_PIN);
 
-// LoRa
-#define RFM95_CS 8
-#define RFM95_RST 4
-#define RFM95_INT 3
-#define RF95_FREQ 915.0
-#define LED_PIN 13
-#define LED 13
-RH_RF95 rf95(RFM95_CS, RFM95_INT);
-
-// Aliases
-using Pose = rexquad::PoseMsg;
-using Control = rexquad::ControlMsg;
-using StateControl = rexquad::StateControlMsg;
+// Options
+constexpr bool kWaitForSerial = 1;
+const int kBurnInTimeMs = 500;
+const int kTestRunTimeMs = 1000;
 
 // Constants
+using Pose = rexquad::PoseMsg;
+constexpr int kMaxBufferSize = 200;
 constexpr int kPoseSize = sizeof(Pose) + 1;
-constexpr uint8_t kPoseID = Pose::MsgID();
-constexpr int kControlSize = sizeof(Control) + 1;
-constexpr uint8_t kControlID = Control::MsgID;
-constexpr int kStateControlSize = sizeof(StateControl) + 1;
-constexpr uint8_t kStateControlID = StateControl::MsgID;
-constexpr int kTimeSize = sizeof(double);
 
-// Buffers
-uint8_t
-    bufsend[kPoseSize + kTimeSize];  // buffer for sending posea and time back over serial
-uint8_t bufrecv[kPoseSize];          // buffer for receiving pose of LoRa
-
-// History
+// Globals
+uint8_t buf_mocap[kMaxBufferSize];
+uint8_t msg[kPoseSize];
 Pose pose_mocap;
-std::vector<std::pair<double, Pose>> history;
 
 // Timing
 uint64_t tstart;
@@ -96,11 +73,6 @@ double GetCurrentTimeMs() {
   double t_cur = static_cast<double>(t_micros) * 1e-3;
   return t_cur;
 }
-
-// Movement detection
-rexquad::StateVector x0;  // initial state
-rexquad::StateVector x;
-rexquad::ErrorVector e;  // error state
 
 // State machine
 enum STATE {
@@ -112,8 +84,22 @@ enum STATE {
 enum STATE curstate = WAITING_FOR_INPUT;
 bool initial_state_is_set = false;
 
+// Movement detection
+void PoseMsgToStateVector(rexquad::StateVector& x, const Pose& pose) {
+  x[0] = pose.x;
+  x[1] = pose.y;
+  x[2] = pose.z;
+  x[3] = pose.qw;
+  x[4] = pose.qx;
+  x[5] = pose.qy;
+  x[6] = pose.qz;
+}
+rexquad::StateVector x0;  // initial state
+rexquad::StateVector x;
+rexquad::ErrorVector e;  // error state
+
 /////////////////////////////////////////////
-// Initialization
+// Setup
 /////////////////////////////////////////////
 void setup() {
   // Initialize state vectors
@@ -121,62 +107,27 @@ void setup() {
   x.setZero();
   e.setZero();
 
-  // Serial setup
-  pinMode(LED_PIN, OUTPUT);
+  // Initialize Serial
   Serial.begin(256000);
-
   if (kWaitForSerial) {
     while (!Serial) {
-      digitalWrite(LED_PIN, HIGH);
-      delay(100);
-      digitalWrite(LED_PIN, LOW);
-      delay(100);
+      rexquad::Blink(LED_PIN, 100, 1);
     }
   }
-  digitalWrite(LED_PIN, HIGH);
-  delay(100);
-  Serial.println("Connect to Feather for Latency Test!");
+  Serial.println("Connected to Onboard computer!");
 
-  // Accelerometer Setup
-  while (!imureal.Connect()) {
-    Serial.println("Failed to find LSM6DSO32 chip");
-    delay(1000);
+  // Connect IMU
+  bool imu_is_connected = imureal.Connect();
+  if (!imu_is_connected) {
+    while (1) {
+      rexquad::Blink(LED_PIN, 1000, 1);
+    }
   }
-  Serial.println("Found LSM6DSO32 chip!");
+  Serial.println("Connected to IMU!");
 
-  imureal.SetAccelRange(rexquad::IMU::AccelRange::Accel8g);
-  // imureal.SetGyroRange(rexquad::IMU::GyroRange::Gyro250dps);
-  // imureal.SetAccelRate(rexquad::IMU::DataRate::Rate12_5Hz);
-  // imureal.SetGyroRate(rexquad::IMU::DataRate::Rate12_5Hz);
-
-  // LoRa setup
-  pinMode(LED, OUTPUT);
-  pinMode(RFM95_RST, OUTPUT);
-  digitalWrite(RFM95_RST, HIGH);
-
-  digitalWrite(RFM95_RST, LOW);
-  delay(10);
-  digitalWrite(RFM95_RST, HIGH);
-  delay(10);
-
-  while (!rf95.init()) {
-    Serial.println("LoRa radio init failed");
-    Serial.println(
-        "Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
-    while (1)
-      ;
-  }
-
-  // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
-  if (!rf95.setFrequency(RF95_FREQ)) {
-    Serial.println("setFrequency failed");
-    while (1)
-      ;
-  }
-
-  rf95.setTxPower(23, false);
-  rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
-  Serial.println("LoRa connected!");
+  // Initialize Radio
+  rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
+  Serial.println("Radio initialized!");
 
   // Do motor test
   Serial.println("Arming motors...");
@@ -192,6 +143,7 @@ void setup() {
     motors.Kill();
   }
 
+  // Determine mode
   user_response = rexquad::GetUserResponse(Serial, "Enter MOCAP echo mode? (y/n)");
   user_response.toLowerCase();
   if (user_response.equals("y")) {
@@ -199,95 +151,70 @@ void setup() {
   } else {
     curstate = WAITING_FOR_INPUT;
   }
+  digitalWrite(LED_PIN, LOW);
 }
 
-void PrintPose(const Pose& pose) {
-  Serial.print("  pos = [");
-  Serial.print(pose.x, 3);
-  Serial.print(", ");
-  Serial.print(pose.y, 3);
-  Serial.print(", ");
-  Serial.print(pose.z, 3);
-  Serial.print("]\n");
-  Serial.print("  ori = [");
-  Serial.print(pose.qw, 3);
-  Serial.print(", ");
-  Serial.print(pose.qx, 3);
-  Serial.print(", ");
-  Serial.print(pose.qy, 3);
-  Serial.print(", ");
-  Serial.print(pose.qz, 3);
-  Serial.print("]\n");
-}
-
-void PoseMsgToStateVector(rexquad::StateVector& x, const Pose& pose) {
-  x[0] = pose.x;
-  x[1] = pose.y;
-  x[2] = pose.z;
-  x[3] = pose.qw;
-  x[4] = pose.qx;
-  x[5] = pose.qy;
-  x[6] = pose.qz;
-}
 
 /////////////////////////////////////////////
-// Main Loop
+// Loop
 /////////////////////////////////////////////
 void loop() {
-  double tcur_ms;
+  uint64_t tcur_ms;
+  bool pose_received = false;
+  if (rf69.available()) {
+    uint8_t len_mocap = sizeof(buf_mocap);
+
+    if (rf69.recv(buf_mocap, &len_mocap)) {
+      pose_received = true;
+
+      // Convert bytes into pose message
+      rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
+
+      Serial.print("received [");
+      Serial.print(len_mocap);
+      Serial.print("]: ");
+      rexquad::PrintPose(Serial, pose_mocap);
+      rexquad::Blink(LED_PIN, 10, 1);
+    }
+  }
+
   switch (curstate) {
     case WAITING_FOR_INPUT:
       rexquad::GetUserResponse(Serial, "Press any key to start latency test...");
-      tstart = micros();  // resets after about 70 minutes per Arduino docs
+      tstart = micros();
       initial_state_is_set = false;
       curstate = BURN_IN;
       break;
     case BURN_IN:
       tcur_ms = GetCurrentTimeMs();
+      if (!initial_state_is_set && pose_received) {
+        PoseMsgToStateVector(x0, pose_mocap);
+        initial_state_is_set = true;
+        Serial.println("Initial state set.");
+      }
       if (tcur_ms > kBurnInTimeMs) {
         motors.SendCommandPWMSingleMotor(rexquad::QuadMotors::Motor::kFrontLeft,
                                          rexquad::kMaxInput);
+        tstart = micros();
         curstate = RUNNING;
       }
       break;
     case RUNNING:
       tcur_ms = GetCurrentTimeMs();
-      if (tcur_ms > kTestRunTimeMs) {
-        motors.Kill();
-        curstate = WAITING_FOR_INPUT;
-      }
-      break;
-    case MOCAP_ECHO:
-      break;
-  }
-
-  if (rf95.available()) {
-    digitalWrite(LED, HIGH);
-    uint8_t lenrecv = sizeof(bufrecv);
-
-    if (rf95.recv(bufrecv, &lenrecv)) {
-      double t_pose = GetCurrentTimeMs();
-      // Convert bytes into pose message
-      rexquad::PoseFromBytes(pose_mocap, (char*)bufrecv);
-
-      if (curstate == BURN_IN && initial_state_is_set == false) {
-        PoseMsgToStateVector(x0, pose_mocap);
-        initial_state_is_set = true;
-        Serial.println("Initial state set.");
-      }
-
-      if (curstate == RUNNING) {
+      if (pose_received) {
         PoseMsgToStateVector(x, pose_mocap);
         rexquad::ErrorState(e, x, x0);
         float err = e.norm();
         Serial.print("Error = ");
         Serial.println(err);
       }
-
-      if (curstate == MOCAP_ECHO) {
-        Serial.println("Got MOCAP packet");
-        PrintPose(pose_mocap);
+      if (tcur_ms > kTestRunTimeMs) {
+        motors.Kill();
+        curstate = WAITING_FOR_INPUT;
       }
-    }
+      break;
+    case MOCAP_ECHO:
+      rexquad::PrintPose(Serial, pose_mocap);
+      break;
   }
 }
