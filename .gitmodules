@@ -7,3 +7,6 @@
 [submodule "src/simulator/slap"]
 	path = src/simulator/slap
 	url = https://github.com/bjack205/slap.git
+[submodule "src/firmware/libraries/RadioHead"]
+	path = src/firmware/libraries/RadioHead
+	url = https://github.com/adafruit/RadioHead.git
