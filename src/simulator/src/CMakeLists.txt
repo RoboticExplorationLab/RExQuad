@@ -8,10 +8,10 @@ target_link_libraries(measurement_node
   libserialport
   quadutils
   quadcommon
-  
-  PUBLIC
-  slap
+  ArduinoEigen
 )
+get_target_property(SLAP_INCLUDES slap INTERFACE_INCLUDE_DIRECTORIES)
+cmake_print_variables(SLAP_INCLUDES)
 
 add_executable(control_node
   control_node.cpp

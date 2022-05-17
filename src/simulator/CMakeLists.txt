@@ -63,17 +63,15 @@ target_include_directories(libserialport
 )
 
 # slap
-add_subdirectory("${PROJECT_SOURCE_DIR}/../firmware/libraries/slap" "slap")
-# add_subdirectory(slap)
-# add_library(slap2
-#   slap/src/slap/matrix.h
-#   slap/src/slap/matrix.c
-#   slap/src/slap/linalg.h
-#   slap/src/slap/linalg.c
-# )
-# target_include_directories(slap2 INTERFACE
-#   slap/src/
-# )
+set(ARDUINO_LIB_DIR "${PROJECT_SOURCE_DIR}/../firmware/libraries")
+add_subdirectory("${ARDUINO_LIB_DIR}/slap" "slap")
+
+# Eigen
+add_library(ArduinoEigen INTERFACE)
+target_include_directories(ArduinoEigen
+  INTERFACE
+  ${ARDUINO_LIB_DIR}/ArduinoEigen
+)
 
 #############################################
 # Compilation

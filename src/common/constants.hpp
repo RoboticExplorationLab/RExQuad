@@ -1,6 +1,13 @@
 #pragma once
 
+#include "ArduinoEigenDense.h"
+
 namespace rexquad {
+
+using StateVector = Eigen::Vector<float, 13>;
+using ErrorVector = Eigen::Vector<float, 12>;
+using InputVector = Eigen::Vector<float, 4>;
+using FeedbackGain = Eigen::Matrix<float, 4, 12>;
 
 constexpr int kNumStates = 13;
 constexpr int kNumErrStates = 12;

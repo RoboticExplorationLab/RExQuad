@@ -66,6 +66,10 @@ void StateEstimator::GetStateEstimate(StateControlMsg& xhat) const {
   xhat.wz = xhat_[12];
 }
 
+void StateEstimator::GetStateEstimate(StateVector& xhat) const {
+  memcpy(xhat.data(), xhat_, sizeof(xhat_));
+}
+
 void StateEstimator::SetBias(float *bias) {
   memcpy(bias_, bias, sizeof(bias_));
 }

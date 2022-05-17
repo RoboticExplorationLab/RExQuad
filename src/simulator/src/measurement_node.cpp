@@ -15,10 +15,6 @@
 #include "common/utils.hpp"
 #include "utils/serial.hpp"
 
-extern "C" {
-  #include "slap/matrix.h"
-}
-
 using namespace rexquad;
 
 // float bytestofloat(uint8_t* buf, int off) {
@@ -87,10 +83,6 @@ void print_msg(const StateControlMsg& msg) {
 }
 
 int main(int argc, char** argv) {
-  Matrix K = slap_NewMatrix(4, 12);
-  slap_MatrixCopyFromArray(&K, rexquad::kFeedbackGain);
-  slap_PrintMatrix(&K);
-  slap_FreeMatrix(&K);
   std::string pubport = "5555";
   std::string subport = "5556";
   if (argc > 1) {
