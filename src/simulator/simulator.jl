@@ -33,6 +33,10 @@ struct Simulator
     pub::ZMQ.Socket
     sub::ZMQ.Socket
     vis::Visualizer
+    xhist::Vector{Vector{Float64}}
+    uhist::Vector{Vector{Float64}}
+    thist::Vector{Float64}
+    stats::Dict{String,Any}
     msg_meas::Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}
     msg_data::Vector{NamedTuple{(:tsim,:twall,:xu), Tuple{Float64, Float64, StateControlMsg}}}
 end
@@ -69,27 +73,32 @@ function Simulator(pub_port=5555, sub_port=5556)
     RobotMeshes.setdrone!(vis)
 
     # logs
+    xhist = Vector{Float64}[]
+    uhist = Vector{Float64}[]
+    thist = Vector{Float64}()
     msg_meas = Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}()
     msg_data = Vector{NamedTuple{(:tsim,:twall,:xu), Tuple{Float64, Float64, StateControlMsg}}}()
-    Simulator(buf_out, ctx, pub, sub, vis, msg_meas, msg_data)
+    stats = Dict{String,Any}()
+    Simulator(buf_out, ctx, pub, sub, vis, xhist, uhist, thist, stats, msg_meas, msg_data)
 end
 
 function reset!(sim::Simulator)
     empty!(sim.msg_meas)
     empty!(sim.msg_data)
+    empty!(sim.xhist)
+    empty!(sim.uhist)
+    empty!(sim.thist)
 end
 
 function finish(sim::Simulator)
     ZMQ.close(sim.pub)
 end
 
-function runsim(sim::Simulator, x0; dt=0.0, tf=Inf)
-    
+function runsim(sim::Simulator, x0; dt=0.0, tf=Inf, kwargs...)
     x = copy(x0)
     t = 0.0
     freq = 1/dt  # Hz
     lrl = LoopRateLimiter(10)
-    t_start = time()
     u = trim_controls() 
 
     # TODO: flush out publishers / subscribers
@@ -101,37 +110,47 @@ function runsim(sim::Simulator, x0; dt=0.0, tf=Inf)
     else
         sizehint!(latency, 10_000)
     end
+    sim.stats["latency"] = latency
+
+    t_start = time()
     while t < tf
         startloop(lrl)
 
-        # Get measurement
-        y = getmeasurement(sim, x, u, t)
+        step!(sim, x, u, t; t_start, kwargs...)
 
-        # Send measurement
-        tsend = time() - t_start
-        push!(sim.msg_meas, (;tsim=t, twall=tsend, y))
-        sendmeasurement(sim, y, t)
-
-        # Get response from onboard computer
-        statecontrol = getdata(sim, t)
-        trecv = time() - t_start
-        if !isnothing(statecontrol)
-            push!(sim.msg_data, (;tsim=t, twall=trecv, xu=statecontrol))
-            push!(latency, trecv - tsend)
-            u .= getcontrol(statecontrol)
-        end
-
-        # Propagate dynamics
-        x = dynamics_rk4(x, u, dt)
-
-        # Visualize
-        RobotMeshes.visualize!(sim.vis, sim, x)
-
-        println("time = ", t)
+        println("time = ", t, ", z = ", x[3])
         t += dt
         # sleep(lrl)
     end
     @printf("Latency: %.3f ± %.3f ms\n", mean(latency) * 1000, std(latency) * 1000)
+end
+
+function step!(sim::Simulator, x, u, t; t_start=time(), visualize=true)
+    # Get measurement
+    y = getmeasurement(sim, x, u, t)
+
+    # Send measurement
+    tsend = time() - t_start
+    push!(sim.msg_meas, (;tsim=t, twall=tsend, y))
+    sendmeasurement(sim, y, t)
+
+    # Get response from onboard computer
+    statecontrol = getdata(sim, t)
+    trecv = time() - t_start
+    if !isnothing(statecontrol)
+        push!(sim.msg_data, (;tsim=t, twall=trecv, xu=statecontrol))
+        push!(sim.stats["latency"], trecv - tsend)
+        u .= getcontrol(statecontrol)
+    end
+
+    # Propagate dynamics
+    push!(sim.xhist, copy(x))
+    push!(sim.uhist, copy(u))
+    push!(sim.thist, t)
+    x .= dynamics_rk4(x, u, dt)
+
+    # Visualize
+    visualize && RobotMeshes.visualize!(sim.vis, sim, x)
 end
 
 function getcontrol(sim, x, t)
@@ -174,10 +193,16 @@ sim = Simulator(5562, 5563)
 open(sim.vis)
 
 ##
-x = [zeros(3); 1; zeros(3); zeros(6)]
+x = [0; 0; 0.5; 1; zeros(3); zeros(6)]
+u = trim_controls()
+dt = 0.01
+tf = 10.0
 reset!(sim)
 length(sim.msg_meas)
-runsim(sim, x, dt=0.01, tf=1.0)
+runsim(sim, x; dt, tf)
+RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
+
+##
 tout = getfield.(sim.msg_meas, :twall) 
 zout = map(msg->msg.y.z, sim.msg_meas)
 tin = getfield.(sim.msg_data, :twall) 
@@ -224,21 +249,24 @@ y = getmeasurement(sim, x, u, t)
 sendmeasurement(sim, y, t)
 x[3] += 0.1
 ##
+step!(sim, x, u, t)
+t += dt
+##
 isopen(sim.pub)
 isopen(sim.sub)
 
 recv_task = @async ZMQ.recv(sim.sub)
 istaskdone(recv_task)
 msg = fetch(recv_task)
-posemsg = StateControlMsg(msg, 0)
-Int(msg[1])
-posemsg.x == y.x
-posemsg.y == y.y
-posemsg.z == y.z
-posemsg.qw == y.qw
-posemsg.qx == y.qx
-posemsg.qy == y.qy
-posemsg.qz == y.qz
+xu = StateControlMsg(msg, 0)
+xu.x == y.x
+xu.y == y.y
+xu.z == y.z
+xu.qw == y.qw
+xu.qx == y.qx
+xu.qy == y.qy
+xu.qz == y.qz
+getcontrol(posemsg)
 Int(msg[1]) == msgid(StateControlMsg) 
 
 finish(sim)

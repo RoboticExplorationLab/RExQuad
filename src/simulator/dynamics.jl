@@ -41,7 +41,7 @@ HOVER_INPUT = trim_controls()
 * `u` - Motor PWM commands
 """
 function forces(x, u)
-    q = Rotations.UnitQuaternion(x[4:7])
+    q = Rotations.QuatRotation(x[4:7])
     kf = quad_motor_kf
     bf = quad_motor_bf
 
@@ -76,7 +76,7 @@ end
 
 function cont_dynamics(x, u)
     p = x[1:3]
-    q = Rotations.UnitQuaternion(x[4:7])
+    q = Rotations.QuatRotation(x[4:7])
     v = x[8:10]
     ω = x[11:13]
     m = quad_mass
@@ -97,7 +97,7 @@ function dynamics_rk4(x, u, dt)
     k4 = cont_dynamics(x + dt * k3, u)
     tmp = x + (dt/6.0) * (k1 + 2*k2 + 2*k3 + k4)
 
-    tmp[4:7] .= Rotations.params(Rotations.UnitQuaternion(tmp[4:7]))
+    tmp[4:7] .= Rotations.params(Rotations.QuatRotation(tmp[4:7]))
 
     return tmp
 end
@@ -105,8 +105,8 @@ end
 function state_error(x2, x1)
     p1 = x1[1:3]
     p2 = x2[1:3]
-    q1 = Rotations.UnitQuaternion(x1[4:7])
-    q2 = Rotations.UnitQuaternion(x2[4:7])
+    q1 = Rotations.QuatRotation(x1[4:7])
+    q2 = Rotations.QuatRotation(x2[4:7])
     all1 = x1[8:end]
     all2 = x2[8:end]
 
@@ -118,7 +118,7 @@ end
 
 function error_state_jacobian(x)
     # Get various compoents
-    q = Rotations.UnitQuaternion(x[4:7])
+    q = Rotations.QuatRotation(x[4:7])
     # Build error state to state jacobian
     J = zeros(13, 12)
     J[1:3, 1:3] .= I(3)
