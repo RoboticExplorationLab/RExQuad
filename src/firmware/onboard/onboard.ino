@@ -3,7 +3,9 @@
 
 #include <cstring>
 
+#include "control.hpp"
 #include "constants.hpp"
+#include "lqr_constants.hpp"
 #include "estimator.hpp"
 #include "messages.hpp"
 #include "motors.hpp"
@@ -14,6 +16,7 @@
 constexpr bool kWaitForSerial = false;
 constexpr bool kIsSim = true;      // is running in simulation environment
 constexpr bool kPoseOnly = false;  // only use pose measurements
+#define EIGEN_NO_MALLOC
 
 // Accelerometer SPI
 #define LSM_CS 6
@@ -69,7 +72,7 @@ uint64_t tstart;
 rexquad::FeedbackGain K;
 rexquad::StateVector xhat;  // state estimate
 rexquad::InputVector u;
-rexquad::StateVector e;  // error state
+rexquad::ErrorVector e;  // error state
 rexquad::StateVector xeq;
 rexquad::InputVector ueq;
 
@@ -79,7 +82,21 @@ double curtime() {
   return t_cur;
 }
 
+/////////////////////////////////////////////
+// Initialization
+/////////////////////////////////////////////
 void setup() {
+  // Initialize LQR controller 
+  for (int i = 0; i < K.size(); ++i) {
+    K(i) = rexquad::kFeedbackGain[i];
+  }
+  for (int i = 0; i < xeq.size(); ++i) {
+    xeq(i) = rexquad::kStateEquilibrium[i];
+  }
+  for (int i = 0; i < ueq.size(); ++i) {
+    ueq(i) = rexquad::kInputEquilibrium[i];
+  }
+
   // Serial setup
   pinMode(LED_PIN, OUTPUT);
   Serial.begin(256000);
@@ -194,13 +211,23 @@ void loop() {
   
   // Get Current state estimate
   filter.GetStateEstimate(statecontrol);
+  filter.GetStateEstimate(xhat);
 
   // TODO: Implement control policy
-  statecontrol.u[0] = -100;
-  statecontrol.u[1] = -100;
-  statecontrol.u[2] = -100;
-  statecontrol.u[3] = -100;
+  rexquad::ErrorState(e, xhat, xeq);
+  u = -K * e + ueq;
+  for (int i = 0; i < rexquad::kNumInputs; ++i) {
+    statecontrol.u[i] = u(i);
+  }
+  // statecontrol.u[0] = -100;
+  // statecontrol.u[1] = -100;
+  // statecontrol.u[2] = -100;
+  // statecontrol.u[3] = -100;
 
+  // TODO: Send command to motors
+
+  // Send information back over serial
+  //   only sends info every time a MOCAP message is received
   if (received_LoRa_packet) {
     if (kIsSim) {
       // Send pose and controls back over serial

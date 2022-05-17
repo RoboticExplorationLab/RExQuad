@@ -4,10 +4,6 @@
 
 namespace rexquad {
 
-using StateVector = Eigen::Vector<float, 13>;
-using ErrorVector = Eigen::Vector<float, 12>;
-using InputVector = Eigen::Vector<float, 4>;
-using FeedbackGain = Eigen::Matrix<float, 4, 12>;
 
 constexpr int kNumStates = 13;
 constexpr int kNumErrStates = 12;
@@ -17,5 +13,10 @@ constexpr double kHoverInput = 1449.8408445684368;
 constexpr double kMinInput = 1148.0;
 constexpr double kIdleInput = 1180;
 constexpr double kMaxInput = 1832.0;
+
+using StateVector = Eigen::Vector<float, kNumStates>;
+using ErrorVector = Eigen::Vector<float, kNumErrStates>;
+using InputVector = Eigen::Vector<float, kNumInputs>;
+using FeedbackGain = Eigen::Matrix<float, kNumInputs, kNumErrStates>;
 
 }  // namespace rexquad

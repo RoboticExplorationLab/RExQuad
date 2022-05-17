@@ -44,15 +44,18 @@ function generate_LQR_hover_gains(xhover, uhover, dt;
     return K
 end
 
-function print_gains(K, uhover)
-    Kinclude = "const double kFeedbackGain[$(length(K))] = {"
+function print_gains(K, xeq, ueq)
+    Kinclude = "const float kFeedbackGain[$(length(K))] = {"
     Kinclude *= join(string.(K), ", ") * "};"
-    uinclude = "const double kUhover[4] = {";
-    uinclude *= join(string.(uhover), ", ") * "};"
+    xinclude = "const float kStateEquilibrium[13] = {";
+    xinclude *= join(string.(xeq), ", ") * "};"
+    uinclude = "const float kInputEquilibrium[4] = {";
+    uinclude *= join(string.(ueq), ", ") * "};"
     """
     #pragma once
     namespace rexquad {
     $Kinclude
+    $xinclude
     $uinclude
     }  // namespace rexquad
     """
@@ -65,6 +68,6 @@ dt = 0.01  # 100 Hz
 K = generate_LQR_hover_gains(xhover, uhover, dt)
 
 open(joinpath(@__DIR__, "..", "common", "lqr_constants.hpp"), "w") do f
-    write(f, print_gains(K, uhover))
+    write(f, print_gains(K, xhover, uhover))
 end
 
