@@ -35,6 +35,9 @@ struct MeasurementMsg
     qx::Float32
     qy::Float32
     qz::Float32
+    vx::Float32  # linear velocity 
+    vy::Float32
+    vz::Float32
     ax::Float32  # linear acceleration
     ay::Float32
     az::Float32
@@ -46,6 +49,7 @@ function MeasurementMsg()
     MeasurementMsg(
         0f0, 0f0, 0f0,
         1f0, 0f0, 0f0, 0f0,
+        0f0, 0f0, 0f0,
         0f0, 0f0, 0f0,
         0f0, 0f0, 0f0,
     )
@@ -62,12 +66,15 @@ function copyto!(buf::AbstractVector{UInt8}, msg::MeasurementMsg, off::Integer=0
     floattobytes!(buf, msg.qx, 4 * 4 + off)
     floattobytes!(buf, msg.qy, 5 * 4 + off)
     floattobytes!(buf, msg.qz, 6 * 4 + off)
-    floattobytes!(buf, msg.ax, 7 * 4 + off)
-    floattobytes!(buf, msg.ay, 8 * 4 + off)
-    floattobytes!(buf, msg.az, 9 * 4 + off)
-    floattobytes!(buf, msg.wx, 10 * 4 + off)
-    floattobytes!(buf, msg.wy, 11 * 4 + off)
-    floattobytes!(buf, msg.wz, 12 * 4 + off)
+    floattobytes!(buf, msg.vx, 7 * 4 + off)
+    floattobytes!(buf, msg.vy, 8 * 4 + off)
+    floattobytes!(buf, msg.vz, 9 * 4 + off)
+    floattobytes!(buf, msg.ax, 10 * 4 + off)
+    floattobytes!(buf, msg.ay, 11 * 4 + off)
+    floattobytes!(buf, msg.az, 12 * 4 + off)
+    floattobytes!(buf, msg.wx, 13 * 4 + off)
+    floattobytes!(buf, msg.wy, 14 * 4 + off)
+    floattobytes!(buf, msg.wz, 15 * 4 + off)
     buf
 end
 
@@ -89,6 +96,9 @@ function MeasurementMsg(buf::AbstractVector{UInt8}, off::Integer=0)
         bytestofloat(buf, 10 * 4 + off),
         bytestofloat(buf, 11 * 4 + off),
         bytestofloat(buf, 12 * 4 + off),
+        bytestofloat(buf, 13 * 4 + off),
+        bytestofloat(buf, 14 * 4 + off),
+        bytestofloat(buf, 15 * 4 + off),
     )
 end
 

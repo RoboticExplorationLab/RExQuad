@@ -165,6 +165,7 @@ function getmeasurement(sim::Simulator, x, u, t)
     MeasurementMsg(
         x[1], x[2], x[3],
         x[4], x[5], x[6], x[7],
+        x[8], x[9], x[10],
         xdot[8], xdot[9], xdot[10],
         x[11], x[12], x[13]
     )
@@ -193,7 +194,7 @@ sim = Simulator(5562, 5563)
 open(sim.vis)
 
 ##
-x = [0; 0; 0.5; 1; zeros(3); zeros(6)]
+x = [0; 0.5; 0.5; 1; zeros(3); zeros(6)]
 u = trim_controls()
 dt = 0.01
 tf = 10.0
@@ -243,7 +244,8 @@ t = 0.0
 
 ##
 # x[11] += 10.0
-# x[13] += -0.1
+x[10] = 1.0
+x[13] = -0.1
 cont_dynamics(x, u)
 y = getmeasurement(sim, x, u, t)
 sendmeasurement(sim, y, t)

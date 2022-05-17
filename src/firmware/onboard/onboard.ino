@@ -16,6 +16,7 @@
 constexpr bool kWaitForSerial = false;
 constexpr bool kIsSim = true;      // is running in simulation environment
 constexpr bool kPoseOnly = false;  // only use pose measurements
+constexpr bool kGroundTruth = true;  // Use ground truth state estimate
 #define EIGEN_NO_MALLOC
 
 // Accelerometer SPI
@@ -208,10 +209,26 @@ void loop() {
       filter.PoseMeasurement(pose_mocap, t_pose);
     }
   }
-  
+
   // Get Current state estimate
-  filter.GetStateEstimate(statecontrol);
   filter.GetStateEstimate(xhat);
+
+  if (kGroundTruth) {
+    const rexquad::MeasurementMsg msg = imusim.GetRawMeasurement();
+    xhat[0] = msg.x;
+    xhat[1] = msg.y;
+    xhat[2] = msg.z;
+    xhat[3] = msg.qw;
+    xhat[4] = msg.qx;
+    xhat[5] = msg.qy;
+    xhat[6] = msg.qz;
+    xhat[7] = msg.vx;
+    xhat[8] = msg.vy;
+    xhat[9] = msg.vz;
+    xhat[10] = msg.wx;
+    xhat[11] = msg.wy;
+    xhat[12] = msg.wz;
+  }
 
   // TODO: Implement control policy
   rexquad::ErrorState(e, xhat, xeq);
@@ -231,6 +248,19 @@ void loop() {
   if (received_LoRa_packet) {
     if (kIsSim) {
       // Send pose and controls back over serial
+      statecontrol.x = xhat[0];
+      statecontrol.y = xhat[1];
+      statecontrol.z = xhat[2];
+      statecontrol.qw = xhat[3];
+      statecontrol.qx = xhat[4];
+      statecontrol.qy = xhat[5];
+      statecontrol.qz = xhat[6];
+      statecontrol.vx = xhat[7];
+      statecontrol.vy = xhat[8];
+      statecontrol.vz = xhat[9];
+      statecontrol.wx = xhat[10];
+      statecontrol.wy = xhat[11];
+      statecontrol.wz = xhat[12];
       rexquad::StateControlMsgToBytes(statecontrol, bufsend);
       uint8_t lensend = sizeof(bufsend);
       Serial.write(bufsend, lensend);

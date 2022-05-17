@@ -61,6 +61,7 @@ using namespace rexquad;
 void print_msg(const MeasurementMsg& msg) {
   fmt::print("  Translation:  [{:.3f}, {:.3f}, {:.3f}]\n", msg.x, msg.y, msg.z);
   fmt::print("  Orientation:  [{:.3f}, {:.3f}, {:.3f}, {:.3f}]\n", msg.qw, msg.qx, msg.qy, msg.qz);
+  fmt::print("  Lin Velocity: [{:.3f}, {:.3f}, {:.3f}]\n", msg.vx, msg.vy, msg.vz);
   fmt::print("  Lin Accel:    [{:.3f}, {:.3f}, {:.3f}]\n", msg.ax, msg.ay, msg.az);
   fmt::print("  Ang Velocity: [{:.3f}, {:.3f}, {:.3f}]\n", msg.wx, msg.wy, msg.wz);
 }

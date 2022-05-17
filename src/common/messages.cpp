@@ -14,12 +14,15 @@ bool MeasurementMsgFromBytes(MeasurementMsg& msg, uint8_t* buf, int off) {
   msg.qx = bytestofloat(buf, 4 * 4 + off);
   msg.qy = bytestofloat(buf, 5 * 4 + off);
   msg.qz = bytestofloat(buf, 6 * 4 + off);
-  msg.ax = bytestofloat(buf, 7 * 4 + off);
-  msg.ay = bytestofloat(buf, 8 * 4 + off);
-  msg.az = bytestofloat(buf, 9 * 4 + off);
-  msg.wx = bytestofloat(buf, 10 * 4 + off);
-  msg.wy = bytestofloat(buf, 11 * 4 + off);
-  msg.wz = bytestofloat(buf, 12 * 4 + off);
+  msg.vx = bytestofloat(buf, 7 * 4 + off);
+  msg.vy = bytestofloat(buf, 8 * 4 + off);
+  msg.vz = bytestofloat(buf, 9 * 4 + off);
+  msg.ax = bytestofloat(buf, 10 * 4 + off);
+  msg.ay = bytestofloat(buf, 11 * 4 + off);
+  msg.az = bytestofloat(buf, 12 * 4 + off);
+  msg.wx = bytestofloat(buf, 13 * 4 + off);
+  msg.wy = bytestofloat(buf, 14 * 4 + off);
+  msg.wz = bytestofloat(buf, 15 * 4 + off);
   return msgid == MeasurementMsg::MsgID;
 }
 
@@ -33,12 +36,15 @@ void MeasurementMsgToBytes(const MeasurementMsg& msg, uint8_t* buf, int off) {
   floattobytes(buf, msg.qx, 4 * 4 + off);
   floattobytes(buf, msg.qy, 5 * 4 + off);
   floattobytes(buf, msg.qz, 6 * 4 + off);
-  floattobytes(buf, msg.ax, 7 * 4 + off);
-  floattobytes(buf, msg.ay, 8 * 4 + off);
-  floattobytes(buf, msg.az, 9 * 4 + off);
-  floattobytes(buf, msg.wx, 10 * 4 + off);
-  floattobytes(buf, msg.wy, 11 * 4 + off);
-  floattobytes(buf, msg.wz, 12 * 4 + off);
+  floattobytes(buf, msg.vx, 7 * 4 + off);
+  floattobytes(buf, msg.vy, 8 * 4 + off);
+  floattobytes(buf, msg.vz, 9 * 4 + off);
+  floattobytes(buf, msg.ax, 10 * 4 + off);
+  floattobytes(buf, msg.ay, 11 * 4 + off);
+  floattobytes(buf, msg.az, 12 * 4 + off);
+  floattobytes(buf, msg.wx, 13 * 4 + off);
+  floattobytes(buf, msg.wy, 14 * 4 + off);
+  floattobytes(buf, msg.wz, 15 * 4 + off);
 }
 
 bool ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off) {

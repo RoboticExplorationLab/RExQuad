@@ -68,6 +68,10 @@ const IMUMeasurementMsg& IMUSimulated::GetMeasurement() const {
   return imumsg_;
 }
 
+const MeasurementMsg& IMUSimulated::GetRawMeasurement() const {
+  return msg_;
+}
+
 IMU::IMU(int pin_cs) : pin_cs_(pin_cs) {}
 
 bool IMU::Connect() { return dso32_.begin_SPI(pin_cs_); }

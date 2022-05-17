@@ -13,6 +13,9 @@ struct MeasurementMsg {
   float qx;
   float qy;
   float qz;
+  float vx;
+  float vy;
+  float vz;
   float ax;
   float ay;
   float az;

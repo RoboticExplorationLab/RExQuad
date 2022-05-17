@@ -58,6 +58,7 @@ public:
   const sensors_event_t& GetTemp() const override;
   const sensors_event_t& GetGyro() const override;
   const IMUMeasurementMsg& GetMeasurement() const override;
+  const MeasurementMsg& GetRawMeasurement() const;
 
 private:
   uint8_t recvbuf_[sizeof(MeasurementMsg) + 1];
