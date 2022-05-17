@@ -8,7 +8,7 @@ daemon:
 directories:
   data: /home/brian/.arduino15
   downloads: /home/brian/.arduino15/staging
-  user: /home/brian/Arduino
+  user: /home/brian/Code/RExQuad/src/firmware 
 library:
   enable_unsafe_install: false
 logging:

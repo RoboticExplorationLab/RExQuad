@@ -5,6 +5,9 @@ Install Arduino CLI
 sudo cp 00-teensy.rules /etc/udev/rules.d/
 arduino-cli core install teensy:avr
 arduino-cli core install adafruit:samd
+arduino-cli core install adafruit:avr
+arduino-cli core install arduino:avr
+arduino-cli core install arcore:avr
 arduino-cli lib install "Adafruit LSM6DS"
 arduino-cli lib install "Adafruit BusIO"
 arduino-cli lib install "Adafruit Unified Sensor"

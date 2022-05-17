@@ -1,5 +1,8 @@
 add_executable(measurement_node
   measurement_node.cpp
+
+  sim_utils.hpp
+  sim_utils.cpp
 )
 target_link_libraries(measurement_node
   PRIVATE
@@ -10,8 +13,35 @@ target_link_libraries(measurement_node
   quadcommon
   ArduinoEigen
 )
-get_target_property(SLAP_INCLUDES slap INTERFACE_INCLUDE_DIRECTORIES)
-cmake_print_variables(SLAP_INCLUDES)
+
+add_executable(mocap_relay
+  mocap_relay.cpp
+
+  sim_utils.hpp
+  sim_utils.cpp
+)
+target_link_libraries(mocap_relay
+  PRIVATE
+  libzmq
+  fmt::fmt
+  libserialport
+  quadutils
+  quadcommon
+  ArduinoEigen
+)
+
+add_executable(fake_mocap
+  fake_mocap.cpp
+)
+target_link_libraries(fake_mocap
+  PRIVATE
+  libzmq
+  fmt::fmt
+  libserialport
+  quadutils
+  quadcommon
+  ArduinoEigen
+)
 
 add_executable(control_node
   control_node.cpp

@@ -4,6 +4,7 @@
 
 namespace rexquad {
 
+
 struct MeasurementMsg {
   static constexpr uint8_t MsgID = 109;  // 'm'
   float x;

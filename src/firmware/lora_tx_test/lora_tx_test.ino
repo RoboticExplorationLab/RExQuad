@@ -9,6 +9,7 @@
 #include <SPI.h>
 #include <RH_RF95.h>
 #include "pose.hpp"
+#include <vector>
 
 // Wing pinouts
 #define RFM95_CS 10   // "B"
@@ -99,9 +100,8 @@ void setup()
   // rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128);
   rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
   // rf95.setModemConfig(RH_RF95::Bw500Cr45Sf64);
+  digitalWrite(LED_PIN, LOW);
 }
-
-int16_t packetnum = 0;  // packet counter, we increment per xmission
 
 void loop()
 {
@@ -111,6 +111,7 @@ void loop()
 
   // Fast code
   if (bytes_available >= MSG_SIZE) { 
+    digitalWrite(LED_PIN, HIGH);
     bytes_received = Serial.readBytes(buf, bytes_available);
     int start_index = 0;
     for (int i = 0; i < MSG_SIZE; ++i) {
@@ -119,7 +120,7 @@ void loop()
         break;
       }
     }
-    Serial.print("Start index: "); Serial.println(start_index);
+    // Serial.print("Start index: "); Serial.println(start_index);
     memcpy(msg, buf+start_index, MSG_SIZE);
     // Serial1.write(msg, MSG_SIZE);
     send_lora(msg, MSG_SIZE);
