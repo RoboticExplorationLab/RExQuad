@@ -1,12 +1,14 @@
-#include <SPI.h>
 #include <RH_RF95.h>
+#include <SPI.h>
+
 #include <cstring>
 
-#include "sensors.hpp"
-#include "pose.hpp"
-#include "motors.hpp"
-#include "messages.hpp"
+#include "constants.hpp"
 #include "estimator.hpp"
+#include "messages.hpp"
+#include "motors.hpp"
+#include "pose.hpp"
+#include "sensors.hpp"
 
 // Options
 constexpr bool kWaitForSerial = false;
@@ -14,18 +16,18 @@ constexpr bool kIsSim = true;      // is running in simulation environment
 constexpr bool kPoseOnly = false;  // only use pose measurements
 
 // Accelerometer SPI
-#define LSM_CS 6 
-#define LSM_SCK 15 
-#define LSM_MISO 14 
-#define LSM_MOSI 16 
+#define LSM_CS 6
+#define LSM_SCK 15
+#define LSM_MISO 14
+#define LSM_MOSI 16
 rexquad::IMU imureal(LSM_CS);
 rexquad::IMUSimulated imusim;
 
 // Motors
-#define FRONT_LEFT_PIN 9 
-#define FRONT_RIGHT_PIN 10 
-#define BACK_RIGHT_PIN 11 
-#define BACK_LEFT_PIN 12 
+#define FRONT_LEFT_PIN 9
+#define FRONT_RIGHT_PIN 10
+#define BACK_RIGHT_PIN 11
+#define BACK_LEFT_PIN 12
 rexquad::QuadMotors motors(FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK_LEFT_PIN);
 
 // LoRa
@@ -50,10 +52,10 @@ constexpr uint8_t kControlID = Control::MsgID;
 constexpr int kStateControlSize = sizeof(StateControl) + 1;
 constexpr uint8_t kStateControlID = StateControl::MsgID;
 
-
 // Buffers
-uint8_t bufsend[kStateControlSize];  // buffer for sending state estimate and control info back
-uint8_t bufrecv[kPoseSize];  // buffer for receiving pose of LoRa
+uint8_t
+    bufsend[kStateControlSize];  // buffer for sending state estimate and control info back
+uint8_t bufrecv[kPoseSize];      // buffer for receiving pose of LoRa
 uint8_t bufpose[kPoseSize];
 
 Pose pose_mocap;
@@ -62,6 +64,14 @@ StateControl statecontrol;
 // State estimator
 rexquad::StateEstimator filter;
 uint64_t tstart;
+
+// Controller
+rexquad::FeedbackGain K;
+rexquad::StateVector xhat;  // state estimate
+rexquad::InputVector u;
+rexquad::StateVector e;  // error state
+rexquad::StateVector xeq;
+rexquad::InputVector ueq;
 
 double curtime() {
   uint64_t t_micros = micros() - tstart;
@@ -111,14 +121,17 @@ void setup() {
 
   while (!rf95.init()) {
     Serial.println("LoRa radio init failed");
-    Serial.println("Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
-    while (1);
+    Serial.println(
+        "Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
+    while (1)
+      ;
   }
 
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
   if (!rf95.setFrequency(RF95_FREQ)) {
     Serial.println("setFrequency failed");
-    while (1);
+    while (1)
+      ;
   }
 
   rf95.setTxPower(23, false);
@@ -131,86 +144,69 @@ void setup() {
   float bias[6];
   memset(bias, 0, sizeof(bias));
   filter.SetBias(bias);
-  
+
   // TODO: do a takeoff maneuver and settle into level flight
 
   tstart = micros();  // resets after about 70 minutes per Arduino docs
 }
 
+/////////////////////////////////////////////
+// Main Loop
+/////////////////////////////////////////////
 void loop() {
+  // Process IMU measurement 
   if (!kIsSim) {
     imureal.ReadSensor();
     const rexquad::IMUMeasurementMsg& imudata = imureal.GetMeasurement();
     double t_imu = curtime();
     filter.IMUMeasurement(imudata, t_imu);
+  } else {
+    // In simulation mode, the IMU data gets sent over serial
+    //   before the pose information gets sent over LoRa
+    // This reads the imu data sent over serial
+    if (!kPoseOnly) {
+      Serial.setTimeout(1000);
+      imusim.ReadSensor();
+      double t_imu = curtime();
+      Serial.setTimeout(10);
+      const rexquad::IMUMeasurementMsg& imudata = imusim.GetMeasurement();
+      filter.IMUMeasurement(imudata, t_imu);
+    }
   }
-  // imu->PrintData(Serial);
-  // delay(100);
 
-  // Relay packet
+  // Process MOCAP pose 
+  bool received_LoRa_packet = false;
   if (rf95.available()) {
     digitalWrite(LED, HIGH);
     uint8_t lenrecv = sizeof(bufrecv);
-    uint8_t lensend = sizeof(bufsend);
 
     if (rf95.recv(bufrecv, &lenrecv)) {
+      received_LoRa_packet = true;
+
       // Convert bytes into pose message
       rexquad::PoseFromBytes(pose_mocap, (char*)bufrecv);
       double t_pose = curtime();
 
       // TODO: Update state estimate
       filter.PoseMeasurement(pose_mocap, t_pose);
-      filter.GetStateEstimate(statecontrol);
-
-      // TODO: Implement control policy
-      statecontrol.u[0] = -100;
-      statecontrol.u[1] = -100;
-      statecontrol.u[2] = -100;
-      statecontrol.u[3] = -100;
-
-      if (kIsSim) {
-        // In simulation mode, the IMU data gets sent over serial
-        //   before the pose information gets sent over LoRa
-        // This reads the imu data sent over serial
-        if (!kPoseOnly) {
-          Serial.setTimeout(1000);
-          imusim.ReadSensor();
-          double t_imu = curtime();
-          Serial.setTimeout(10);
-          const rexquad::IMUMeasurementMsg& imudata =  imusim.GetMeasurement();
-          filter.IMUMeasurement(imudata, t_imu);
-        }
-
-        // const sensors_event_t& accel = imusim.GetAccel();
-        // const sensors_event_t& gyro = imusim.GetGyro();
-        // statecontrol.vx = accel.acceleration.x;
-        // statecontrol.vy = accel.acceleration.y;
-        // statecontrol.vz = accel.acceleration.z;
-        // statecontrol.wx = gyro.gyro.x;
-        // statecontrol.wy = gyro.gyro.y;
-        // statecontrol.wz = gyro.gyro.z; 
-
-        // Create StateControl message
-        filter.GetStateEstimate(statecontrol);
-
-        // // Copy LoRa pose into out buffer
-        // memcpy(bufsend, bufrecv, lenrecv);
-
-        // // TODO: Copy controls
-        // bufsend[lenrecv] = kControlID;
-        // uint8_t bufctrl[16];
-        // rexquad::ControlMsg ctrl = {-100, -100, -100, -100};
-        // rexquad::ControlMsgToBytes(ctrl, bufctrl);
-
-        // for (int i = 0; i < 16; ++i) {
-        //   bufsend[lenrecv + 1 + i] = bufctrl[i];
-        // }
-        rexquad::StateControlMsgToBytes(statecontrol, bufsend);
-
-        // Send pose and controls back over serial
-        Serial.write(bufsend, lensend);
-      }
     }
-    digitalWrite(LED, LOW);
+  }
+  
+  // Get Current state estimate
+  filter.GetStateEstimate(statecontrol);
+
+  // TODO: Implement control policy
+  statecontrol.u[0] = -100;
+  statecontrol.u[1] = -100;
+  statecontrol.u[2] = -100;
+  statecontrol.u[3] = -100;
+
+  if (received_LoRa_packet) {
+    if (kIsSim) {
+      // Send pose and controls back over serial
+      rexquad::StateControlMsgToBytes(statecontrol, bufsend);
+      uint8_t lensend = sizeof(bufsend);
+      Serial.write(bufsend, lensend);
+    }
   }
 }
