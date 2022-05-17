@@ -2,7 +2,7 @@
 
 #include <inttypes.h>
 
-#include "messages.hpp"
+#include "quad_utils.hpp"
 
 namespace rexquad {
 IMUSimulated::IMUSimulated() {
@@ -72,9 +72,18 @@ const MeasurementMsg& IMUSimulated::GetRawMeasurement() const {
   return msg_;
 }
 
-IMU::IMU(int pin_cs) : pin_cs_(pin_cs) {}
+IMU::IMU(int pin_cs) : pin_cs_(pin_cs), use_spi_(true) {}
+IMU::IMU() : pin_cs_(0), use_spi_(false) {}
 
-bool IMU::Connect() { return dso32_.begin_SPI(pin_cs_); }
+bool IMU::Connect() { 
+  bool res; 
+  if (use_spi_) {
+    res = dso32_.begin_SPI(pin_cs_); 
+  } else {
+    res = dso32_.begin_I2C();
+  }
+  return res;
+}
 
 void IMU::SetAccelRange(AccelRange range) {
   switch (range) {
@@ -207,6 +216,36 @@ const sensors_event_t& IMU::GetTemp() const { return temp_; }
 
 const IMUMeasurementMsg& IMU::GetMeasurement() const {
   return imumsg_;
+}
+
+void InitRadio(RH_RF69& rf69, float freq, int reset_pin, int led_pin, bool encrypt) {
+
+  // Manual reset of radio
+  digitalWrite(reset_pin, HIGH);
+  delay(10);
+  digitalWrite(reset_pin, LOW);
+  delay(10);
+
+  // Initialize the radio
+  if (!rf69.init()) {
+    Serial.println("RFM69 radio init failed");
+    while (1) {
+      Blink(led_pin, 100, 1);
+    }
+  }
+  if (!rf69.setFrequency(freq)) {
+    Serial.println("setFrequency failed");
+  }
+  Serial.println("RFM69 radio init OK!");
+  rf69.setTxPower(2, true);  // range from 14-20 for power, 2nd arg must be true for 69HCW
+
+  // The encryption key has to be the same as the one in the server
+  uint8_t key[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                   0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+  if (encrypt) {
+    rf69.setEncryptionKey(key);
+  }
+  rf69.setModemConfig(RH_RF69::GFSK_Rb250Fd250);
 }
 
 }  // namespace rexquad

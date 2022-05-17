@@ -1,10 +1,16 @@
 #include <RH_RF69.h>
 
+#include "sensors.hpp"
 #include "pose.hpp"
 #include "serial_utils.hpp"
 
 // Pin Setup
 #define LED_PIN 13
+
+// IMU (I2C)
+#define LSM_SCL 21
+#define LSM_SDA 20
+rexquad::IMU imureal;
 
 // Radio Setup
 #define RFM69_CS 8
@@ -44,11 +50,20 @@ void Blink(int pin, int delay_ms, int n) {
 // Setup
 /////////////////////////////////////////////
 void setup() {
-  // Serial.begin(256000);
-  // while (!Serial) {
-  //   FastBlink();
-  // }
+  Serial.begin(256000);
+  while (!Serial) {
+    Blink(LED_PIN, 100, 1);
+  }
   Serial.println("Connected to Receiver!");
+
+  // Connect IMU
+  bool imu_is_connected = imureal.Connect();
+  if (!imu_is_connected) {
+    while (1) {
+      Blink(LED_PIN, 1000, 1);
+    }
+  }
+  Serial.println("Connected to IMU!");
 
   // Manual reset of radio
   digitalWrite(RFM69_RST, HIGH);

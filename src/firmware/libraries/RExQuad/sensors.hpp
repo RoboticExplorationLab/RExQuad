@@ -1,6 +1,8 @@
 #pragma once
 
+#include <Arduino.h>
 #include <Adafruit_LSM6DSO32.h>
+#include <RH_RF69.h>
 
 #include "messages.hpp"
 
@@ -89,6 +91,7 @@ class IMU : public IMUBase {
   };
 
   IMU(int pin_cs);
+  IMU();
   bool Connect();
 
   // TODO: Add method to estimate out the bias
@@ -219,11 +222,14 @@ class IMU : public IMUBase {
 
  private:
   int pin_cs_;
+  bool use_spi_;
   sensors_event_t accel_;
   sensors_event_t gyro_;
   sensors_event_t temp_;
   IMUMeasurementMsg imumsg_;
   Adafruit_LSM6DSO32 dso32_;
 };
+
+void InitRadio(RH_RF69& rf69, float freq, int reset_pin, int led_pin, bool encrypt = false);
 
 }  // namespace rexquad
