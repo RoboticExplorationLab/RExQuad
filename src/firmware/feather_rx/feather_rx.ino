@@ -1,6 +1,7 @@
 #include <RH_RF69.h>
 
 #include "pose.hpp"
+#include "serial_utils.hpp"
 
 // Pin Setup
 #define LED_PIN 13
@@ -18,8 +19,9 @@ using Pose = rexquad::PoseMsg;
 constexpr int kPoseSize = sizeof(Pose) + 1;
 
 // Globals
-uint8_t buf[kMaxBufferSize];
+uint8_t buf_mocap[kMaxBufferSize];
 uint8_t msg[kPoseSize];
+Pose pose_mocap;
 
 // Extra functions
 void FastBlink() {
@@ -72,7 +74,7 @@ void setup() {
                    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
   // rf69.setEncryptionKey(key);
   rf69.setModemConfig(RH_RF69::GFSK_Rb250Fd250);
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, LOW);
 }
 
 /////////////////////////////////////////////
@@ -80,18 +82,17 @@ void setup() {
 /////////////////////////////////////////////
 void loop() {
   if (rf69.available()) {
-    // Should be a message for us now
-    uint8_t len = sizeof(buf);
-    if (rf69.recv(buf, &len)) {
-      if (!len) return;
-      Blink(LED_PIN, 20, 1);
-      buf[len] = 0;
-      Serial.print("Received [");
-      Serial.print(len);
+    uint8_t len_mocap = sizeof(buf_mocap);
+
+    if (rf69.recv(buf_mocap, &len_mocap)) {
+      // Convert bytes into pose message
+      rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
+
+      Serial.print("received [");
+      Serial.print(len_mocap);
       Serial.print("]: ");
-      Serial.println((char*)buf);
-      Serial.print("RSSI: ");
-      Serial.println(rf69.lastRssi(), DEC);
+      rexquad::PrintPose(Serial, pose_mocap);
+      Blink(LED_PIN, 10, 1);
     }
   }
 }

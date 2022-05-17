@@ -87,9 +87,9 @@ int main(int argc, char** argv) {
     rexquad::PoseToBytes(buf_pose, posemsg);
 
     // Send pose to transmitter 
-    sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
-    fmt::print("Message sent:\n");
-    print_msg(measmsg);
+    int bytes_sent = sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
+    fmt::print("Message sent ({} bytes):\n", bytes_sent);
+    print_msg(posemsg);
   }
 
   return EXIT_SUCCESS;

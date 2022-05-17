@@ -1,8 +1,9 @@
 #pragma once
 
 #include <string>
-
 #include <Arduino.h>
+
+#include "pose.hpp"
 
 namespace rexquad {
 
@@ -21,6 +22,26 @@ namespace rexquad {
  * @return int Number of extra bytes to read. If 0, the message is valid.
  */
 int VerifyRead(char* buf, int len, uint8_t msg_id);
+
+template <class SerialClass>
+void PrintPose(SerialClass Serial, const PoseMsg& msg) {
+  Serial.print("  x = [");
+  Serial.print(msg.x, 3);
+  Serial.print(", ");
+  Serial.print(msg.y, 3);
+  Serial.print(", ");
+  Serial.print(msg.z, 3);
+  Serial.print("]\n");
+  Serial.print("  q = [");
+  Serial.print(msg.qw, 3);
+  Serial.print(", ");
+  Serial.print(msg.qx, 3);
+  Serial.print(", ");
+  Serial.print(msg.qy, 3);
+  Serial.print(", ");
+  Serial.print(msg.qz, 3);
+  Serial.print("]\n");
+}
 
 template <class Serial>
 int ReadMessageWithID(Serial serial, char* buf, int buflen, int msg_len, int msg_id) {
