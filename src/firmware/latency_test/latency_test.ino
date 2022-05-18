@@ -106,6 +106,8 @@ void setup() {
   x0.setZero();
   x.setZero();
   e.setZero();
+  x0(3) = 1.0;
+  x(3) = 1.0;
 
   // Initialize Serial
   Serial.begin(256000);
@@ -174,7 +176,7 @@ void loop() {
       // Serial.print(len_mocap);
       // Serial.print("]: ");
       // rexquad::PrintPose(Serial, pose_mocap);
-      // rexquad::Blink(LED_PIN, 10, 1);
+      rexquad::Blink(LED_PIN, 10, 1);
     }
   }
 
@@ -190,7 +192,8 @@ void loop() {
       if (!initial_state_is_set && pose_received) {
         PoseMsgToStateVector(x0, pose_mocap);
         initial_state_is_set = true;
-        Serial.println("Initial state set.");
+        Serial.println("Initial state set:");
+        rexquad::PrintPose(Serial, pose_mocap);
       }
       if (tcur_ms > kBurnInTimeMs) {
         motors.SendCommandPWMSingleMotor(rexquad::QuadMotors::Motor::kFrontLeft,

@@ -69,7 +69,9 @@ function Simulator(pub_port=5555, sub_port=5556)
     end
 
     vis = Visualizer()
-    RobotMeshes.setdrone!(vis)
+    RobotMeshes.setdrone!(vis["truth"])
+    RobotMeshes.setdrone!(vis["estimate"], color=RGBA(1.0,0.0,0.0, 0.5))
+    MeshCat.setvisible!(vis["estimate"], false)
 
     # logs
     xhist = Vector{Float64}[]
@@ -81,64 +83,95 @@ function Simulator(pub_port=5555, sub_port=5556)
     Simulator(buf_out, ctx, pub, sub, vis, xhist, uhist, thist, stats, msg_meas, msg_data)
 end
 
-function reset!(sim::Simulator)
+function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     empty!(sim.msg_meas)
     empty!(sim.msg_data)
     empty!(sim.xhist)
     empty!(sim.uhist)
     empty!(sim.thist)
+    empty!(sim.stats)
+
+    # Flush out publishers / subscribers
+    buf = ZMQ.Message(100)
+    while ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT) >= 0 end
+
+    # Initialize logs
+    xhat = SVector{13,Float32}[]
+    latency = Float64[]
+    sizehint!(latency, approx_size)
+    sizehint!(xhat, approx_size)
+    sim.stats["latency"] = latency
+    sim.stats["xhat"] = xhat 
+
+    if visualize == :truth
+        MeshCat.setvisible!(sim.vis["truth"], true)
+        MeshCat.setvisible!(sim.vis["estimate"], false)
+    elseif visualize == :estimate
+        MeshCat.setvisible!(sim.vis["truth"], false)
+        MeshCat.setvisible!(sim.vis["estimate"], true)
+    elseif visualize == :all
+        MeshCat.setvisible!(sim.vis["truth"], true) 
+        MeshCat.setvisible!(sim.vis["estimate"], true)
+    end
+    sim
 end
 
 function finish(sim::Simulator)
     ZMQ.close(sim.pub)
+    ZMQ.close(sim.sub)
 end
 
-function runsim(sim::Simulator, x0; dt=0.0, tf=Inf, kwargs...)
+function runsim(sim::Simulator, x0; dt=0.01, tf=Inf, visualize=:none, kwargs...)
     x = copy(x0)
     t = 0.0
     freq = 1/dt  # Hz
     lrl = LoopRateLimiter(10)
     u = trim_controls() 
 
-    # TODO: flush out publishers / subscribers
-    buf = ZMQ.Message(100)
-    while ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT) >= 0 end
-    latency = Float64[]
-    if tf < Inf
-        sizehint!(latency, round(Int, tf / dt))
-    else
-        sizehint!(latency, 10_000)
-    end
-    sim.stats["latency"] = latency
+    approx_size =  tf < Inf ? round(Int, tf / dt) : 10_000
+    reset!(sim; approx_size, visualize)
 
     t_start = time()
+    push!(sim.stats["xhat"], SVector{13,Float32}(x))
     while t < tf
         startloop(lrl)
 
-        step!(sim, x, u, t; t_start, kwargs...)
+        step!(sim, x, u, t; t_start, visualize, kwargs...)
 
         println("time = ", t, ", z = ", x[3])
         t += dt
         # sleep(lrl)
     end
-    @printf("Latency: %.3f ± %.3f ms\n", mean(latency) * 1000, std(latency) * 1000)
+    if !isempty(sim.stats["latency"])
+        latency = sim.stats["latency"]
+        @printf("Latency: %.3f ± %.3f ms\n", mean(latency) * 1000, std(latency) * 1000)
+    end
 end
 
-function step!(sim::Simulator, x, u, t; t_start=time(), visualize=true)
+function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_measurement=false)
+    # Initialize state estimate
+    xhat = sim.stats["xhat"][end]
+
     # Get measurement
     y = getmeasurement(sim, x, u, t)
 
     # Send measurement
-    tsend = time() - t_start
-    push!(sim.msg_meas, (;tsim=t, twall=tsend, y))
-    sendmeasurement(sim, y, t)
+    if send_measurement
+        tsend = time() - t_start
+        push!(sim.msg_meas, (;tsim=t, twall=tsend, y))
+        sendmeasurement(sim, y, t)
+    end
 
     # Get response from onboard computer
     statecontrol = getdata(sim, t)
     trecv = time() - t_start
     if !isnothing(statecontrol)
         push!(sim.msg_data, (;tsim=t, twall=trecv, xu=statecontrol))
-        push!(sim.stats["latency"], trecv - tsend)
+        if send_measurement
+            push!(sim.stats["latency"], trecv - tsend)
+        end
+        xhat = getstate(statecontrol)
+        push!(sim.stats["xhat"], xhat)
         u .= getcontrol(statecontrol)
     end
 
@@ -149,7 +182,12 @@ function step!(sim::Simulator, x, u, t; t_start=time(), visualize=true)
     x .= dynamics_rk4(x, u, dt)
 
     # Visualize
-    visualize && RobotMeshes.visualize!(sim.vis, sim, x)
+    if visualize in (:truth, :all)
+        RobotMeshes.visualize!(sim.vis["truth"], sim, x)
+    elseif visualize in (:estimate, :all)
+        RobotMeshes.visualize!(sim.vis["estimate"], sim, xhat)
+    end
+    x
 end
 
 function getcontrol(sim, x, t)

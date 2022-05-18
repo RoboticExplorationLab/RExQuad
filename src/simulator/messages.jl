@@ -242,4 +242,12 @@ function StateControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
     )
 end
 
+function getstate(xu::StateControlMsg)
+    SA[
+        xu.x, xu.y, xu.z, 
+        xu.qw, xu.qx, xu.qy, xu.qz, 
+        xu.vx, xu.vy, xu.vz, 
+        xu.wx, xu.wy, xu.wz, 
+    ]
+end
 getcontrol(xu::StateControlMsg) = xu.u 

@@ -33,6 +33,7 @@ int main() {
   int posemsg_len = sizeof(buf_pose);
   const int send_timeout_ms = 1000;  // ms
   rexquad::PoseMsg posemsg = {};
+  posemsg.qw = 1.0;
 
   auto tstart = std::chrono::high_resolution_clock::now();
   fmt::print("Sending MOCAP data...\n");
