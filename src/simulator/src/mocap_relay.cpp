@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <queue>
 #include <unistd.h>
 
 #include <fmt/core.h>
@@ -21,14 +22,19 @@ using namespace rexquad;
 
 int main(int argc, char** argv) {
   std::string subport = "5556";
+  size_t delay = 0;
   if (argc > 1) {
-    subport = argv[1];
+    delay = atoi(argv[1]);
+  }
+  if (argc > 2) {
+    subport = argv[2];
   }
   bool verbose = false;
-  if (argc > 2) {
-    std::string flag = std::string(argv[2]);
+  if (argc > 3) {
+    std::string flag = std::string(argv[3]);
     verbose = (flag == "-v") || (flag == "--verbose");
   }
+  fmt::print("Using delay of {}\n", delay);
   fmt::print("Verbose output? {}\n", verbose);
 
   // Open Serial port to transmitter
@@ -61,6 +67,9 @@ int main(int argc, char** argv) {
     printf("Failed to set subscriber.\n");
     return 1;
   }
+  
+  // Queue for simulating a delay on the MOCAP
+  std::queue<PoseMsg> mocap_queue;
 
   // Receiving MeasurementMsg over ZMQ
   constexpr int len_zmqrecv = sizeof(MeasurementMsg) + 1;
@@ -72,7 +81,7 @@ int main(int argc, char** argv) {
   int posemsg_len = sizeof(buf_pose);
   const int send_timeout_ms = 100;  // ms
   rexquad::PoseMsg posemsg = {};
-
+  rexquad::PoseMsg pose_delayed = {};
 
   while (1) {
     // Receive MeasurementMsg over ZMQ
@@ -87,16 +96,26 @@ int main(int argc, char** argv) {
     posemsg.qx = measmsg.qx;
     posemsg.qy = measmsg.qy;
     posemsg.qz = measmsg.qz;
-    rexquad::PoseToBytes(buf_pose, posemsg);
+    // rexquad::PoseToBytes(buf_pose, posemsg);
 
     // Send pose to transmitter 
-    int bytes_sent = sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
+    mocap_queue.push(posemsg);
+    int bytes_sent = 0;
+    if (mocap_queue.size() > delay) {
+      pose_delayed = std::move(mocap_queue.front());
+      mocap_queue.pop();
+      rexquad::PoseToBytes(buf_pose, pose_delayed);
+      bytes_sent = sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
+    }
     if (verbose) {
       fmt::print("\nReceived {} bytes over ZMQ\n", zmq_bytes_received);
       fmt::print("  Successful conversion to MeasurementMsg: {}\n", good_conversion);
-      fmt::print("  Ang Velocity = [{:.3f}, {:.3f}, {:.3f}]\n", measmsg.wx, measmsg.wy, measmsg.wz);
-      fmt::print("Message sent ({} bytes):\n", bytes_sent);
       print_msg(posemsg);
+      fmt::print("  Queue size = {}\n", mocap_queue.size());
+      if (bytes_sent) {
+        fmt::print("Message sent ({} bytes):\n", bytes_sent);
+        print_msg(pose_delayed);
+      }
     }
   }
 

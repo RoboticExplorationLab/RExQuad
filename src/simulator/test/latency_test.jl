@@ -25,7 +25,7 @@ include("../simulator.jl")
 
 ## Initialize Simulator
 sim = Simulator(5555, 5556)
-open(sim.vis)
+# open(sim.vis)
 
 ## Send a test measurement
 x = [0;0;1; 1; zeros(3); zeros(6)]
@@ -39,6 +39,7 @@ x[13] = -0.1
 cont_dynamics(x, u)
 y = getmeasurement(sim, x, u, t)
 sendmeasurement(sim, y, t)
+x[3] += 0.001
 
 ## Make sure it's being received
 recv_task = @async ZMQ.recv(sim.sub)
@@ -93,3 +94,5 @@ function latency_test(sim; Nsamples=100)
 end
 measure_latency(sim, y, 0.0)
 latency_test(sim, Nsamples=50)
+
+finish(sim)
