@@ -27,3 +27,5 @@ target_include_directories(quadcommon
     INTERFACE
     "${CMAKE_CURRENT_LIST_DIR}/.."
 )
+
+add_subdirectory(test)
