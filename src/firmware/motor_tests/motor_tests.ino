@@ -1,3 +1,18 @@
+/**
+ * @file motor_tests.ino
+ * @author Brian Jackson (bjack205@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2022-05-18
+ * 
+ * Allows for motor calibration and for each motor to be tested by running it for
+ * half a second
+ * 
+ * Must be connected to the Serial port on the quadrotor
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include "control.hpp"
 #include "motors.hpp"
 #include "pose.hpp"
