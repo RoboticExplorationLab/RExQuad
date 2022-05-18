@@ -26,22 +26,35 @@ void QuadMotors::SendCommandPWMSingleMotor(Motor motor, int pwm) {
   switch (motor) {
     case Motor::kFrontLeft:
       front_left_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
+      front_right_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
+      back_right_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
+      back_left_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
       break;
 
     case Motor::kFrontRight:
+      front_left_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
       front_right_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
+      back_right_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
+      back_left_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
       break;
 
     case Motor::kBackRight:
+      front_left_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
+      front_right_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
       back_right_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
+      back_left_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
       break;
 
     case Motor::kBackLeft:
+      front_left_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
+      front_right_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
+      back_right_esc_.writeMicroseconds(constrain(0, kMinInput, kMaxInput));
       back_left_esc_.writeMicroseconds(constrain(pwm, kMinInput, kMaxInput));
       break;
 
     case Motor::kAllMotors:
       SendConstantCommandPWM(pwm);
+      break;
   }
 }
 

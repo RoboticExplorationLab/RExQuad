@@ -40,7 +40,8 @@ class QuadMotors {
   template <class SerialClass>
   void Calibrate(SerialClass Serial) {
     while (!Serial) { delay(10); }
-    String user_response = GetUserResponse(Serial, "Are motors off? (y/n)").toLowerCase();
+    String user_response = GetUserResponse(Serial, "Are motors off? (y/n)");
+    user_response.toLowerCase();
     bool continue_calibration = false;
     continue_calibration = user_response.equals("y");
     if (!continue_calibration) {

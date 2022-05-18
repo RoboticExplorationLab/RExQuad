@@ -54,6 +54,7 @@ targets = [
     "blink",
     "feather_tx",
     "feather_rx",
+    "motor_tests"
 ]
 parser = argparse.ArgumentParser()
 parser.add_argument("target",
