@@ -40,6 +40,22 @@ StateControl statecontrol_msg;
 rexquad::StateVector xhat;
 rexquad::InputVector u;
 
+void RatePrinter() {
+  static uint64_t tstart_us = micros();
+  static int count = 0;
+  int batch = 10;
+  ++count;
+  if (count % batch == 0) {
+    uint64_t tcur_us = micros();
+    double rate = static_cast<double>(batch) / static_cast<double>(tcur_us - tstart_us) * 1e6;
+    Serial.print("Average Rate = ");
+    Serial.print(rate, 3);
+    Serial.println(" Hz");
+
+    tstart_us = tcur_us;
+  }
+}
+
 /////////////////////////////////////////////
 // Setup
 /////////////////////////////////////////////
@@ -98,18 +114,21 @@ void loop() {
         // Serial.print("received [");
         // Serial.print(len_mocap);
         // Serial.print("]: ");
-        Serial.print("position = [");
-        Serial.print(pose_mocap.x, 3);
-        Serial.print(", ");
-        Serial.print(pose_mocap.y, 3);
-        Serial.print(", ");
-        Serial.print(pose_mocap.z, 3);
-        Serial.print("]\n");
+
+        // Serial.print("position = [");
+        // Serial.print(pose_mocap.x, 3);
+        // Serial.print(", ");
+        // Serial.print(pose_mocap.y, 3);
+        // Serial.print(", ");
+        // Serial.print(pose_mocap.z, 3);
+        // Serial.print("]\n");
         // rexquad::PrintPose(Serial, pose_mocap);
+        RatePrinter();
       } else {
         Serial.write(buf_send, kStateControlSize);
       }
       // rexquad::Blink(LED_PIN, 10, 1);
     }
   }
+  // delay(100);
 }
