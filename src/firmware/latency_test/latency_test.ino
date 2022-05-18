@@ -170,11 +170,11 @@ void loop() {
       // Convert bytes into pose message
       rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
 
-      Serial.print("received [");
-      Serial.print(len_mocap);
-      Serial.print("]: ");
-      rexquad::PrintPose(Serial, pose_mocap);
-      rexquad::Blink(LED_PIN, 10, 1);
+      // Serial.print("received [");
+      // Serial.print(len_mocap);
+      // Serial.print("]: ");
+      // rexquad::PrintPose(Serial, pose_mocap);
+      // rexquad::Blink(LED_PIN, 10, 1);
     }
   }
 
@@ -214,7 +214,9 @@ void loop() {
       }
       break;
     case MOCAP_ECHO:
-      rexquad::PrintPose(Serial, pose_mocap);
+      if (pose_received) {
+        rexquad::PrintPose(Serial, pose_mocap);
+      }
       break;
   }
 }

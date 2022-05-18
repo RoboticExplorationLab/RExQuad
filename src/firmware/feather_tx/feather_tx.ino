@@ -41,6 +41,7 @@ void Blink(int pin, int delay_ms, int n) {
 // Setup
 /////////////////////////////////////////////
 void setup() {
+  Serial.begin(256000);
   rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
   digitalWrite(LED_PIN, LOW);
 }

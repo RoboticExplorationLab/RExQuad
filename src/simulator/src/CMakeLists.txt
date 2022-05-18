@@ -1,47 +1,25 @@
-add_executable(measurement_node
-  measurement_node.cpp
+function (quad_node targetname)
+  add_executable(${targetname}
+    ${targetname}.cpp
 
-  sim_utils.hpp
-  sim_utils.cpp
-)
-target_link_libraries(measurement_node
-  PRIVATE
-  libzmq
-  fmt::fmt
-  libserialport
-  quadutils
-  quadcommon
-  ArduinoEigen
-)
+    sim_utils.hpp
+    sim_utils.cpp
+  )
+  target_link_libraries(${targetname}
+    PRIVATE
+    libzmq
+    fmt::fmt
+    libserialport
+    quadutils
+    quadcommon
+    ArduinoEigen
+  )
+endfunction()
 
-add_executable(mocap_relay
-  mocap_relay.cpp
-
-  sim_utils.hpp
-  sim_utils.cpp
-)
-target_link_libraries(mocap_relay
-  PRIVATE
-  libzmq
-  fmt::fmt
-  libserialport
-  quadutils
-  quadcommon
-  ArduinoEigen
-)
-
-add_executable(fake_mocap
-  fake_mocap.cpp
-)
-target_link_libraries(fake_mocap
-  PRIVATE
-  libzmq
-  fmt::fmt
-  libserialport
-  quadutils
-  quadcommon
-  ArduinoEigen
-)
+quad_node(measurement_node)
+quad_node(mocap_relay)
+quad_node(fake_mocap)
+quad_node(onboard_relay)
 
 add_executable(control_node
   control_node.cpp

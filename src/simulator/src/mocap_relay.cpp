@@ -24,10 +24,16 @@ int main(int argc, char** argv) {
   if (argc > 1) {
     subport = argv[1];
   }
+  bool verbose = false;
+  if (argc > 2) {
+    std::string flag = std::string(argv[2]);
+    verbose = (flag == "-v") || (flag == "--verbose");
+  }
+  fmt::print("Verbose output? {}\n", verbose);
 
   // Open Serial port to transmitter
   std::string tx_name = "/dev/ttyACM0";
-  int baudrate = 57600;
+  int baudrate = 256000;
   struct sp_port* tx = rexquad::InitializeSerialPort(tx_name, baudrate);
   fmt::print("Connected to Transmitter\n");
 
@@ -71,10 +77,7 @@ int main(int argc, char** argv) {
   while (1) {
     // Receive MeasurementMsg over ZMQ
     int zmq_bytes_received = zmq_recv(sub, buf_zmqrecv, len_zmqrecv, 0);
-    fmt::print("\nReceived {} bytes over ZMQ\n", zmq_bytes_received);
     bool good_conversion = MeasurementMsgFromBytes(measmsg, buf_zmqrecv);
-    fmt::print("  Successful conversion to MeasurementMsg: {}\n", good_conversion);
-    fmt::print("  Ang Velocity = [{:.3f}, {:.3f}, {:.3f}]\n", measmsg.wx, measmsg.wy, measmsg.wz);
 
     // Extract Pose information
     posemsg.x = measmsg.x;
@@ -88,8 +91,13 @@ int main(int argc, char** argv) {
 
     // Send pose to transmitter 
     int bytes_sent = sp_blocking_write(tx, buf_pose, posemsg_len, send_timeout_ms);
-    fmt::print("Message sent ({} bytes):\n", bytes_sent);
-    print_msg(posemsg);
+    if (verbose) {
+      fmt::print("\nReceived {} bytes over ZMQ\n", zmq_bytes_received);
+      fmt::print("  Successful conversion to MeasurementMsg: {}\n", good_conversion);
+      fmt::print("  Ang Velocity = [{:.3f}, {:.3f}, {:.3f}]\n", measmsg.wx, measmsg.wy, measmsg.wz);
+      fmt::print("Message sent ({} bytes):\n", bytes_sent);
+      print_msg(posemsg);
+    }
   }
 
   return EXIT_SUCCESS;

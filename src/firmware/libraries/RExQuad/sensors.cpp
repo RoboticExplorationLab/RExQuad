@@ -245,7 +245,11 @@ void InitRadio(RH_RF69& rf69, float freq, int reset_pin, int led_pin, bool encry
   if (encrypt) {
     rf69.setEncryptionKey(key);
   }
-  rf69.setModemConfig(RH_RF69::GFSK_Rb250Fd250);
+  rf69.setModemConfig(RH_RF69::GFSK_Rb250Fd250); // works
+  // rf69.setModemConfig(RH_RF69::GFSK_Rb57_6Fd120);
+  // rf69.setModemConfig(RH_RF69::OOK_Rb32Bw64); // Doesn't work
+  // rf69.setModemConfig(RH_RF69::FSK_Rb250Fd250); // works
+  // rf69.setModemConfig(RH_RF69::GFSK_Rb57_6Fd120);  // Doesn't work
 }
 
 }  // namespace rexquad
