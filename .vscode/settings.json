@@ -1,5 +1,5 @@
 {
     // "cmake.sourceDirectory": "${workspaceFolder}/src/mocap",
-    "cmake.sourceDirectory": "${workspaceFolder}/src/simulator",
+    // "cmake.sourceDirectory": "${workspaceFolder}/src/simulator",
     "editor.tabSize": 2
 }

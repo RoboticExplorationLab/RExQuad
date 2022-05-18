@@ -55,6 +55,7 @@ xu = StateControlMsg(msg, 0)
 @test xu.qy == y.qy
 @test xu.qz == y.qz
 
+
 ## Run sim and get latency
 function measure_latency(sim, y, t)
     msg = ZMQ.Message(msgsize(StateControlMsg))
