@@ -30,7 +30,9 @@ private:
   struct sp_port *port_;
   bool is_open_ = false;
   bool check_for_input_ = false;
-  char buf_[sizeof(PoseMsg)];
+  PoseMsg pose_;
+  char buf_[sizeof(PoseMsg)+1];
+  std::chrono::time_point<std::chrono::high_resolution_clock> tstart_;
   std::chrono::milliseconds timeout_ = std::chrono::milliseconds(100);
 };
 

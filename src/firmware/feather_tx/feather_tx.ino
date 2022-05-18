@@ -68,7 +68,8 @@ void loop() {
     memcpy(msg, buf+start_index, kPoseSize);
     rf69.send(msg, kPoseSize);
     rf69.waitPacketSent();
-    Blink(LED_PIN, 20, 1);
+    // TODO: Turn LED on/off if it's stale
+    // Blink(LED_PIN, 20, 1);
   }
   return;
 

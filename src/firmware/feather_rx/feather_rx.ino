@@ -1,9 +1,9 @@
 #include "constants.hpp"
 #include "messages.hpp"
-#include "sensors.hpp"
 #include "pose.hpp"
-#include "serial_utils.hpp"
 #include "quad_utils.hpp"
+#include "sensors.hpp"
+#include "serial_utils.hpp"
 
 // Pin Setup
 #define LED_PIN 13
@@ -22,6 +22,7 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // Options
 constexpr int kWaitForSerial = 0;
+constexpr int kPrintToSerial = 1;  // Print chars over serial instead of data
 
 // Constants
 using Pose = rexquad::PoseMsg;
@@ -93,12 +94,22 @@ void loop() {
         statecontrol_msg.u[i] = u(i);
       }
       rexquad::StateControlMsgToBytes(statecontrol_msg, buf_send);
-      Serial.write(buf_send, kStateControlSize);
-      // Serial.print("received [");
-      // Serial.print(len_mocap);
-      // Serial.print("]: ");
-      // rexquad::PrintPose(Serial, pose_mocap);
-      rexquad::Blink(LED_PIN, 10, 1);
+      if (kPrintToSerial) {
+        // Serial.print("received [");
+        // Serial.print(len_mocap);
+        // Serial.print("]: ");
+        Serial.print("position = [");
+        Serial.print(pose_mocap.x, 3);
+        Serial.print(", ");
+        Serial.print(pose_mocap.y, 3);
+        Serial.print(", ");
+        Serial.print(pose_mocap.z, 3);
+        Serial.print("]\n");
+        // rexquad::PrintPose(Serial, pose_mocap);
+      } else {
+        Serial.write(buf_send, kStateControlSize);
+      }
+      // rexquad::Blink(LED_PIN, 10, 1);
     }
   }
 }

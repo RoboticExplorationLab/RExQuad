@@ -4,5 +4,6 @@
 /--library
 /bin
 /build
+/buildcode
 .cache
 *.pts

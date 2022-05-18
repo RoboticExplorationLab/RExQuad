@@ -92,4 +92,5 @@ add_compile_options(-mavx2 -mfma)
 
 add_subdirectory(src/common)
 add_subdirectory(src/utils)
+add_subdirectory(src/mocap)
 add_subdirectory(src/simulator/src)

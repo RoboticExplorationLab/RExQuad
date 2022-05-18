@@ -27,8 +27,13 @@ class Mocap {
     void AddCallback(const CallbackFunction& callback);
     void RunCallbacks(const sRigidBodyData&);
     int Run();
+    void SetVerbose(bool verbose) { verbose_ = verbose; }
+    bool IsVerbose() const { return verbose_; }
+    void PrintVersion() const ;
+    float GetFramerate() const; 
 
    private:
+    bool verbose_ = true;
     std::string _local_address;
     std::string _server_address;
     NatNetClient* _pClient;  
