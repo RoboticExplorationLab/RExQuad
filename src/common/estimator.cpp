@@ -1,6 +1,7 @@
 #include "estimator.hpp"
 
 #include <cstring>
+
 #include "messages.hpp"
 
 namespace rexquad {
@@ -9,17 +10,17 @@ double StateEstimator::ElapsedTime(uint64_t t1_us, uint64_t t2_us) {
   return static_cast<double>(t1_us - t2_us) * 1e-6;
 }
 
-void StateEstimator::IMUMeasurement(const IMUMeasurementMsg &imu, uint64_t timestamp_us) {
-  float a[3] = { imu.ax - bias_[0], imu.ay - bias_[1], imu.az - bias_[2] };
-  float w[3] = { imu.wx - bias_[3], imu.wy - bias_[4], imu.wz - bias_[5] };
+void StateEstimator::IMUMeasurement(const IMUMeasurementMsg& imu, uint64_t timestamp_us) {
+  float w[3] = {imu.wx - bias_[3], imu.wy - bias_[4], imu.wz - bias_[5]};
 
-  const LinearAcceleration& accelprev = ahist_.back();
-  float aprev[3] = {accelprev.x, accelprev.y, accelprev.z};
-  double dt = ElapsedTime(timestamp_us, accelprev.timestamp);
   for (int i = 0; i < 3; ++i) {
     if (do_integrate_linear_accel_) {
+      float a[3] = {imu.ax - bias_[0], imu.ay - bias_[1], imu.az - bias_[2]};
+      const LinearAcceleration& accelprev = ahist_.back();
+      float aprev[3] = {accelprev.x, accelprev.y, accelprev.z};
+      double dt = ElapsedTime(timestamp_us, accelprev.timestamp);
       // Integrate linear acceleration to get linear velocity
-      xhat_[7+i] += (a[i] + aprev[i]) * 0.5 * dt; 
+      xhat_[7 + i] += (a[i] + aprev[i]) * 0.5 * dt;
 
       // Append to history
       LinearAcceleration accel = {a[0], a[1], a[2], timestamp_us};
@@ -36,13 +37,13 @@ void StateEstimator::IMUMeasurement(const IMUMeasurementMsg &imu, uint64_t times
       // }
     }
 
-    // Use current angular velocity 
-    xhat_[10+i] = w[i];
+    // Use current angular velocity
+    xhat_[10 + i] = w[i];
   }
 }
 
-void StateEstimator::PoseMeasurement(const PoseMsg &pose, uint64_t timestamp_us) {
-  (void) timestamp_us;
+void StateEstimator::PoseMeasurement(const PoseMsg& pose, uint64_t timestamp_us) {
+  (void)timestamp_us;
 
   // Use pose measurement as ground truth
   xhat_[0] = pose.x;
@@ -57,10 +58,10 @@ void StateEstimator::PoseMeasurement(const PoseMsg &pose, uint64_t timestamp_us)
   // Finite Diff the position to get linear velocity
   double dt_pos = (timestamp_us - tprev_pos_us_) * 1e-6;
   for (int i = 0; i < 3; ++i) {
-    xhat_[7+i] = static_cast<float>((xhat_[i] - posprev_[i]) / dt_pos);
+    xhat_[7 + i] = static_cast<float>((xhat_[i] - posprev_[i]) / dt_pos);
 
     // Cache previous position
-    posprev_[i] = xhat_[i]; 
+    posprev_[i] = xhat_[i];
   }
 
   // Iterate backwards through linear acceleration hist
@@ -70,7 +71,7 @@ void StateEstimator::PoseMeasurement(const PoseMsg &pose, uint64_t timestamp_us)
   tprev_pos_us_ = timestamp_us;
 }
 
-void StateEstimator::GetStateEstimate(float *xhat) const {
+void StateEstimator::GetStateEstimate(float* xhat) const {
   memcpy(xhat, xhat_, sizeof(xhat_));
 }
 
@@ -94,9 +95,7 @@ void StateEstimator::GetStateEstimate(StateVector& xhat) const {
   memcpy(xhat.data(), xhat_, sizeof(xhat_));
 }
 
-void StateEstimator::SetBias(float *bias) {
-  memcpy(bias_, bias, sizeof(bias_));
-}
+void StateEstimator::SetBias(float* bias) { memcpy(bias_, bias, sizeof(bias_)); }
 
 void StateEstimator::SetIntegrateLinearAccel(bool flag) {
   do_integrate_linear_accel_ = flag;

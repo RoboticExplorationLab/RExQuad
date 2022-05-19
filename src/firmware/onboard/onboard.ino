@@ -12,12 +12,12 @@
 // Options
 enum RXOUTPUT { MOCAPRATE, PRINTPOSE, SERIALPOSE, NOOUTPUT, STATEERROR };
 constexpr bool kWaitForSerial = 1;
-constexpr bool kPrintStateEstimate = 0;
+constexpr bool kPrintStateEstimate = 1;
 constexpr bool kPrintControl = 0;
 const int kHeartbeatTimeoutMs = 100;
-// const RXOUTPUT output = NOOUTPUT;
+const RXOUTPUT output = NOOUTPUT;
 // const RXOUTPUT output = PRINTPOSE;
-const RXOUTPUT output = STATEERROR;
+// const RXOUTPUT output = STATEERROR;
 
 // Pin Setup
 #define LED_PIN 13
@@ -102,6 +102,9 @@ void setup() {
     ueq(i) = rexquad::kInputEquilibrium[i];
   }
 
+  // Filter settings
+  filter.SetIntegrateLinearAccel(false);
+
   // Make sure initial commands are 0
   motors.Kill();
 
@@ -147,7 +150,7 @@ void loop() {
   imureal.ReadSensor();
   const rexquad::IMUMeasurementMsg& imudata = imureal.GetMeasurement();
   Time t_imu = curtime();
-  // filter.IMUMeasurement(imudata, t_imu);
+  filter.IMUMeasurement(imudata, t_imu);
 
   // Process MOCAP pose
   bool pose_received = false;
@@ -226,22 +229,22 @@ void loop() {
       }
   }
   if (kPrintStateEstimate && pose_received) {
-    Serial.print("  position = [");
-    Serial.print(xhat(0), 3);
-    Serial.print(", ");
-    Serial.print(xhat(1), 3);
-    Serial.print(", ");
-    Serial.print(xhat(2), 3);
-    Serial.print("]\n");
-    Serial.print("  attitude = [");
-    Serial.print(xhat(3), 3);
-    Serial.print(", ");
-    Serial.print(xhat(4), 3);
-    Serial.print(", ");
-    Serial.print(xhat(5), 3);
-    Serial.print(", ");
-    Serial.print(xhat(6), 3);
-    Serial.print("]\n");
+    // Serial.print("  position = [");
+    // Serial.print(xhat(0), 3);
+    // Serial.print(", ");
+    // Serial.print(xhat(1), 3);
+    // Serial.print(", ");
+    // Serial.print(xhat(2), 3);
+    // Serial.print("]\n");
+    // Serial.print("  attitude = [");
+    // Serial.print(xhat(3), 3);
+    // Serial.print(", ");
+    // Serial.print(xhat(4), 3);
+    // Serial.print(", ");
+    // Serial.print(xhat(5), 3);
+    // Serial.print(", ");
+    // Serial.print(xhat(6), 3);
+    // Serial.print("]\n");
     // Serial.print("  lin vel  = [");
     // Serial.print(xhat(7), 3);
     // Serial.print(", ");
@@ -249,13 +252,13 @@ void loop() {
     // Serial.print(", ");
     // Serial.print(xhat(9), 3);
     // Serial.print("]\n");
-    // Serial.print("  ang vel  = [");
-    // Serial.print(xhat(10), 3);
-    // Serial.print(", ");
-    // Serial.print(xhat(11), 3);
-    // Serial.print(", ");
-    // Serial.print(xhat(12), 3);
-    // Serial.print("]\n");
+    Serial.print("  ang vel  = [");
+    Serial.print(xhat(10), 3);
+    Serial.print(", ");
+    Serial.print(xhat(11), 3);
+    Serial.print(", ");
+    Serial.print(xhat(12), 3);
+    Serial.print("]\n");
   }
   if (kPrintControl && pose_received) {
     Serial.print("  attitude = [");
