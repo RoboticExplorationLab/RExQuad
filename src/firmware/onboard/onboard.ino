@@ -10,13 +10,14 @@
 #include "serial_utils.hpp"
 
 // Options
-enum RXOUTPUT { MOCAPRATE, PRINTPOSE, SERIALPOSE, NOOUTPUT };
+enum RXOUTPUT { MOCAPRATE, PRINTPOSE, SERIALPOSE, NOOUTPUT, STATEERROR };
 constexpr bool kWaitForSerial = 1;
-constexpr bool kPrintStateEstimate = 1;
+constexpr bool kPrintStateEstimate = 0;
 constexpr bool kPrintControl = 0;
 const int kHeartbeatTimeoutMs = 100;
-const RXOUTPUT output = NOOUTPUT;
+// const RXOUTPUT output = NOOUTPUT;
 // const RXOUTPUT output = PRINTPOSE;
+const RXOUTPUT output = STATEERROR;
 
 // Pin Setup
 #define LED_PIN 13
@@ -170,8 +171,8 @@ void loop() {
   filter.GetStateEstimate(xhat);
 
   // TODO: Implement control policy
-  // rexquad::ErrorState(e, xhat, xeq);
-  // u = -K * e + ueq;
+  rexquad::ErrorState(e, xhat, xeq);
+  u = -K * e + ueq;
 
   // Send command only when heartbeat is alive
   if (heartbeat.IsDead()) {
@@ -206,6 +207,23 @@ void loop() {
       break;
     case NOOUTPUT:
       break;
+    case STATEERROR:
+      if (pose_received) {
+        // Serial.print("position = [");
+        // Serial.print(e(0), 3);
+        // Serial.print(", ");
+        // Serial.print(e(1), 3);
+        // Serial.print(", ");
+        // Serial.print(e(2), 3);
+        // Serial.println("]");
+        Serial.print("attitude = [");
+        Serial.print(e(3), 3);
+        Serial.print(", ");
+        Serial.print(e(4), 3);
+        Serial.print(", ");
+        Serial.print(e(5), 3);
+        Serial.println("]");
+      }
   }
   if (kPrintStateEstimate && pose_received) {
     Serial.print("  position = [");
@@ -215,15 +233,15 @@ void loop() {
     Serial.print(", ");
     Serial.print(xhat(2), 3);
     Serial.print("]\n");
-    // Serial.print("  attitude = [");
-    // Serial.print(xhat(3), 3);
-    // Serial.print(", ");
-    // Serial.print(xhat(4), 3);
-    // Serial.print(", ");
-    // Serial.print(xhat(5), 3);
-    // Serial.print(", ");
-    // Serial.print(xhat(6), 3);
-    // Serial.print("]\n");
+    Serial.print("  attitude = [");
+    Serial.print(xhat(3), 3);
+    Serial.print(", ");
+    Serial.print(xhat(4), 3);
+    Serial.print(", ");
+    Serial.print(xhat(5), 3);
+    Serial.print(", ");
+    Serial.print(xhat(6), 3);
+    Serial.print("]\n");
     // Serial.print("  lin vel  = [");
     // Serial.print(xhat(7), 3);
     // Serial.print(", ");

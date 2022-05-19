@@ -348,19 +348,12 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
   for (i = 0; i < data->nRigidBodies; i++) {
     if (mocap->DoesConvertToZUp()) {
 
-      const float s2 = std::sqrt(2) / 2;
       const sRigidBodyData& yup = data->RigidBodies[i];
-      float qw = yup.qw;
-      float qx = yup.qx;
-      float qy = yup.qy;
-      float qz = yup.qz;
       sRigidBodyData zup(yup);  // Call implicit copy constructor
       zup.y = -yup.z;
       zup.z = yup.y;
-      zup.qw = s2 * (qw - qx);
-      zup.qx = s2 * (qw + qx);
-      zup.qy = s2 * (qy - qz);
-      zup.qz = s2 * (qy + qz);
+      zup.qy = -yup.qz;
+      zup.qz = yup.qy;
       mocap->RunCallbacks(zup);
     } else {
       mocap->RunCallbacks(data->RigidBodies[i]);
