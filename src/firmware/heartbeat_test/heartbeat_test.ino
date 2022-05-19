@@ -30,6 +30,8 @@ void setup() {
   Serial.println("  1. Send any command over serial to the Feather");
   Serial.println("  2. The LED should turn off if you don't send a command for 1 second.");
   Serial.println("  3. The LED should turn on once you send another command.");
+  Serial.println("  4. It should print 'Just Died.' when the LED turns off.");
+  Serial.println("  5. It should print 'Just came back alive.' when the LED turns back on.");
 
   // Setup Heartbeat
   heartbeat.SetTimeoutMs(kHeartbeatTimeoutMs);
@@ -55,6 +57,12 @@ void loop() {
     digitalWrite(LED_PIN, LOW);
   } else {
     digitalWrite(LED_PIN, HIGH);
+  }
+  if (heartbeat.IsNewlyDead()) {
+    Serial.println("Just Died.");
+  }
+  if (heartbeat.IsNewlyAlive()) {
+    Serial.println("Just came back alive.");
   }
   return;
 
