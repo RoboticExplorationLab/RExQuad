@@ -26,8 +26,13 @@ function set_conflate(socket::ZMQ.Socket, option_val::Integer)
     end
 end
 
+Base.@kwdef mutable struct SimOpts
+    recvtimeout_ms::Int = 100
+end
+
 struct Simulator
     buf_out::ZMQ.Message
+    buf_in::ZMQ.Message
     ctx::ZMQ.Context
     pub::ZMQ.Socket
     sub::ZMQ.Socket
@@ -35,13 +40,15 @@ struct Simulator
     xhist::Vector{Vector{Float64}}
     uhist::Vector{Vector{Float64}}
     thist::Vector{Float64}
+    msg_meas::Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}
+    msg_data::Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}
     stats::Dict{String,Any}
-    msg_meas::Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}
-    msg_data::Vector{NamedTuple{(:tsim,:twall,:xu), Tuple{Float64, Float64, StateControlMsg}}}
+    opts::SimOpts
 end
 
 function Simulator(pub_port=5555, sub_port=5556)
-    buf_out = ZMQ.Message(sizeof(MeasurementMsg))
+    buf_out = ZMQ.Message(msgsize(MeasurementMsg))
+    buf_in = ZMQ.Message(2 * msgsize(StateControlMsg))
     ctx = ZMQ.Context()
     pub = ZMQ.Socket(ctx, ZMQ.PUB)
     try
@@ -70,17 +77,18 @@ function Simulator(pub_port=5555, sub_port=5556)
 
     vis = Visualizer()
     RobotMeshes.setdrone!(vis["truth"])
-    RobotMeshes.setdrone!(vis["estimate"], color=RGBA(1.0,0.0,0.0, 0.5))
+    RobotMeshes.setdrone!(vis["estimate"], color=RGBA(1.0, 0.0, 0.0, 0.5))
     MeshCat.setvisible!(vis["estimate"], false)
 
     # logs
     xhist = Vector{Float64}[]
     uhist = Vector{Float64}[]
     thist = Vector{Float64}()
-    msg_meas = Vector{NamedTuple{(:tsim,:twall,:y), Tuple{Float64, Float64, MeasurementMsg}}}()
-    msg_data = Vector{NamedTuple{(:tsim,:twall,:xu), Tuple{Float64, Float64, StateControlMsg}}}()
+    msg_meas = Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}()
+    msg_data = Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}()
     stats = Dict{String,Any}()
-    Simulator(buf_out, ctx, pub, sub, vis, xhist, uhist, thist, stats, msg_meas, msg_data)
+    opts = SimOpts()
+    Simulator(buf_out, buf_in, ctx, pub, sub, vis, xhist, uhist, thist, msg_meas, msg_data, stats, opts)
 end
 
 function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
@@ -93,7 +101,8 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
 
     # Flush out publishers / subscribers
     buf = ZMQ.Message(100)
-    while ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT) >= 0 end
+    while ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT) >= 0
+    end
 
     # Initialize logs
     xhat = SVector{13,Float32}[]
@@ -101,7 +110,7 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     sizehint!(latency, approx_size)
     sizehint!(xhat, approx_size)
     sim.stats["latency"] = latency
-    sim.stats["xhat"] = xhat 
+    sim.stats["xhat"] = xhat
 
     if visualize == :truth
         MeshCat.setvisible!(sim.vis["truth"], true)
@@ -110,7 +119,7 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
         MeshCat.setvisible!(sim.vis["truth"], false)
         MeshCat.setvisible!(sim.vis["estimate"], true)
     elseif visualize == :all
-        MeshCat.setvisible!(sim.vis["truth"], true) 
+        MeshCat.setvisible!(sim.vis["truth"], true)
         MeshCat.setvisible!(sim.vis["estimate"], true)
     end
     sim
@@ -124,11 +133,11 @@ end
 function runsim(sim::Simulator, x0; dt=0.01, tf=Inf, visualize=:none, kwargs...)
     x = copy(x0)
     t = 0.0
-    freq = 1/dt  # Hz
+    freq = 1 / dt  # Hz
     lrl = LoopRateLimiter(10)
-    u = trim_controls() 
+    u = trim_controls()
 
-    approx_size =  tf < Inf ? round(Int, tf / dt) : 10_000
+    approx_size = tf < Inf ? round(Int, tf / dt) : 10_000
     reset!(sim; approx_size, visualize)
 
     t_start = time()
@@ -158,7 +167,7 @@ function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_me
     # Send measurement
     if send_measurement
         tsend = time() - t_start
-        push!(sim.msg_meas, (;tsim=t, twall=tsend, y))
+        push!(sim.msg_meas, (; tsim=t, twall=tsend, y))
         sendmeasurement(sim, y, t)
     end
 
@@ -166,7 +175,7 @@ function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_me
     statecontrol = getdata(sim, t)
     trecv = time() - t_start
     if !isnothing(statecontrol)
-        push!(sim.msg_data, (;tsim=t, twall=trecv, xu=statecontrol))
+        push!(sim.msg_data, (; tsim=t, twall=trecv, xu=statecontrol))
         if send_measurement
             push!(sim.stats["latency"], trecv - tsend)
         end
@@ -210,8 +219,14 @@ end
 
 function getdata(sim::Simulator, t)
     # TODO: add noise
-    buf = ZMQ.Message(100)
-    bytes_read = ZMQ.msg_recv(sim.sub, buf, 0)::Int32
+    buf = sim.buf_in
+    tstart = time_ns()
+    while (time_ns() - tstart < sim.opts.recvtimeout_ms * 1e6)
+        bytes_read = ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT)
+        if bytes_read > 0
+            break
+        end
+    end
     ZMQ.getproperty(sim.sub, :events)
     if bytes_read >= msgsize(StateControlMsg)
         return StateControlMsg(buf)

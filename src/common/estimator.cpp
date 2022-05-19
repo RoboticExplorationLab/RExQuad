@@ -5,25 +5,30 @@
 
 namespace rexquad {
 
-void StateEstimator::IMUMeasurement(const IMUMeasurementMsg &imu, double timestamp) {
+void StateEstimator::IMUMeasurement(const IMUMeasurementMsg &imu, uint64_t timestamp_us) {
   float a[3] = { imu.ax - bias_[0], imu.ay - bias_[1], imu.az - bias_[2] };
   float w[3] = { imu.wx - bias_[3], imu.wy - bias_[4], imu.wz - bias_[5] };
-  double dt = timestamp - tprev_accel_;
+
+  const LinearAcceleration& accelprev = ahist_.back();
+  float aprev[3] = {accelprev.x, accelprev.y, accelprev.z};
+  double dt = static_cast<double>(timestamp_us - accelprev.timestamp) * 1e-6;
   for (int i = 0; i < 3; ++i) {
     if (do_integrate_linear_accel_) {
       // Integrate linear acceleration to get linear velocity
-      xhat_[7+i] += (a[i] + aprev_[i]) * 0.5 * dt; 
-      aprev_[i] = a[i];
+      xhat_[7+i] += (a[i] + aprev[i]) * 0.5 * dt; 
+
+      // Append to history
+      LinearAcceleration accel = {a[0], a[1], a[2], timestamp_us};
+      ahist_.emplace_back(std::move(accel));
     }
 
     // Use current angular velocity 
     xhat_[10+i] = w[i];
   }
-  tprev_accel_ = timestamp;
 }
 
-void StateEstimator::PoseMeasurement(const PoseMsg &pose, double timestamp) {
-  (void) timestamp;
+void StateEstimator::PoseMeasurement(const PoseMsg &pose, uint64_t timestamp_us) {
+  (void) timestamp_us;
 
   // Use pose measurement as ground truth
   xhat_[0] = pose.x;
@@ -36,14 +41,19 @@ void StateEstimator::PoseMeasurement(const PoseMsg &pose, double timestamp) {
   xhat_[6] = pose.qz;
 
   // Finite Diff the position to get linear velocity
-  double dt = timestamp - tprev_pos_;
+  double dt_pos = (timestamp_us - tprev_pos_us_) * 1e-6;
   for (int i = 0; i < 3; ++i) {
-    xhat_[7+i] = static_cast<float>((xhat_[i] - posprev_[i]) / dt);
+    xhat_[7+i] = static_cast<float>((xhat_[i] - posprev_[i]) / dt_pos);
 
     // Cache previous position
     posprev_[i] = xhat_[i]; 
   }
-  tprev_pos_ = timestamp;
+
+  // Iterate backwards through linear acceleration hist
+  // for (const auto& it = ahist_.crbegin(); it > ahist_.crend(); ++it) {
+
+  // }
+  tprev_pos_us_ = timestamp_us;
 }
 
 void StateEstimator::GetStateEstimate(float *xhat) const {
