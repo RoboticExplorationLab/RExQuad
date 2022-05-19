@@ -121,19 +121,19 @@ void loop() {
     case RUNNING: {
       switch (motor) {
         case '1':
-          motors.SendCommandPWMSingleMotor(Motor::kFrontLeft, kMinInput + 100);
+          motors.SendCommandPWMSingleMotor(Motor::kFrontLeft, kMinInput + 400);
           break;
         case '2':
-          motors.SendCommandPWMSingleMotor(Motor::kFrontRight, kMinInput + 100);
+          motors.SendCommandPWMSingleMotor(Motor::kFrontRight, kMinInput + 400);
           break;
         case '3':
-          motors.SendCommandPWMSingleMotor(Motor::kBackRight, kMinInput + 100);
+          motors.SendCommandPWMSingleMotor(Motor::kBackRight, kMinInput + 400);
           break;
         case '4':
-          motors.SendCommandPWMSingleMotor(Motor::kBackLeft, kMinInput + 100);
+          motors.SendCommandPWMSingleMotor(Motor::kBackLeft, kMinInput + 400);
           break;
         default:
-          motors.SendCommandPWMSingleMotor(Motor::kAllMotors, kMinInput + 100);
+          motors.SendCommandPWMSingleMotor(Motor::kAllMotors, kMinInput + 400);
       }
       if (GetCurrentTimeMs() > 500) {
         motors.Kill();

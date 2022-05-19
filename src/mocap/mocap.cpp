@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
   // Add callbacks
   rexquad::PrintCallback printcallback = {};
 
-  const char* port = "/dev/ttyACM3";
+  const char* port = "/dev/ttyACM0";
   int baudrate = 256000;
   rexquad::SerialCallback radio(port, baudrate);
   radio.Open();

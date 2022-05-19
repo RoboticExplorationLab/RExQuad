@@ -102,7 +102,7 @@ rexquad::StateVector x;
 rexquad::ErrorVector e;  // error state
 
 void MotorOn() {
-  motors.SendCommandPWM(1400, 0,0,0);
+  motors.SendCommandPWM(1300, 0,0,0);
 }
 void MotorOff() {
   motors.SendCommandPWM(0,0,0,0);
@@ -162,14 +162,14 @@ void setup() {
     // motors.Kill();
   }
 
-  // Determine mode
-  user_response = rexquad::GetUserResponse(Serial, "Enter MOCAP echo mode? (y/n)");
-  user_response.toLowerCase();
-  if (user_response.equals("y")) {
-    curstate = MOCAP_ECHO;
-  } else {
-    curstate = WAITING_FOR_INPUT;
-  }
+  // // Determine mode
+  // user_response = rexquad::GetUserResponse(Serial, "Enter MOCAP echo mode? (y/n)");
+  // user_response.toLowerCase();
+  // if (user_response.equals("y")) {
+  //   curstate = MOCAP_ECHO;
+  // } else {
+  //   curstate = WAITING_FOR_INPUT;
+  // }
   digitalWrite(LED_PIN, LOW);
 }
 
@@ -228,6 +228,7 @@ void loop() {
       if (tcur_ms > kBurnInTimeMs) {
         tstart = micros();
         // motors.SendCommandPWMSingleMotor(kMotor, rexquad::kMinInput+100);
+        Serial.println("Sending command!");
         MotorOn();
         curstate = RUNNING;
       }

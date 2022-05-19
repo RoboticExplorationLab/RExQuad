@@ -21,9 +21,14 @@ rexquad::IMU imureal;
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // Options
+enum RXOUTPUT {
+  RATE,
+  PRINTPOSE,
+  SERIALPOSE
+};
 constexpr int kWaitForSerial = 0;
-constexpr int kPrintToSerial = 1;  // Print chars over serial instead of data
 const int kHeartbeatTimeoutMs = 1000;
+const RXOUTPUT output = RATE;
 
 // Constants
 using Pose = rexquad::PoseMsg;
@@ -103,24 +108,23 @@ void loop() {
         statecontrol_msg.u[i] = u(i);
       }
       rexquad::StateControlMsgToBytes(statecontrol_msg, buf_send);
-      if (kPrintToSerial) {
-        // Serial.print("received [");
-        // Serial.print(len_mocap);
-        // Serial.print("]: ");
-
-        // Serial.print("position = [");
-        // Serial.print(pose_mocap.x, 3);
-        // Serial.print(", ");
-        // Serial.print(pose_mocap.y, 3);
-        // Serial.print(", ");
-        // Serial.print(pose_mocap.z, 3);
-        // Serial.print("]\n");
-        // rexquad::PrintPose(Serial, pose_mocap);
-        rexquad::RatePrinter();
-      } else {
-        Serial.write(buf_send, kStateControlSize);
+      switch (output) {
+        case RATE:
+          rexquad::RatePrinter();
+          break;
+        case PRINTPOSE:
+          Serial.print("position = [");
+          Serial.print(pose_mocap.x, 3);
+          Serial.print(", ");
+          Serial.print(pose_mocap.y, 3);
+          Serial.print(", ");
+          Serial.print(pose_mocap.z, 3);
+          Serial.println("]");
+          break;
+        case SERIALPOSE:
+          Serial.write(buf_send, kStateControlSize);
+          break;
       }
-      // rexquad::Blink(LED_PIN, 10, 1);
     }
   }
   if (heartbeat.IsDead()) {

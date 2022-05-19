@@ -31,11 +31,7 @@ rexquad::Heartbeat heartbeat;
 void setup() {
   Serial.begin(256000);
   rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
-  while (!Serial) {
-    rexquad::Blink(LED_PIN, 500, 1);
-  }
-  delay(500);
-  Serial.println("Connected to Receiver!");
+  // Serial.println("Connected to Receiver!");
 
   // Setup Heartbeat
   heartbeat.SetTimeoutMs(kHeartbeatTimeoutMs);
