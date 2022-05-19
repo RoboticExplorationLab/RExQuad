@@ -5,13 +5,17 @@
 
 namespace rexquad {
 
+double StateEstimator::ElapsedTime(uint64_t t1_us, uint64_t t2_us) {
+  return static_cast<double>(t1_us - t2_us) * 1e-6;
+}
+
 void StateEstimator::IMUMeasurement(const IMUMeasurementMsg &imu, uint64_t timestamp_us) {
   float a[3] = { imu.ax - bias_[0], imu.ay - bias_[1], imu.az - bias_[2] };
   float w[3] = { imu.wx - bias_[3], imu.wy - bias_[4], imu.wz - bias_[5] };
 
   const LinearAcceleration& accelprev = ahist_.back();
   float aprev[3] = {accelprev.x, accelprev.y, accelprev.z};
-  double dt = static_cast<double>(timestamp_us - accelprev.timestamp) * 1e-6;
+  double dt = ElapsedTime(timestamp_us, accelprev.timestamp);
   for (int i = 0; i < 3; ++i) {
     if (do_integrate_linear_accel_) {
       // Integrate linear acceleration to get linear velocity
@@ -20,6 +24,16 @@ void StateEstimator::IMUMeasurement(const IMUMeasurementMsg &imu, uint64_t times
       // Append to history
       LinearAcceleration accel = {a[0], a[1], a[2], timestamp_us};
       ahist_.emplace_back(std::move(accel));
+      if (ahist_.size() > 10) {  // TODO: calculate this size
+        ahist_.pop_front();
+      }
+      // for (int i = 0; i < ahist_.size(); ++i) {
+      //   // Remove any history longer than the 2x the latency
+      //   double time_passed = ElapsedTime(timestamp_us, ahist_.front().timestamp);
+      //   if (time_passed > h_pos_) {
+      //     ahist_.pop_front();
+      //   }
+      // }
     }
 
     // Use current angular velocity 

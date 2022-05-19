@@ -20,7 +20,7 @@ struct LinearAcceleration {
 class StateEstimator {
  public:
   void IMUMeasurement(const IMUMeasurementMsg& imu, uint64_t timestamp);
-  void PoseMeasurement(const PoseMsg& pose, uint64_t timestamp);
+  void PoseMeasurement(const PoseMsg& pose, uint64_t timestamp_us);
   void GetStateEstimate(float* xhat) const;
   void GetStateEstimate(StateControlMsg& xhat) const;
   void GetStateEstimate(StateVector& xhat) const;
@@ -30,6 +30,7 @@ class StateEstimator {
   void SetPoseTimestep(float timestep_s);
 
  private:
+  static double ElapsedTime(uint64_t t1_us, uint64_t t2_us);
   float h_pos_;            // timestep for position measurements (seconds)
   float latency_pos_;      // latency for position measurements (seconds)
   uint64_t tprev_pos_us_;  // previous pose timestep

@@ -1,20 +1,22 @@
-#include "motors.hpp"
-#include "control.hpp"
 #include "constants.hpp"
+#include "control.hpp"
+#include "estimator.hpp"
+#include "lqr_constants.hpp"
 #include "messages.hpp"
+#include "motors.hpp"
 #include "pose.hpp"
 #include "quad_utils.hpp"
 #include "sensors.hpp"
 #include "serial_utils.hpp"
-#include "lqr_constants.hpp"
-#include "estimator.hpp"
 
 // Options
+enum RXOUTPUT { MOCAPRATE, PRINTPOSE, SERIALPOSE };
 constexpr bool kWaitForSerial = 1;
 constexpr bool kPrintStateEstimate = 0;
 constexpr bool kPrintControl = 0;
 constexpr bool kPrintMocap = 1;
 const int kHeartbeatTimeoutMs = 100;
+const RXOUTPUT output = MOCAPRATE;
 
 // Pin Setup
 #define LED_PIN 13
@@ -39,6 +41,7 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 rexquad::QuadMotors motors(FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK_LEFT_PIN);
 
 // Aliases
+using Time = uint64_t;
 using Pose = rexquad::PoseMsg;
 using Control = rexquad::ControlMsg;
 using StateControl = rexquad::StateControlMsg;
@@ -52,7 +55,7 @@ constexpr int kStateControlSize = sizeof(StateControl) + 1;
 constexpr uint8_t kStateControlID = StateControl::MsgID;
 
 // Buffers
-uint8_t buf_mocap[kPoseSize];      // buffer for receiving MOCAP pose
+uint8_t buf_mocap[kPoseSize];  // buffer for receiving MOCAP pose
 
 // Globals
 Pose pose_mocap;
@@ -78,29 +81,28 @@ rexquad::ErrorVector e;  // error state
 rexquad::StateVector xeq;
 rexquad::InputVector ueq;
 
-double curtime() {
+Time curtime() {
   uint64_t t_micros = micros() - tstart;
-  double t_cur = static_cast<double>(t_micros) * 1e-6;
-  return t_cur;
+  return t_micros;
 }
 
 /////////////////////////////////////////////
 // Initialization
 /////////////////////////////////////////////
 void setup() {
-  // // Initialize LQR controller
-  // for (int i = 0; i < K.size(); ++i) {
-  //   K(i) = rexquad::kFeedbackGain[i];
-  // }
-  // for (int i = 0; i < xeq.size(); ++i) {
-  //   xeq(i) = rexquad::kStateEquilibrium[i];
-  // }
-  // for (int i = 0; i < ueq.size(); ++i) {
-  //   ueq(i) = rexquad::kInputEquilibrium[i];
-  // }
+  // Initialize LQR controller
+  for (int i = 0; i < K.size(); ++i) {
+    K(i) = rexquad::kFeedbackGain[i];
+  }
+  for (int i = 0; i < xeq.size(); ++i) {
+    xeq(i) = rexquad::kStateEquilibrium[i];
+  }
+  for (int i = 0; i < ueq.size(); ++i) {
+    ueq(i) = rexquad::kInputEquilibrium[i];
+  }
 
-  // // Make sure initial commands are 0
-  // motors.Kill();
+  // Make sure initial commands are 0
+  motors.Kill();
 
   // Initialize Serial
   Serial.begin(256000);
@@ -129,9 +131,9 @@ void setup() {
   heartbeat.Activate();
 
   // TODO: Get the IMU Bias sitting on the ground
-  // float bias[6];
-  // memset(bias, 0, sizeof(bias));
-  // filter.SetBias(bias);
+  float bias[6];
+  memset(bias, 0, sizeof(bias));
+  filter.SetBias(bias);
 
   // TODO: do a takeoff maneuver and settle into level flight
   tstart = micros();  // resets after about 70 minutes per Arduino docs
@@ -141,10 +143,10 @@ void setup() {
 // Main Loop
 /////////////////////////////////////////////
 void loop() {
-  // imureal.ReadSensor();
-  // const rexquad::IMUMeasurementMsg& imudata = imureal.GetMeasurement();
-  // double t_imu = curtime();
-  // filter.IMUMeasurement(imudata, t_imu);
+  imureal.ReadSensor();
+  const rexquad::IMUMeasurementMsg& imudata = imureal.GetMeasurement();
+  Time t_imu = curtime();
+  filter.IMUMeasurement(imudata, t_imu);
 
   // Process MOCAP pose
   bool pose_received = false;
@@ -152,22 +154,15 @@ void loop() {
     uint8_t len_mocap = sizeof(buf_mocap);
 
     if (rf69.recv(buf_mocap, &len_mocap)) {
+      Time t_mocap = curtime();
       pose_received = true;
       heartbeat.Pulse();
 
       // Convert bytes into pose message
       rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
-      if (kPrintMocap) {
-        Serial.print("position = [");
-        Serial.print(pose_mocap.x, 3);
-        Serial.print(", ");
-        Serial.print(pose_mocap.y, 3);
-        Serial.print(", ");
-        Serial.print(pose_mocap.z, 3);
-        Serial.println("]");
-      }
 
-      // rexquad::print_rate();
+      // Update State Estimate
+      filter.PoseMeasurement(pose_mocap, t_mocap);
     }
   }
 
@@ -189,6 +184,27 @@ void loop() {
   }
 
   // Printing
+  switch (output) {
+    case MOCAPRATE:
+      if (pose_received) {
+        rexquad::RatePrinter();
+      }
+      break;
+    case PRINTPOSE:
+      if (pose_received) {
+        Serial.print("position = [");
+        Serial.print(pose_mocap.x, 3);
+        Serial.print(", ");
+        Serial.print(pose_mocap.y, 3);
+        Serial.print(", ");
+        Serial.print(pose_mocap.z, 3);
+        Serial.println("]");
+      }
+      break;
+    case SERIALPOSE:
+      // Serial.write(buf_send, kStateControlSize);
+      break;
+  }
   if (kPrintStateEstimate) {
     Serial.print("  position = [");
     Serial.print(xhat(0), 3);
