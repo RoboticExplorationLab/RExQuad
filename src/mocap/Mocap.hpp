@@ -31,9 +31,12 @@ class Mocap {
     bool IsVerbose() const { return verbose_; }
     void PrintVersion() const ;
     float GetFramerate() const; 
+    bool DoesConvertToZUp() const;
+    void ConvertToZUp(bool flag);
 
    private:
     bool verbose_ = true;
+    bool do_convert_to_z_up_ = false;
     std::string _local_address;
     std::string _server_address;
     NatNetClient* _pClient;  

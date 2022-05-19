@@ -1,5 +1,7 @@
 #include "Mocap.hpp"
 
+#include <cmath>
+
 #include <NatNetClient.h>
 #include <NatNetTypes.h>
 
@@ -31,6 +33,10 @@ void Mocap::PrintVersion() const {
   printf("NatNet Sample Client (NatNet ver. %d.%d.%d.%d)\n", ver[0], ver[1], ver[2],
          ver[3]);
 }
+
+bool Mocap::DoesConvertToZUp() const { return do_convert_to_z_up_; }
+
+void Mocap::ConvertToZUp(bool flag) { do_convert_to_z_up_ = flag; }
 
 void Mocap::SetLocalAddress(const std::string& addr) { _local_address = addr; }
 
@@ -340,7 +346,25 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
 
   // Rigid Bodies
   for (i = 0; i < data->nRigidBodies; i++) {
-    mocap->RunCallbacks(data->RigidBodies[i]);
+    if (mocap->DoesConvertToZUp()) {
+
+      const float s2 = std::sqrt(2) / 2;
+      const sRigidBodyData& yup = data->RigidBodies[i];
+      float qw = yup.qw;
+      float qx = yup.qx;
+      float qy = yup.qy;
+      float qz = yup.qz;
+      sRigidBodyData zup(yup);  // Call implicit copy constructor
+      zup.y = -yup.z;
+      zup.z = yup.y;
+      zup.qw = s2 * (qw - qx);
+      zup.qx = s2 * (qw + qx);
+      zup.qy = s2 * (qy - qz);
+      zup.qz = s2 * (qy + qz);
+      mocap->RunCallbacks(zup);
+    } else {
+      mocap->RunCallbacks(data->RigidBodies[i]);
+    }
   }
 
   //     // params

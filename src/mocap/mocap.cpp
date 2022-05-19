@@ -16,11 +16,12 @@
 
 // Globals
 static const char* SERVER_ADDR = "192.168.1.66";
-static const char* LOCAL_ADDR = "192.168.1.68";
+static const char* LOCAL_ADDR = "192.168.1.70";
 
 int main(int argc, char* argv[]) {
   rexquad::Mocap mocap = {};
   mocap.SetVerbose(false);
+  mocap.ConvertToZUp(true);
 
   // Add callbacks
   rexquad::PrintCallback printcallback = {};
