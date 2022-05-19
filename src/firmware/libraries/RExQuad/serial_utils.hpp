@@ -122,4 +122,6 @@ String GetUserResponse(SerialClass Serial, String prompt) {
   return user_response;
 }
 
+void RatePrinter();
+
 }  // namespace rexquad

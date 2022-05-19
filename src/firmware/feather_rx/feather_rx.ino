@@ -23,6 +23,7 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 // Options
 constexpr int kWaitForSerial = 0;
 constexpr int kPrintToSerial = 1;  // Print chars over serial instead of data
+const int kHeartbeatTimeoutMs = 1000;
 
 // Constants
 using Pose = rexquad::PoseMsg;
@@ -36,25 +37,11 @@ uint8_t buf_mocap[kMaxBufferSize];
 uint8_t buf_send[kStateControlSize];
 Pose pose_mocap;
 StateControl statecontrol_msg;
+rexquad::Heartbeat heartbeat;
 
 rexquad::StateVector xhat;
 rexquad::InputVector u;
 
-void RatePrinter() {
-  static uint64_t tstart_us = micros();
-  static int count = 0;
-  int batch = 10;
-  ++count;
-  if (count % batch == 0) {
-    uint64_t tcur_us = micros();
-    double rate = static_cast<double>(batch) / static_cast<double>(tcur_us - tstart_us) * 1e6;
-    Serial.print("Average Rate = ");
-    Serial.print(rate, 3);
-    Serial.println(" Hz");
-
-    tstart_us = tcur_us;
-  }
-}
 
 /////////////////////////////////////////////
 // Setup
@@ -80,6 +67,11 @@ void setup() {
   }
 
   rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
+
+  // Setup Heartbeat
+  heartbeat.SetTimeoutMs(kHeartbeatTimeoutMs);
+  heartbeat.Activate();
+
   digitalWrite(LED_PIN, LOW);
 }
 
@@ -93,6 +85,7 @@ void loop() {
 
     if (rf69.recv(buf_mocap, &len_mocap)) {
       ++packets_received;
+      heartbeat.Pulse();
 
       // Convert bytes into pose message
       rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
@@ -123,12 +116,17 @@ void loop() {
         // Serial.print(pose_mocap.z, 3);
         // Serial.print("]\n");
         // rexquad::PrintPose(Serial, pose_mocap);
-        RatePrinter();
+        rexquad::RatePrinter();
       } else {
         Serial.write(buf_send, kStateControlSize);
       }
       // rexquad::Blink(LED_PIN, 10, 1);
     }
+  }
+  if (heartbeat.IsDead()) {
+    digitalWrite(LED_PIN, LOW);
+  } else {
+    digitalWrite(LED_PIN, HIGH);
   }
   // delay(100);
 }

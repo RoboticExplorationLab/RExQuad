@@ -53,4 +53,20 @@ void print_rate() {
     count = 0;
   }
 }
+
+void RatePrinter() {
+  static uint64_t tstart_us = micros();
+  static int count = 0;
+  int batch = 10;
+  ++count;
+  if (count % batch == 0) {
+    uint64_t tcur_us = micros();
+    double rate = static_cast<double>(batch) / static_cast<double>(tcur_us - tstart_us) * 1e6;
+    Serial.print("Average Rate = ");
+    Serial.print(rate, 3);
+    Serial.println(" Hz");
+
+    tstart_us = tcur_us;
+  }
+}
 } // namespace rexquad
