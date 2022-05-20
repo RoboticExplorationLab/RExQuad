@@ -273,7 +273,7 @@ void InitLoRa(RH_RF95& rf95, float freq, int reset_pin, int led_pin) {
   }
   Serial.println("RF95 Radio (LoRa) init OK!");
   rf95.setTxPower(23, false);  // 5-23
-  // rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
+  rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
 }
 
 }  // namespace rexquad

@@ -69,12 +69,12 @@ void loop() {
     uint8_t len = sizeof(buf_recv);
 
     if (rf95.recv(buf_recv, &len)) {
-      Serial.println("Packet Received!");
       Serial.print("Got: ");
       Serial.write(buf_recv, len);
       Serial.println("");
       heartbeat.Pulse();
     }
+    rexquad::RatePrinter();
   }
   if (heartbeat.IsDead()) {
     digitalWrite(LED_PIN, LOW);

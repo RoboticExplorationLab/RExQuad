@@ -102,14 +102,13 @@ void setup() {
 // Loop
 /////////////////////////////////////////////
 int packets_received = 0;
+char buf[13] = "Hello, LoRa!";
 void loop() {
-  // Serial.println("Sending packet");
-  // char buf[13] = "Hello, LoRa!";
+  // char buf[7] = "Hello!";
   // int len = sizeof(buf);
   // rf95.send((uint8_t *)buf, len);
-  // rf95.waitPacketSent();
-  // Serial.println("Packet Sent");
-  // delay(500);
+  // // rf95.waitPacketSent();
+  // rexquad::RatePrinter();
 
   if (rf69.available()) {
     uint8_t len_mocap = sizeof(buf_mocap);
@@ -135,10 +134,11 @@ void loop() {
       }
 
       // Send packet over LoRa
-      rexquad::StateControlMsgToBytes(statecontrol_msg, buf_send);
-      char buf[13] = "Hello, LoRa!";
-      rf95.send((uint8_t*) buf, sizeof(buf));
-      rf95.waitPacketSent();
+      if (packets_received % 10 == 0) {
+        rexquad::StateControlMsgToBytes(statecontrol_msg, buf_send);
+        rf95.send((uint8_t*) buf, sizeof(buf));
+        // rf95.waitPacketSent();
+      }
 
       switch (output) {
         case RATE:
