@@ -1,4 +1,5 @@
 #include <sys/types.h>
+
 #include "constants.hpp"
 #include "messages.hpp"
 #include "pose.hpp"
@@ -15,10 +16,10 @@
 rexquad::IMU imureal;
 
 // Motors
-#define FRONT_LEFT_PIN 9
+// #define FRONT_LEFT_PIN 9
 // #define FRONT_RIGHT_PIN 10  // CONFLICT!
 // #define BACK_RIGHT_PIN 11 // CONFLICT!
-#define BACK_LEFT_PIN 12
+// #define BACK_LEFT_PIN 12
 
 // Radio Setup
 #define RFM69_CS 8
@@ -30,16 +31,13 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 // LoRa Wing pinouts
 #define RFM95_CS 10   // "B"
 #define RFM95_RST 11  // "A"
-#define RFM95_INT 6 
-#define RF95_FREQ 910.0
+// #define RFM95_INT 6
+#define RFM95_INT 9
+#define RF95_FREQ 914.0
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 
 // Options
-enum RXOUTPUT {
-  RATE,
-  PRINTPOSE,
-  SERIALPOSE
-};
+enum RXOUTPUT { RATE, PRINTPOSE, SERIALPOSE };
 constexpr int kWaitForSerial = 1;
 constexpr int kConnectoToIMU = 0;
 const int kHeartbeatTimeoutMs = 1000;
@@ -74,28 +72,66 @@ void setup() {
     Serial.println("Connected to Receiver!");
   }
 
-  // Connect IMU
-  if (kConnectoToIMU) {
-    bool imu_is_connected = imureal.Connect();
-    if (!imu_is_connected) {
-      while (1) {
-        rexquad::Blink(LED_PIN, 1000, 1);
-      }
-    }
-    if (kWaitForSerial) {
-      Serial.println("Connected to IMU!");
-    }
+  pinMode(RFM95_RST, OUTPUT);
+  digitalWrite(RFM95_RST, HIGH);
+  pinMode(RFM69_RST, OUTPUT);
+  digitalWrite(RFM69_RST, HIGH);
+
+  Serial.begin(115200);
+  while (!Serial) {
+    delay(1);
   }
 
-  // Init Radio
-  rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
-  rexquad::InitLoRa(rf95, RF95_FREQ, RFM95_RST, LED_PIN);
+  delay(100);
+
+  Serial.println("Feather LoRa TX Test!");
+  digitalWrite(RFM69_RST, HIGH);
+  delay(10);
+  digitalWrite(RFM69_RST, LOW);
+  delay(10);
+  if (!rf69.init()) {
+    Serial.println("RFM69 radio init failed");
+    digitalWrite(RFM69_RST, HIGH);
+    delay(100);
+    digitalWrite(RFM69_RST, LOW);
+    delay(100);
+  }
+  rf69.setFrequency(RF69_FREQ);
+  rf69.setModemConfig(RH_RF69::GFSK_Rb250Fd250);
+  Serial.println("RFM69 radio init successful!");
+
+  // manual reset
+
+  while (!rf95.init()) {
+    Serial.println("LoRa radio init failed");
+    Serial.println("Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
+    digitalWrite(RFM95_RST, LOW);
+    delay(100);
+    digitalWrite(RFM95_RST, HIGH);
+    delay(100);
+  }
+  Serial.println("LoRa radio init OK!");
+
+  // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
+  if (!rf95.setFrequency(RF95_FREQ)) {
+    Serial.println("setFrequency failed");
+    while (1);
+  }
+  Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
+  
+  // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
+
+  // The default transmitter power is 13dBm, using PA_BOOST.
+  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
+  // you can set transmitter powers from 5 to 23 dBm:
+  rf95.setTxPower(23, false);
 
   // Setup Heartbeat
   heartbeat.SetTimeoutMs(kHeartbeatTimeoutMs);
   heartbeat.Activate();
 
   digitalWrite(LED_PIN, LOW);
+  Serial.println("Starting loop...");
 }
 
 /////////////////////////////////////////////
@@ -104,10 +140,12 @@ void setup() {
 int packets_received = 0;
 char buf[13] = "Hello, LoRa!";
 void loop() {
+  // Serial.println("Sending packet...");
   // char buf[7] = "Hello!";
   // int len = sizeof(buf);
-  // rf95.send((uint8_t *)buf, len);
+  // rf95.send((uint8_t*)buf, len);
   // // rf95.waitPacketSent();
+  // Serial.println("Packet sent!");
   // rexquad::RatePrinter();
 
   if (rf69.available()) {

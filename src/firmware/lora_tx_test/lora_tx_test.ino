@@ -8,13 +8,18 @@
 
 #include <SPI.h>
 #include <RH_RF95.h>
+#include <RH_RF69.h>
 
-#include "sensors.hpp"
+#define RFM69_CS 8
+#define RFM69_INT 3
+#define RFM69_RST 4
+#define RF69_FREQ 915.0
+RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 #define RFM95_RST     11   // "A"
 #define RFM95_CS      10   // "B"
-#define RFM95_INT     6    // "D"
-#define LED_PIN 13
+#define RFM95_INT     9    // "C"
+
 
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
@@ -26,6 +31,8 @@ void setup()
 {
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
+  pinMode(RFM69_RST, OUTPUT);
+  digitalWrite(RFM69_RST, HIGH);
 
   Serial.begin(115200);
   while (!Serial) {
@@ -35,10 +42,46 @@ void setup()
   delay(100);
 
   Serial.println("Feather LoRa TX Test!");
-  rexquad::InitLoRa(rf95, RF95_FREQ, RFM95_RST, LED_PIN);
+  digitalWrite(RFM69_RST, HIGH);
+  delay(10);
+  digitalWrite(RFM69_RST, LOW);
+  delay(10);
+  if (!rf69.init()) {
+    Serial.println("RFM69 radio init failed");
+    digitalWrite(RFM69_RST, HIGH);
+    delay(100);
+    digitalWrite(RFM69_RST, LOW);
+    delay(100);
+  }
+  rf69.setFrequency(RF69_FREQ);
+  rf69.setModemConfig(RH_RF69::GFSK_Rb250Fd250);
+  Serial.println("RFM69 radio init successful!");
 
+  // manual reset
 
-  // InitLoRa(rf95);
+  while (!rf95.init()) {
+    Serial.println("LoRa radio init failed");
+    Serial.println("Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
+    digitalWrite(RFM95_RST, LOW);
+    delay(100);
+    digitalWrite(RFM95_RST, HIGH);
+    delay(100);
+  }
+  Serial.println("LoRa radio init OK!");
+
+  // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
+  if (!rf95.setFrequency(RF95_FREQ)) {
+    Serial.println("setFrequency failed");
+    while (1);
+  }
+  Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
+  
+  // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
+
+  // The default transmitter power is 13dBm, using PA_BOOST.
+  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
+  // you can set transmitter powers from 5 to 23 dBm:
+  rf95.setTxPower(23, false);
 }
 
 int16_t packetnum = 0;  // packet counter, we increment per xmission

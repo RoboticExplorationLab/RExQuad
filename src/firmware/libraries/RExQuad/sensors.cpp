@@ -261,14 +261,14 @@ void InitLoRa(RH_RF95& rf95, float freq, int reset_pin, int led_pin) {
 
   if (!rf95.init()) {
     while (1) {
-      rexquad::Blink(led_pin, 500, 1);
       Serial.println("RF95 radio (LoRa) init failed.");
+      rexquad::Blink(led_pin, 500, 1);
     }
   }
   if (!rf95.setFrequency(freq)) {
     while (1) {
-      rexquad::Blink(led_pin, 500, 1);
       Serial.println("setFrequency for LoRa failed.");
+      rexquad::Blink(led_pin, 500, 1);
     }
   }
   Serial.println("RF95 Radio (LoRa) init OK!");
