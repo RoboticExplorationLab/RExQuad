@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "constants.hpp"
 #include "messages.hpp"
 #include "pose.hpp"
@@ -64,14 +65,14 @@ void setup() {
 /////////////////////////////////////////////
 int packets_received = 0;
 void loop() {
-  int bytes_available = rf95.available();
-  if (bytes_available) {
-    Serial.print(bytes_available);
-    Serial.println(" bytes available.");
+  if (rf95.available()) {
     uint8_t len = sizeof(buf_recv);
 
     if (rf95.recv(buf_recv, &len)) {
       Serial.println("Packet Received!");
+      Serial.print("Got: ");
+      Serial.write(buf_recv, len);
+      Serial.println("");
       heartbeat.Pulse();
     }
   }

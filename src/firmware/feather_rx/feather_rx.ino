@@ -26,7 +26,8 @@ enum RXOUTPUT {
   PRINTPOSE,
   SERIALPOSE
 };
-constexpr int kWaitForSerial = 0;
+constexpr int kConnectoToIMU = 0;
+constexpr int kWaitForSerial = 1;
 const int kHeartbeatTimeoutMs = 1000;
 const RXOUTPUT output = RATE;
 
@@ -61,10 +62,12 @@ void setup() {
   }
 
   // Connect IMU
-  bool imu_is_connected = imureal.Connect();
-  if (!imu_is_connected) {
-    while (1) {
-      rexquad::Blink(LED_PIN, 1000, 1);
+  if (kConnectoToIMU) {
+    bool imu_is_connected = imureal.Connect();
+    if (!imu_is_connected) {
+      while (1) {
+        rexquad::Blink(LED_PIN, 1000, 1);
+      }
     }
   }
   if (kWaitForSerial) {
@@ -78,6 +81,7 @@ void setup() {
   heartbeat.Activate();
 
   digitalWrite(LED_PIN, LOW);
+  Serial.println("Starting loop...");
 }
 
 /////////////////////////////////////////////

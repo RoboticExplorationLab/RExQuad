@@ -25,7 +25,7 @@ rexquad::IMU imureal;
 #define RFM69_INT 3
 #define RFM69_RST 4
 #define RF69_FREQ 915.0
-// RH_RF69 rf69(RFM69_CS, RFM69_INT);
+RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // LoRa Wing pinouts
 #define RFM95_CS 10   // "B"
@@ -88,7 +88,7 @@ void setup() {
   }
 
   // Init Radio
-  // rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
+  rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
   rexquad::InitLoRa(rf95, RF95_FREQ, RFM95_RST, LED_PIN);
 
   // Setup Heartbeat
@@ -103,66 +103,65 @@ void setup() {
 /////////////////////////////////////////////
 int packets_received = 0;
 void loop() {
-  Serial.println("Sending packet");
-  char buf[13] = "Hello, LoRa!";
-  int len = sizeof(buf);
-  rf95.send((uint8_t *)buf, len);
-  rf95.waitPacketSent();
-  Serial.println("Packet Sent");
-  delay(500);
-  // if (rf69.available()) {
-  //   uint8_t len_mocap = sizeof(buf_mocap);
+  // Serial.println("Sending packet");
+  // char buf[13] = "Hello, LoRa!";
+  // int len = sizeof(buf);
+  // rf95.send((uint8_t *)buf, len);
+  // rf95.waitPacketSent();
+  // Serial.println("Packet Sent");
+  // delay(500);
 
-  //   if (rf69.recv(buf_mocap, &len_mocap)) {
-  //     ++packets_received;
-  //     heartbeat.Pulse();
+  if (rf69.available()) {
+    uint8_t len_mocap = sizeof(buf_mocap);
 
-  //     // Convert bytes into pose message
-  //     rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
+    if (rf69.recv(buf_mocap, &len_mocap)) {
+      ++packets_received;
+      heartbeat.Pulse();
 
-  //     // Create StateControl Message
-  //     statecontrol_msg.x = pose_mocap.x;
-  //     statecontrol_msg.y = pose_mocap.y;
-  //     statecontrol_msg.z = pose_mocap.z;
-  //     statecontrol_msg.qw = pose_mocap.qw;
-  //     statecontrol_msg.qx = pose_mocap.qx;
-  //     statecontrol_msg.qy = pose_mocap.qy;
-  //     statecontrol_msg.qz = pose_mocap.qz;
-  //     for (int i = 0; i < rexquad::kNumInputs; ++i) {
-  //       u(i) = packets_received;
-  //       statecontrol_msg.u[i] = u(i);
-  //     }
+      // Convert bytes into pose message
+      rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
 
-  //     // Send packet over LoRa
-  //     rexquad::StateControlMsgToBytes(statecontrol_msg, buf_send);
-  //     rf95.send((uint8_t*) buf_send, kStateControlSize);
-  //     Serial.println("Waiting for packet to be sent...");
-  //     rf95.waitPacketSent();
-  //     Serial.println("Packet sent!");
+      // Create StateControl Message
+      statecontrol_msg.x = pose_mocap.x;
+      statecontrol_msg.y = pose_mocap.y;
+      statecontrol_msg.z = pose_mocap.z;
+      statecontrol_msg.qw = pose_mocap.qw;
+      statecontrol_msg.qx = pose_mocap.qx;
+      statecontrol_msg.qy = pose_mocap.qy;
+      statecontrol_msg.qz = pose_mocap.qz;
+      for (int i = 0; i < rexquad::kNumInputs; ++i) {
+        u(i) = packets_received;
+        statecontrol_msg.u[i] = u(i);
+      }
 
-  //     switch (output) {
-  //       case RATE:
-  //         rexquad::RatePrinter();
-  //         break;
-  //       case PRINTPOSE:
-  //         Serial.print("position = [");
-  //         Serial.print(pose_mocap.x, 3);
-  //         Serial.print(", ");
-  //         Serial.print(pose_mocap.y, 3);
-  //         Serial.print(", ");
-  //         Serial.print(pose_mocap.z, 3);
-  //         Serial.println("]");
-  //         break;
-  //       case SERIALPOSE:
-  //         Serial.write(buf_send, kStateControlSize);
-  //         break;
-  //     }
-  //   }
-  // }
-  // if (heartbeat.IsDead()) {
-  //   digitalWrite(LED_PIN, LOW);
-  // } else {
-  //   digitalWrite(LED_PIN, HIGH);
-  // }
-  // delay(100);
+      // Send packet over LoRa
+      rexquad::StateControlMsgToBytes(statecontrol_msg, buf_send);
+      char buf[13] = "Hello, LoRa!";
+      rf95.send((uint8_t*) buf, sizeof(buf));
+      rf95.waitPacketSent();
+
+      switch (output) {
+        case RATE:
+          rexquad::RatePrinter();
+          break;
+        case PRINTPOSE:
+          Serial.print("position = [");
+          Serial.print(pose_mocap.x, 3);
+          Serial.print(", ");
+          Serial.print(pose_mocap.y, 3);
+          Serial.print(", ");
+          Serial.print(pose_mocap.z, 3);
+          Serial.println("]");
+          break;
+        case SERIALPOSE:
+          Serial.write(buf_send, kStateControlSize);
+          break;
+      }
+    }
+  }
+  if (heartbeat.IsDead()) {
+    digitalWrite(LED_PIN, LOW);
+  } else {
+    digitalWrite(LED_PIN, HIGH);
+  }
 }

@@ -232,6 +232,6 @@ class IMU : public IMUBase {
 };
 
 void InitRadio(RH_RF69& rf69, float freq, int reset_pin, int led_pin, bool encrypt = false);
-void InitLoRa(RH_RF95 rf95, float freq, int reset_pin, int led_pin);
+void InitLoRa(RH_RF95& rf95, float freq, int reset_pin, int led_pin);
 
 }  // namespace rexquad
