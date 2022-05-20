@@ -31,8 +31,8 @@ void setup()
 {
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
-  pinMode(RFM69_RST, OUTPUT);
-  digitalWrite(RFM69_RST, HIGH);
+  // pinMode(RFM69_RST, OUTPUT);
+  // digitalWrite(RFM69_RST, HIGH);
 
   Serial.begin(115200);
   while (!Serial) {
@@ -58,7 +58,6 @@ void setup()
   Serial.println("RFM69 radio init successful!");
 
   // manual reset
-
   while (!rf95.init()) {
     Serial.println("LoRa radio init failed");
     Serial.println("Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
