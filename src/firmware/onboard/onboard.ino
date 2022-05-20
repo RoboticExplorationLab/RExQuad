@@ -11,13 +11,13 @@
 
 // Options
 enum RXOUTPUT { MOCAPRATE, PRINTPOSE, SERIALPOSE, NOOUTPUT, STATEERROR };
-constexpr bool kWaitForSerial = 1;
-constexpr bool kPrintStateEstimate = 1;
-constexpr bool kPrintControl = 0;
-const int kHeartbeatTimeoutMs = 100;
-const RXOUTPUT output = NOOUTPUT;
+constexpr bool kWaitForSerial = 0;
+constexpr bool kPrintStateEstimate = 0;
+constexpr bool kPrintControl = 1;
+const int kHeartbeatTimeoutMs = 200;
+// const RXOUTPUT output = NOOUTPUT;
 // const RXOUTPUT output = PRINTPOSE;
-// const RXOUTPUT output = STATEERROR;
+const RXOUTPUT output = STATEERROR;
 
 // Pin Setup
 #define LED_PIN 13
@@ -212,13 +212,13 @@ void loop() {
       break;
     case STATEERROR:
       if (pose_received) {
-        // Serial.print("position = [");
-        // Serial.print(e(0), 3);
-        // Serial.print(", ");
-        // Serial.print(e(1), 3);
-        // Serial.print(", ");
-        // Serial.print(e(2), 3);
-        // Serial.println("]");
+        Serial.print("position = [");
+        Serial.print(e(0), 3);
+        Serial.print(", ");
+        Serial.print(e(1), 3);
+        Serial.print(", ");
+        Serial.print(e(2), 3);
+        Serial.println("]");
         Serial.print("attitude = [");
         Serial.print(e(3), 3);
         Serial.print(", ");
@@ -261,7 +261,6 @@ void loop() {
     Serial.print("]\n");
   }
   if (kPrintControl && pose_received) {
-    Serial.print("  attitude = [");
     Serial.print("  control  = [");
     Serial.print(u(0), 3);
     Serial.print(", ");

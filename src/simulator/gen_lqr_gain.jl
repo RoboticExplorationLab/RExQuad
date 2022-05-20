@@ -61,13 +61,15 @@ function print_gains(K, xeq, ueq)
     """
 end
 
-Qd = [fill(1.0, 3); fill(0.1, 3); fill(0.1,3); fill(0.1,3)]
+Qd = [0.1;0.1;200; fill(10, 3); fill(0.1,3); fill(1.0,3)]
 Rd = fill(1e-3, 4)
 xhover = [0;0;1; 1;0;0;0; zeros(6)]
 uhover = trim_controls()
 dt = 0.01  # 100 Hz
 
 K = generate_LQR_hover_gains(xhover, uhover, dt; Qd, Rd)
+dx = [0;0;1; zeros(9)]
+K*dx + uhover
 
 open(joinpath(@__DIR__, "..", "common", "lqr_constants.hpp"), "w") do f
     write(f, print_gains(K, xhover, uhover))
