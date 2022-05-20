@@ -2,7 +2,8 @@
 
 #include <Arduino.h>
 #include <Adafruit_LSM6DSO32.h>
-#include <RH_RF69.h>
+#include <RH_RF69.h>  // Packet Radio
+#include <RH_RF95.h>  // LoRa
 
 #include "messages.hpp"
 
@@ -231,5 +232,6 @@ class IMU : public IMUBase {
 };
 
 void InitRadio(RH_RF69& rf69, float freq, int reset_pin, int led_pin, bool encrypt = false);
+void InitLoRa(RH_RF95 rf95, float freq, int reset_pin, int led_pin);
 
 }  // namespace rexquad

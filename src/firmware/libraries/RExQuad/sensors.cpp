@@ -252,4 +252,28 @@ void InitRadio(RH_RF69& rf69, float freq, int reset_pin, int led_pin, bool encry
   // rf69.setModemConfig(RH_RF69::GFSK_Rb57_6Fd120);  // Doesn't work
 }
 
+void InitLoRa(RH_RF95 rf95, float freq, int reset_pin, int led_pin) {
+  // Manual Reset
+  digitalWrite(reset_pin, LOW);
+  delay(10);
+  digitalWrite(reset_pin, HIGH);
+  delay(10);
+
+  if (!rf95.init()) {
+    while (1) {
+      rexquad::Blink(led_pin, 500, 1);
+      Serial.println("RF95 radio (LoRa) init failed.");
+    }
+  }
+  if (!rf95.setFrequency(freq)) {
+    while (1) {
+      rexquad::Blink(led_pin, 500, 1);
+      Serial.println("setFrequency for LoRa failed.");
+    }
+  }
+  Serial.println("RF95 Radio (LoRa) init OK!");
+  rf95.setTxPower(10, false);  // 5-23
+  rf95.setModemConfig(RH_RF95::Bw500Cr45Sf128);
+}
+
 }  // namespace rexquad

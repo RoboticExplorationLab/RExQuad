@@ -56,6 +56,9 @@ targets = [
     "feather_rx",
     "motor_tests",
     "heartbeat_test",
+    "wifi_test",
+    "radio_lora",
+    "lora_bridge",
 ]
 parser = argparse.ArgumentParser()
 parser.add_argument("target",

@@ -110,6 +110,15 @@ target_link_libraries(mocap
   mocap_lib
 )
 
+add_executable(fake_mocap
+  fake_mocap.cpp
+)
+target_link_libraries(fake_mocap
+  PRIVATE
+  mocap_lib
+  fmt::fmt
+)
+
 add_executable(sample
   "${NATNET_DIR}/samples/SampleClient/SampleClient.cpp"
 )
