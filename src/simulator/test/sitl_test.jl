@@ -9,6 +9,8 @@ C++ process, which provides the current state estimate and commanded control. Th
 controls are then used to simulate the system forward using RK4.
 
 Setup:
+    - Clone https://github.com/RoboticExplorationLab/robot_meshes onto your computer and 
+      update `robot_meshes` variable in `visualization.jl` to point to it.
     - Run `build/src/simulator/src/fake_onboard 5562 5563` in the terminal (after compiling)
     - Run this Julia script to run the simulator
 
