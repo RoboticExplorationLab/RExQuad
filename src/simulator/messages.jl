@@ -56,7 +56,7 @@ function MeasurementMsg()
 end
 msgid(::Type{MeasurementMsg}) = UInt8('m')
 
-function copyto!(buf::AbstractVector{UInt8}, msg::MeasurementMsg, off::Integer=0)
+function Base.copyto!(buf::AbstractVector{UInt8}, msg::MeasurementMsg, off::Integer=0)
     buf[1+off] = msgid(MeasurementMsg)
     off += 1
     floattobytes!(buf, msg.x, 0 * 4 + off)
@@ -158,7 +158,7 @@ function ControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
         bytestofloat(buf, 3 * 4 + off),
     )
 end
-function Base.copyto!(buf::AbstractVector{UInt8}, msg::PoseMsg, off::Integer=0)
+function Base.copyto!(buf::AbstractVector{UInt8}, msg::ControlMsg, off::Integer=0)
     buf[1+off] = msgid(PoseMsg)
     off += 1
     floattobytes!(buf, msg.u1, 0 * 4 + off)
@@ -191,7 +191,7 @@ struct StateControlMsg
 end
 msgid(::Type{StateControlMsg}) = UInt8('s') + UInt8('c')
 
-function copyto!(buf::AbstractVector{UInt8}, msg::StateControlMsg, off=0)
+function Base.copyto!(buf::AbstractVector{UInt8}, msg::StateControlMsg, off=0)
     buf[1 + off] = msgid(StateControlMsg)
     off += 1
     floattobytes!(buf, msg.x, 0 * 4 + off)
@@ -251,3 +251,39 @@ function getstate(xu::StateControlMsg)
     ]
 end
 getcontrol(xu::StateControlMsg) = xu.u 
+
+struct IMUMeasurementMsg
+    ax::Float32
+    ay::Float32
+    az::Float32
+    wx::Float32
+    wy::Float32
+    wz::Float32
+end
+msgid(::Type{IMUMeasurementMsg}) = UInt8('i')
+
+function Base.copyto!(buf::AbstractVector{UInt8}, msg::IMUMeasurementMsg, off=0)
+    buf[1 + off] = msgid(IMUMeasurementMsg)
+    off += 1
+    floattobytes!(buf, msg.ax, 0 * 4 + off)
+    floattobytes!(buf, msg.ay, 1 * 4 + off)
+    floattobytes!(buf, msg.az, 2 * 4 + off)
+    floattobytes!(buf, msg.wx, 3 * 4 + off)
+    floattobytes!(buf, msg.wy, 4 * 4 + off)
+    floattobytes!(buf, msg.wz, 5 * 4 + off)
+    buf
+end
+
+function IMUMeasurementMsg(buf::AbstractVector{UInt8}, off::Integer=0)
+    msgid_is_correct = buf[1+off] == msgid(IMUMeasurementMsg)
+    msgid_is_correct || throw(MessageIDError(msgid(MeasurementMsg), buf[1+off]))
+    off += 1
+    IMUMeasurementMsg(
+        bytestofloat(buf, 0 * 4 + off),
+        bytestofloat(buf, 1 * 4 + off),
+        bytestofloat(buf, 2 * 4 + off),
+        bytestofloat(buf, 3 * 4 + off),
+        bytestofloat(buf, 4 * 4 + off),
+        bytestofloat(buf, 5 * 4 + off),
+    )
+end

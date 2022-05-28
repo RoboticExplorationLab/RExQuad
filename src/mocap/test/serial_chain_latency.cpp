@@ -49,7 +49,7 @@ int main() {
 
   // Sending info
   fmt::print("\nSending...\n");
-  buf[0] = Pose::MsgID();
+  buf[0] = Pose::MsgID;
   for (int i = 0; i < MSG_SIZE; ++i) {
     buf[i+1] = i + 'a';
   }
@@ -93,7 +93,7 @@ int main() {
 
     // Send data
     memcpy(buf+1, &msg, MSG_SIZE);
-    buf[0] = Pose::MsgID();
+    buf[0] = Pose::MsgID;
     auto tsend = std::chrono::duration_cast<fmillisecond>(
         std::chrono::high_resolution_clock::now() - tstart);
     // enum sp_return bytes_sent = sp_blocking_write(tx, buf, MSG_SIZE+1, 2);
@@ -115,7 +115,7 @@ int main() {
     fmt::print("  Latency {} ms\n", trecv - tsend);
     int id_index = 0;
     for (; id_index < MSG_SIZE + 1; ++id_index) {
-      if (recv[id_index] == Pose::MsgID()) {
+      if (recv[id_index] == Pose::MsgID) {
         break;
       }
     }

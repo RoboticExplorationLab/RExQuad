@@ -5,7 +5,7 @@
 namespace rexquad {
 
 struct PoseMsg {
-    static constexpr uint8_t MsgID() { return 11; }
+    static constexpr uint8_t MsgID = 11;
     float x;
     float y;
     float z;

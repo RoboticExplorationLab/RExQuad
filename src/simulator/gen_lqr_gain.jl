@@ -61,7 +61,7 @@ function print_gains(K, xeq, ueq)
     """
 end
 
-Qd = [0.1;0.1;200; fill(10, 3); fill(0.1,3); fill(1.0,3)]
+Qd = [1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)]
 Rd = fill(1e-3, 4)
 xhover = [0;0;1; 1;0;0;0; zeros(6)]
 uhover = trim_controls()

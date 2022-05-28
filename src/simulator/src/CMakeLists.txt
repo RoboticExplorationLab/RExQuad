@@ -21,6 +21,8 @@ quad_node(mocap_relay)
 # quad_node(fake_mocap)
 quad_node(onboard_relay)
 
+quad_node(fake_onboard)
+
 add_executable(control_node
   control_node.cpp
 )

@@ -4,6 +4,8 @@ using MeshCat
 using StaticArrays
 using Statistics
 using Printf
+using Colors
+using DataStructures
 
 include("dynamics.jl")
 include("ratelimiter.jl")
@@ -42,6 +44,7 @@ struct Simulator
     thist::Vector{Float64}
     msg_meas::Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}
     msg_data::Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}
+    pose_queue::Queue{PoseMsg}
     stats::Dict{String,Any}
     opts::SimOpts
 end
@@ -86,9 +89,10 @@ function Simulator(pub_port=5555, sub_port=5556)
     thist = Vector{Float64}()
     msg_meas = Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}()
     msg_data = Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}()
+    pose_queue = Queue{PoseMsg}()
     stats = Dict{String,Any}()
     opts = SimOpts()
-    Simulator(buf_out, buf_in, ctx, pub, sub, vis, xhist, uhist, thist, msg_meas, msg_data, stats, opts)
+    Simulator(buf_out, buf_in, ctx, pub, sub, vis, xhist, uhist, thist, msg_meas, msg_data, pose_queue, stats, opts)
 end
 
 function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
@@ -98,11 +102,12 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     empty!(sim.uhist)
     empty!(sim.thist)
     empty!(sim.stats)
+    empty!(sim.pose_queue)
 
     # Flush out publishers / subscribers
     buf = ZMQ.Message(100)
-    while ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT) >= 0
-    end
+    # while ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT) >= 0
+    # end
 
     # Initialize logs
     xhat = SVector{13,Float32}[]
@@ -111,7 +116,9 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     sizehint!(xhat, approx_size)
     sim.stats["latency"] = latency
     sim.stats["xhat"] = xhat
+    sim.stats["imu_messages_sent"] = 0
 
+    return sim
     if visualize == :truth
         MeshCat.setvisible!(sim.vis["truth"], true)
         MeshCat.setvisible!(sim.vis["estimate"], false)
@@ -157,7 +164,7 @@ function runsim(sim::Simulator, x0; dt=0.01, tf=Inf, visualize=:none, kwargs...)
     end
 end
 
-function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_measurement=false)
+function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_measurement=false, imu_per_pose=1, pose_delay=0, send_ground_truth=false)
     # Initialize state estimate
     xhat = sim.stats["xhat"][end]
 
@@ -166,9 +173,33 @@ function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_me
 
     # Send measurement
     if send_measurement
+        imu_messages_sent = sim.stats["imu_messages_sent"]::Int
         tsend = time() - t_start
-        push!(sim.msg_meas, (; tsim=t, twall=tsend, y))
-        sendmeasurement(sim, y, t)
+
+        if send_ground_truth
+            sendmessage(sim, y, t)
+            if imu_per_pose > 1 || pose_delay > 0
+                @warn "Ignoring imu_per_pose and pose_delay settings when sending ground truth."
+            end
+        else
+            y_pose = PoseMsg(y.x, y.y, y.z, y.qw, y.qx, y.qy, y.qz)
+            y_imu = IMUMeasurementMsg(y.ax, y.ay, y.az, y.wx, y.wy, y.wz)
+            push!(sim.msg_meas, (; tsim=t, twall=tsend, y))
+
+            if imu_messages_sent % imu_per_pose == 0
+                enqueue!(sim.pose_queue, y_pose)
+                if length(sim.pose_queue) > pose_delay
+                    y_pose_delayed = dequeue!(sim.pose_queue)
+                    # println("Sent pose message")
+                    sendmessage(sim, y_pose_delayed, tsend)
+                    sleep(0.001)  # wait a little bit before sending the imu message
+                end
+            end
+
+            sendmessage(sim, y_imu, t)
+            imu_messages_sent += 1
+            sim.stats["imu_messages_sent"] = imu_messages_sent
+        end
     end
 
     # Get response from onboard computer
@@ -182,6 +213,7 @@ function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_me
         xhat = getstate(statecontrol)
         push!(sim.stats["xhat"], xhat)
         u .= getcontrol(statecontrol)
+        # @show u
     end
 
     # Propagate dynamics
@@ -221,6 +253,7 @@ function getdata(sim::Simulator, t)
     # TODO: add noise
     buf = sim.buf_in
     tstart = time_ns()
+    bytes_read = 0
     while (time_ns() - tstart < sim.opts.recvtimeout_ms * 1e6)
         bytes_read = ZMQ.msg_recv(sim.sub, buf, ZMQ.ZMQ_DONTWAIT)
         if bytes_read > 0
@@ -236,6 +269,12 @@ function getdata(sim::Simulator, t)
 end
 
 function sendmeasurement(sim::Simulator, y::MeasurementMsg, t)
+    zmsg = ZMQ.Message(msgsize(y))
+    copyto!(zmsg, y)
+    ZMQ.send(sim.pub, zmsg)
+end
+
+function sendmessage(sim::Simulator, y, t)
     zmsg = ZMQ.Message(msgsize(y))
     copyto!(zmsg, y)
     ZMQ.send(sim.pub, zmsg)
