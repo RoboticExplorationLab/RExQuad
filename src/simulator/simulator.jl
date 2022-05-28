@@ -152,7 +152,7 @@ function runsim(sim::Simulator, x0; dt=0.01, tf=Inf, visualize=:none, kwargs...)
     while t < tf
         startloop(lrl)
 
-        step!(sim, x, u, t; t_start, visualize, kwargs...)
+        step!(sim, x, u, t, dt; t_start, visualize, kwargs...)
 
         println("time = ", t, ", z = ", x[3])
         t += dt
@@ -164,7 +164,7 @@ function runsim(sim::Simulator, x0; dt=0.01, tf=Inf, visualize=:none, kwargs...)
     end
 end
 
-function step!(sim::Simulator, x, u, t; t_start=time(), visualize=:none, send_measurement=false, imu_per_pose=1, pose_delay=0, send_ground_truth=false)
+function step!(sim::Simulator, x, u, t, dt; t_start=time(), visualize=:none, send_measurement=false, imu_per_pose=1, pose_delay=0, send_ground_truth=false)
     # Initialize state estimate
     xhat = sim.stats["xhat"][end]
 

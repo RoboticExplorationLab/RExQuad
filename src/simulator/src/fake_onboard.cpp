@@ -235,7 +235,7 @@ void loop() {
 
       // Update Filter
       filter.PoseMeasurement(posedata, t_msg_us.count());
-      send_message = false;
+      send_message = false;  // Doesn't send a message back if a pose message is received
       break;
   }
 
