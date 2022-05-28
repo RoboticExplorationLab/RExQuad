@@ -53,4 +53,3 @@ runsim(sim, x, tf=tf, send_measurement=true,
     send_ground_truth=true # send the ground truth data to the onboard data to use (skipping the state estimator)
 )
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
-sim.xhist
