@@ -1,5 +1,8 @@
 #include "utils.hpp"
+#include <string>
 #include <cstring>
+
+#include <stdlib.h>
 
 
 namespace rexquad {
@@ -26,7 +29,9 @@ std::string TcpAddress::ToString() {
   if (port_ == kAnyPort) {
     port_string = ":*";
   } else {
-    port_string = ":" + std::to_string(port_);
+    char buf[20];
+    itoa(port_, buf, 20);
+    port_string = ":" + std::string(buf);
   }
   return addr_ + port_string;
 }

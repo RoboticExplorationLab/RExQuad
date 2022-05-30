@@ -13,7 +13,7 @@
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // Options
-const int kHeartbeatTimeoutMs = 1000;
+const int kHeartbeatTimeoutMs = 200;
 
 // Constants
 constexpr int kMaxBufferSize = 200;
@@ -50,7 +50,7 @@ void loop() {
   if (bytes_available >= kPoseSize) { 
     int bytes_received = Serial.readBytes((char*)buf, bytes_available);
     int start_index = 0;
-    int msgid = Pose::MsgID();
+    int msgid = Pose::MsgID;
     for (int i = 0; i < bytes_received; ++i) {
       if (buf[i] == msgid) {
         start_index = i;

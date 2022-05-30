@@ -1,4 +1,5 @@
 #include "constants.hpp"
+#include "estimator.hpp"
 #include "messages.hpp"
 #include "pose.hpp"
 #include "quad_utils.hpp"
@@ -22,18 +23,23 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // Options
 enum RXOUTPUT {
-  RATE,
+  MOCAPRATE,
   PRINTPOSE,
-  SERIALPOSE
+  NOOUTPUT,
+  FILTERRATE,
 };
 constexpr int kConnectoToIMU = 0;
 constexpr int kWaitForSerial = 1;
-const int kHeartbeatTimeoutMs = 1000;
-const RXOUTPUT output = RATE;
+const int kHeartbeatTimeoutMs = 200;
+// const RXOUTPUT output = MOCAPRATE;
+const RXOUTPUT output = MOCAPRATE;
 
-// Constants
+// Aliases
+using Time = uint64_t;
 using Pose = rexquad::PoseMsg;
 using StateControl = rexquad::StateControlMsg;
+
+// Constants
 constexpr int kMaxBufferSize = 200;
 constexpr int kPoseSize = sizeof(Pose) + 1;
 constexpr int kStateControlSize = sizeof(StateControl) + 1;
@@ -45,9 +51,17 @@ Pose pose_mocap;
 StateControl statecontrol_msg;
 rexquad::Heartbeat heartbeat;
 
+// State estimator
+rexquad::StateEstimator filter;
 rexquad::StateVector xhat;
-rexquad::InputVector u;
+// rexquad::InputVector u;
 
+// Timing
+Time g_tstart;
+Time curtime_us() {
+  uint64_t t_micros = micros() - g_tstart;
+  return t_micros;
+}
 
 /////////////////////////////////////////////
 // Setup
@@ -60,6 +74,7 @@ void setup() {
     }
     Serial.println("Connected to Receiver!");
   }
+  Serial1.begin(256000);
 
   // Connect IMU
   if (kConnectoToIMU) {
@@ -76,12 +91,18 @@ void setup() {
 
   rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
 
+  // TODO: Get the IMU Bias sitting on the ground
+  float bias[6];
+  memset(bias, 0, sizeof(bias));
+  filter.SetBias(bias);
+
   // Setup Heartbeat
   heartbeat.SetTimeoutMs(kHeartbeatTimeoutMs);
   heartbeat.Activate();
 
   digitalWrite(LED_PIN, LOW);
   Serial.println("Starting loop...");
+  g_tstart = micros();  // resets after about 70 minutes per Arduino docs
 }
 
 /////////////////////////////////////////////
@@ -89,52 +110,67 @@ void setup() {
 /////////////////////////////////////////////
 int packets_received = 0;
 void loop() {
+  // Process IMU measurement
+  imureal.ReadSensor();
+  const rexquad::IMUMeasurementMsg& imudata = imureal.GetMeasurement();
+  Time t_imu_us = curtime_us();
+  filter.IMUMeasurement(imudata, t_imu_us);
+
+  // Process MOCAP pose
+  bool pose_received = false;
   if (rf69.available()) {
     uint8_t len_mocap = sizeof(buf_mocap);
 
     if (rf69.recv(buf_mocap, &len_mocap)) {
+      Time t_mocap_us = curtime_us();
       ++packets_received;
+      pose_received = true;
       heartbeat.Pulse();
 
       // Convert bytes into pose message
       rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
 
-      // Create StateControl Message
-      statecontrol_msg.x = pose_mocap.x;
-      statecontrol_msg.y = pose_mocap.y;
-      statecontrol_msg.z = pose_mocap.z;
-      statecontrol_msg.qw = pose_mocap.qw;
-      statecontrol_msg.qx = pose_mocap.qx;
-      statecontrol_msg.qy = pose_mocap.qy;
-      statecontrol_msg.qz = pose_mocap.qz;
-      for (int i = 0; i < rexquad::kNumInputs; ++i) {
-        u(i) = packets_received;
-        statecontrol_msg.u[i] = u(i);
-      }
-      rexquad::StateControlMsgToBytes(statecontrol_msg, buf_send);
-      switch (output) {
-        case RATE:
-          rexquad::RatePrinter();
-          break;
-        case PRINTPOSE:
-          Serial.print("position = [");
-          Serial.print(pose_mocap.x, 3);
-          Serial.print(", ");
-          Serial.print(pose_mocap.y, 3);
-          Serial.print(", ");
-          Serial.print(pose_mocap.z, 3);
-          Serial.println("]");
-          break;
-        case SERIALPOSE:
-          Serial.write(buf_send, kStateControlSize);
-          break;
-      }
+      // Update State Estimate
+      filter.PoseMeasurement(pose_mocap, t_mocap_us);
+    }
+    if (packets_received % 10 == 0) {
+      Serial1.println("Hello from state estimator!");
     }
   }
+
+  // Get Current state estimate
+  filter.GetStateEstimate(xhat);
+
+  // TODO: convert to state estimate message and send over serial to Teensy
+
+  // Heartbeat indicator
   if (heartbeat.IsDead()) {
     digitalWrite(LED_PIN, LOW);
   } else {
     digitalWrite(LED_PIN, HIGH);
   }
-  // delay(100);
+
+  // Printing
+  switch (output) {
+    case MOCAPRATE:
+      if (pose_received) {
+        rexquad::RatePrinter();
+      }
+      break;
+    case PRINTPOSE:
+      if (pose_received) {
+        Serial.print("position = [");
+        Serial.print(pose_mocap.x, 3);
+        Serial.print(", ");
+        Serial.print(pose_mocap.y, 3);
+        Serial.print(", ");
+        Serial.print(pose_mocap.z, 3);
+        Serial.println("]");
+      }
+      break;
+    case FILTERRATE:
+      rexquad::RatePrinter();
+    case NOOUTPUT:
+      break;
+  }
 }

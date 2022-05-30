@@ -26,13 +26,15 @@ def arduino_cli(scriptfile: str, fqbn: str, action="compile", verbose=False, por
             print(cmd, "\n")
         os.system(cmd)
 
-def build_feather(script, action, board, **kwargs):
+def build_arduino(script, action, board, **kwargs):
     dir = os.path.join(rootdir, "src", "firmware", script)
     scriptfile = os.path.join(dir, script + ".ino")
     if board == "m0":
         boardname = "adafruit:samd:adafruit_feather_m0"
     elif board == "32u4":
         boardname = "adafruit:avr:feather32u4"
+    elif board == "teensy":
+        boardname = "teensy:avr:teensy40"
     arduino_cli(scriptfile, boardname, action, **kwargs)
 
 # Parse arguments
@@ -59,6 +61,7 @@ targets = [
     "wifi_test",
     "radio_lora",
     "lora_bridge",
+    "onboard_teensy",
 ]
 parser = argparse.ArgumentParser()
 parser.add_argument("target",
@@ -81,7 +84,7 @@ parser.add_argument("-p", "--port",
                     default="/dev/ttyACM0"
                     )
 parser.add_argument("-b", "--board", 
-                    choices=["m0", "32u4"],
+                    choices=["m0", "32u4", "teensy"],
                     default="m0",
                     type=str,
 )
@@ -96,8 +99,8 @@ cache_dir = os.path.join(bin_dir, "cache")
 
 # Call the right build function
 if args.target == "default":
-    build_feather("lora_tx_test", args.action, board=args.board, verbose=args.verbose, port="/dev/ttyACM0")
-    build_feather("lora_rx_test", args.action, board=args.board, verbose=args.verbose, port="/dev/ttyACM1")
+    build_arduino("lora_tx_test", args.action, board=args.board, verbose=args.verbose, port="/dev/ttyACM0")
+    build_arduino("lora_rx_test", args.action, board=args.board, verbose=args.verbose, port="/dev/ttyACM1")
 else:
-    build_feather(args.target, args.action, board=args.board, verbose=args.verbose, port=args.port)
+    build_arduino(args.target, args.action, board=args.board, verbose=args.verbose, port=args.port)
      
