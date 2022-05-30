@@ -20,7 +20,7 @@ def write_dense_array(f, mat, name, vectype):
     f.write("{} {}[{}] = {{\n".format(vectype, name, mat.size))
     for j in range(0, n):
         for i in range(0, m):
-            f.write("{}, ".format(A[i, j]))
+            f.write("{:0.10f}, ".format(mat[i, j]))
         f.write("\n");
     f.write("};\n")
 
@@ -151,7 +151,7 @@ def render_problem_data(A, B, f, Q,q, R,r, Qf,qf, c, N, target_dir):
 
     # Write constants to header file
     incFile.write("const int nstates = {};\n".format(nx))
-    incFile.write("const int ninputs = {};\n".format(nx))
+    incFile.write("const int ninputs = {};\n".format(nu))
     incFile.write("const int nhorizon = {};\n".format(N))
 
     # Write dynamics matrices
@@ -162,7 +162,7 @@ def render_problem_data(A, B, f, Q,q, R,r, Qf,qf, c, N, target_dir):
     write_dense_array(srcFile, B, 'dynamics_Bdata', 'c_float')
 
     cgutils.write_vec_extern(incFile, f, 'dynamics_fdata', 'c_float')
-    cgutils.write_vec(srcFile, f, 'dynaics_fdata', 'c_float')
+    cgutils.write_vec(srcFile, f, 'dynamics_fdata', 'c_float')
 
     # Write cost matrices
     cgutils.write_vec_extern(incFile, Q.diagonal(), 'cost_Qdata', 'c_float')
@@ -200,36 +200,25 @@ def codegen_workspace_files(prob: osqp.OSQP, target_dir):
                      os.path.join(target_dir, 'workspace.c'))
 
 
-# Discrete time model of a quadcopter
-Ad = sparse.csc_matrix([
-    [1.,      0.,     0., 0., 0., 0., 0.1,     0.,     0.,  0.,     0.,     0.],
-    [0.,      1.,     0., 0., 0., 0., 0.,      0.1,    0.,  0.,     0.,     0.],
-    [0.,      0.,     1., 0., 0., 0., 0.,      0.,     0.1, 0.,     0.,     0.],
-    [0.0488,  0.,     0., 1., 0., 0., 0.0016,  0.,     0.,  0.0992, 0.,     0.],
-    [0.,     -0.0488, 0., 0., 1., 0., 0.,     -0.0016, 0.,  0.,     0.0992, 0.],
-    [0.,      0.,     0., 0., 0., 1., 0.,      0.,     0.,  0.,     0.,     0.0992],
-    [0.,      0.,     0., 0., 0., 0., 1.,      0.,     0.,  0.,     0.,     0.],
-    [0.,      0.,     0., 0., 0., 0., 0.,      1.,     0.,  0.,     0.,     0.],
-    [0.,      0.,     0., 0., 0., 0., 0.,      0.,     1.,  0.,     0.,     0.],
-    [0.9734,  0.,     0., 0., 0., 0., 0.0488,  0.,     0.,  0.9846, 0.,     0.],
-    [0.,     -0.9734, 0., 0., 0., 0., 0.,     -0.0488, 0.,  0.,     0.9846, 0.],
-    [0.,      0.,     0., 0., 0., 0., 0.,      0.,     0.,  0.,     0.,     0.9846]
-])
-Bd = sparse.csc_matrix([
-    [0.,      -0.0726,  0.,     0.0726],
-    [-0.0726,  0.,      0.0726, 0.],
-    [-0.0152,  0.0152, -0.0152, 0.0152],
-    [-0.,     -0.0006, -0.,     0.0006],
-    [0.0006,   0.,     -0.0006, 0.0000],
-    [0.0106,   0.0106,  0.0106, 0.0106],
-    [0,       -1.4512,  0.,     1.4512],
-    [-1.4512,  0.,      1.4512, 0.],
-    [-0.3049,  0.3049, -0.3049, 0.3049],
-    [-0.,     -0.0236,  0.,     0.0236],
-    [0.0236,   0.,     -0.0236, 0.],
-    [0.2107,   0.2107,  0.2107, 0.2107]])
+# Read data from JSON file 
+dirname = os.path.dirname(os.path.realpath(__file__))
+f = open(os.path.join(dirname, "mpc_data.json"))
+data = json.load(f)
+
+# Dynamics
+Ad = sparse.csc_matrix(data['A'])
+Bd = sparse.csc_matrix(data['B'])
+
+# Objective function
+Qk = sparse.diags(data['Qk'])
+qk = np.array(data['qk'])
+Rk = sparse.diags(data['Rk'])
+rk = np.array(data['rk'])
+Qf = sparse.diags(data['Qf'])
+qf = np.array(data['qf'])
 [nx, nu] = Bd.shape
 fd = np.zeros(nx)
+f.close() 
 
 # Constraints
 u0 = 10.5916
@@ -240,15 +229,6 @@ xmin = np.array([-np.pi/6, -np.pi/6, -np.inf, -np.inf, -np.inf, -1.,
 xmax = np.array([np.pi/6, np.pi/6, np.inf, np.inf, np.inf, np.inf,
                  np.inf, np.inf, np.inf, np.inf, np.inf, np.inf])
 
-# Objective function
-Qk = sparse.diags([0., 0., 10., 10., 10., 10., 0., 0., 0., 5., 5., 5.])
-qk = np.zeros(nx)
-QN = Qk
-qf = np.zeros(nx)
-R = 0.1*sparse.eye(4)
-r = np.zeros(nu)
-
-
 # Initial and reference states
 x0 = np.zeros(12)
 xr = np.array([0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
@@ -258,26 +238,33 @@ N = 10
 
 # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
 # - quadratic objective
-P = sparse.block_diag([sparse.kron(sparse.eye(N), Qk), QN,
-                       sparse.kron(sparse.eye(N), R)], format='csc')
+P = sparse.block_diag([sparse.kron(sparse.eye(N), Qk), Qf,
+                       sparse.kron(sparse.eye(N), Rk)], format='csc')
 # - linear objective
-q = np.hstack([np.kron(np.ones(N), -Qk.dot(xr) - qk), -QN.dot(xr) - qf,
-               np.kron(np.ones(N), -r)])
+q = np.hstack([np.kron(np.ones(N), -Qk.dot(xr) - qk), -Qf.dot(xr) - qf,
+               np.kron(np.ones(N), -rk)])
 # - linear dynamics
 Ax = sparse.kron(sparse.eye(N+1), -sparse.eye(nx)) + \
     sparse.kron(sparse.eye(N+1, k=-1), Ad)
 Bu = sparse.kron(sparse.vstack([sparse.csc_matrix((1, N)), sparse.eye(N)]), Bd)
-Aeq = sparse.hstack([Ax, Bu])
+Aeq = sparse.hstack([Ax, Bu], format='csc')
 leq = np.hstack([-x0, np.zeros(N*nx)])
 ueq = leq
 # - input and state constraints
-Aineq = sparse.eye((N+1)*nx + N*nu)
-lineq = np.hstack([np.kron(np.ones(N+1), xmin), np.kron(np.ones(N), umin)])
-uineq = np.hstack([np.kron(np.ones(N+1), xmax), np.kron(np.ones(N), umax)])
-# - OSQP constraints
-A = sparse.vstack([Aeq, Aineq], format='csc')
-l = np.hstack([leq, lineq])
-u = np.hstack([ueq, uineq])
+use_inequality_constraints = False 
+if use_inequality_constraints:
+    Aineq = sparse.eye((N+1)*nx + N*nu)
+    lineq = np.hstack([np.kron(np.ones(N+1), xmin), np.kron(np.ones(N), umin)])
+    uineq = np.hstack([np.kron(np.ones(N+1), xmax), np.kron(np.ones(N), umax)])
+
+    A = sparse.vstack([Aeq, Aineq], format='csc')
+    l = np.hstack([leq, lineq])
+    u = np.hstack([ueq, uineq])
+else:
+    A = Aeq.copy()
+    l = leq.copy()
+    u = ueq.copy()
+
 
 # Create an OSQP object
 prob = osqp.OSQP()
@@ -286,14 +273,13 @@ prob = osqp.OSQP()
 prob.setup(P, q, A, l, u, warm_start=True, verbose=0)
 
 # Generate C code
-dirname = os.path.dirname(os.path.realpath(__file__))
 target_dir = os.path.join(dirname, "codegen")
 codegen_workspace_files(prob, target_dir)
 c = 0.0
-render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk, R,r, QN,qf, c, N, target_dir)
-# prob.codegen(os.path.join(dirname, "codegen"),
-#              python_ext_name='mpc_osqp',
-#              parameters='matrices',
-#              LONG=False,
-#              force_rewrite=True
-#              )
+np.set_printoptions(edgeitems=30, linewidth=1000)
+render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk, Rk,rk, Qf,qf, c, N, target_dir)
+
+# Solve once
+res = prob.solve()
+u = res.x[-N*nu:-(N-1)*nu]
+print(u)

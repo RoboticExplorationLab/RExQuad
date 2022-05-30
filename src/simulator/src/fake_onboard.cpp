@@ -242,7 +242,6 @@ void loop() {
   if (send_message) {
     // Get current state estimate
     if (use_ground_truth) {
-      fmt::print("  Using ground truth estimate\n");
       MeasurementMsgToStateVector(xhat, measurementmsg);
     } else {
       filter.GetStateEstimate(xhat);
@@ -255,6 +254,9 @@ void loop() {
     // Send control and state estimate back over ZMQ to simulator
     UpdateStateControlMsg(statecontrolmsg, xhat, u);
     if (g_verbose) {
+      if (use_ground_truth) {
+        fmt::print("  Using ground truth estimate\n");
+      }
       fmt::print("State Estimate: ");
       PrintVector(xhat);
       fmt::print("Error state: ");
