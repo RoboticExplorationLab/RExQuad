@@ -10,3 +10,6 @@
 [submodule "src/firmware/libraries/RadioHead"]
 	path = src/firmware/libraries/RadioHead
 	url = https://github.com/adafruit/RadioHead.git
+[submodule "src/firmware/libraries/EmbeddedMPC"]
+	path = src/firmware/libraries/EmbeddedMPC
+	url = https://github.com/bjack205/EmbeddedMPC.git
