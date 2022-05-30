@@ -55,9 +55,10 @@ void setup() {
 void loop() {
   // Check for message over serial from onboard Feather
   int bytes_available = Serial1.available();
-  if (bytes_available) {
+  if (bytes_available >= kStateMsgSize) {
     g_heartbeat.Pulse();
     int bytes_received = Serial1.readBytes((char*)g_bufrecv, bytes_available);
+    // Serial.write(g_bufrecv, bytes_received)
     int start_index = 0;
     int msgid = StateMsg::MsgID;  
     for (int i = 0; i < bytes_received; ++i) {
@@ -66,12 +67,28 @@ void loop() {
         break;
       }
     }
+    // Serial.print("Number of bytes received: ");
+    // Serial.println(bytes_received);
     
     // Copy received message to state estimate
     if (g_bufrecv[start_index] == msgid) {
       memcpy(g_statebuf, g_bufrecv+start_index, kStateMsgSize);
       rexquad::StateMsgFromBytes(g_statemsg, g_statebuf, 0);
-      Serial.println("Got state message!");
+      Serial.print("Got state message!");
+      // Serial.print(start_index);
+      // Serial.print("  payload = [ ");
+      // for (int i = 0; i < 3 * sizeof(float) + 1; ++i) {
+      //   Serial.print(g_bufrecv[i], HEX);
+      //   Serial.print(" ");
+      // }
+      // Serial.println("]");
+      Serial.print("  position = [");
+      Serial.print(g_statemsg.x, 3);
+      Serial.print(", ");
+      Serial.print(g_statemsg.y, 3);
+      Serial.print(", ");
+      Serial.print(g_statemsg.z, 3);
+      Serial.println("]");
     }
   }
 

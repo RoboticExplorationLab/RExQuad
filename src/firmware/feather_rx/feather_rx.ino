@@ -27,12 +27,13 @@ enum RXOUTPUT {
   PRINTPOSE,
   NOOUTPUT,
   FILTERRATE,
+  ALTCOMP,
 };
 constexpr int kConnectoToIMU = 0;
 constexpr int kWaitForSerial = 1;
 const int kHeartbeatTimeoutMs = 200;
 // const RXOUTPUT output = MOCAPRATE;
-const RXOUTPUT output = MOCAPRATE;
+const RXOUTPUT output = NOOUTPUT;
 
 // Aliases
 using Time = uint64_t;
@@ -144,13 +145,28 @@ void loop() {
   filter.GetStateEstimate(xhat);
 
   // Convert to state estimate message and send over serial to Teensy
-  if (pose_received && packets_received % 100 == 0) {
+  if (pose_received && packets_received % 25 == 0) {
     rexquad::StateMsgFromVector(g_statemsg, xhat.data());
     rexquad::StateMsgToBytes(g_statemsg, g_bufstate);
+    Serial.print("Sent state estimate to Teensy. msgid = ");
+    Serial.print(StateMsg::MsgID);
+    // Serial.print(" / ");
+    // Serial.print(g_bufstate[0]);
+    // Serial.print("  payload = [ ");
+    // for (int i = 0; i < 3 * sizeof(float) + 1; ++i) {
+    //   Serial.print(g_bufstate[i], HEX);
+    //   Serial.print(" ");
+    // }
+    // Serial.println("]");
     Serial1.write(g_bufstate, kStateMsgSize);
-    Serial.println("Sent state estimate to Teensy.");
+    Serial.print(" position = [ ");
+    Serial.print(g_statemsg.x, 3);
+    Serial.print(", ");
+    Serial.print(g_statemsg.y, 3);
+    Serial.print(", ");
+    Serial.print(g_statemsg.z, 3);
+    Serial.println("]");
   }
-
 
   // Heartbeat indicator
   if (heartbeat.IsDead()) {
@@ -181,5 +197,13 @@ void loop() {
       rexquad::RatePrinter();
     case NOOUTPUT:
       break;
+    case ALTCOMP:
+      if (pose_received) {
+        Serial.print("received z = ");
+        Serial.print(pose_mocap.z, 3);
+        Serial.print("  estimate z = ");
+        Serial.print(xhat[2], 3);
+        Serial.print("\n");
+      }
   }
 }

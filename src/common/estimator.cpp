@@ -72,7 +72,9 @@ void StateEstimator::PoseMeasurement(const PoseMsg& pose, uint64_t timestamp_us)
 }
 
 void StateEstimator::GetStateEstimate(float* xhat) const {
-  memcpy(xhat, xhat_, sizeof(xhat_));
+  for (int i = 0; i < 12; ++i) {
+    xhat[i] = xhat_[i];
+  }
 }
 
 void StateEstimator::GetStateEstimate(StateControlMsg& xhat) const {
@@ -92,7 +94,9 @@ void StateEstimator::GetStateEstimate(StateControlMsg& xhat) const {
 }
 
 void StateEstimator::GetStateEstimate(StateVector& xhat) const {
-  memcpy(xhat.data(), xhat_, sizeof(xhat_));
+  for (int i = 0; i < 12; ++i) {
+    xhat[i] = xhat_[i];
+  }
 }
 
 void StateEstimator::SetBias(float* bias) { memcpy(bias_, bias, sizeof(bias_)); }
