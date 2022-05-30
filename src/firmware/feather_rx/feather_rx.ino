@@ -37,18 +37,23 @@ const RXOUTPUT output = MOCAPRATE;
 // Aliases
 using Time = uint64_t;
 using Pose = rexquad::PoseMsg;
+using StateMsg = rexquad::StateMsg;
 using StateControl = rexquad::StateControlMsg;
 
 // Constants
 constexpr int kMaxBufferSize = 200;
 constexpr int kPoseSize = sizeof(Pose) + 1;
 constexpr int kStateControlSize = sizeof(StateControl) + 1;
+constexpr int kStateMsgSize = sizeof(StateMsg) + 1;
 
 // Globals
 uint8_t buf_mocap[kMaxBufferSize];
 uint8_t buf_send[kStateControlSize];
+uint8_t g_bufstate[kStateMsgSize];
+
 Pose pose_mocap;
 StateControl statecontrol_msg;
+StateMsg g_statemsg;
 rexquad::Heartbeat heartbeat;
 
 // State estimator
@@ -133,15 +138,19 @@ void loop() {
       // Update State Estimate
       filter.PoseMeasurement(pose_mocap, t_mocap_us);
     }
-    if (packets_received % 10 == 0) {
-      Serial1.println("Hello from state estimator!");
-    }
   }
 
   // Get Current state estimate
   filter.GetStateEstimate(xhat);
 
-  // TODO: convert to state estimate message and send over serial to Teensy
+  // Convert to state estimate message and send over serial to Teensy
+  if (pose_received && packets_received % 100 == 0) {
+    rexquad::StateMsgFromVector(g_statemsg, xhat.data());
+    rexquad::StateMsgToBytes(g_statemsg, g_bufstate);
+    Serial1.write(g_bufstate, kStateMsgSize);
+    Serial.println("Sent state estimate to Teensy.");
+  }
+
 
   // Heartbeat indicator
   if (heartbeat.IsDead()) {

@@ -30,7 +30,11 @@ std::string TcpAddress::ToString() {
     port_string = ":*";
   } else {
     char buf[20];
+#ifdef TEENSYDUINO
     itoa(port_, buf, 20);
+#else
+    sprintf(buf, "%d", port_);
+#endif
     port_string = ":" + std::string(buf);
   }
   return addr_ + port_string;

@@ -62,6 +62,43 @@ struct StateControlMsg {
 bool StateControlMsgFromBytes(StateControlMsg& msg, uint8_t* buf, int off = 0);
 void StateControlMsgToBytes(const StateControlMsg& msg, uint8_t* buf, int off = 0);
 
+struct StateMsg {
+  static constexpr uint8_t MsgID = 115;  // 's'
+  float x;
+  float y;
+  float z;
+  float qw;
+  float qx;
+  float qy;
+  float qz;
+  float vx;
+  float vy;
+  float vz;
+  float wx;
+  float wy;
+  float wz;
+};
+
+bool StateMsgFromBytes(StateMsg& msg, uint8_t* buf, int off = 0);
+void StateMsgToBytes(const StateMsg& msg, uint8_t* buf, int off = 0);
+
+template<class T>
+void StateMsgFromVector(StateMsg& msg, const T* x) {
+  msg.x = x[0];
+  msg.y = x[1];
+  msg.z = x[2];
+  msg.qw = x[3];
+  msg.qx = x[4];
+  msg.qy = x[5];
+  msg.qz = x[6];
+  msg.vx = x[7];
+  msg.vy = x[8];
+  msg.vz = x[9];
+  msg.wx = x[10];
+  msg.wy = x[11];
+  msg.wz = x[12];
+}
+
 struct IMUMeasurementMsg {
   static constexpr uint8_t MsgID = 105;  // 'i'
   float ax;

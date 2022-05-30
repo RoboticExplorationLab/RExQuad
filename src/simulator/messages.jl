@@ -287,3 +287,69 @@ function IMUMeasurementMsg(buf::AbstractVector{UInt8}, off::Integer=0)
         bytestofloat(buf, 5 * 4 + off),
     )
 end
+
+struct StateMsg
+    x::Float32   # position
+    y::Float32
+    z::Float32
+    qw::Float32  # orientation
+    qx::Float32
+    qy::Float32
+    qz::Float32
+    vx::Float32  # linear velocity 
+    vy::Float32
+    vz::Float32
+    wx::Float32  # angular velocity 
+    wy::Float32
+    wz::Float32
+end
+msgid(::Type{StateControlMsg}) = UInt8('s')
+
+function Base.copyto!(buf::AbstractVector{UInt8}, msg::StateMsg, off=0)
+    buf[1 + off] = msgid(StateMsg)
+    off += 1
+    floattobytes!(buf, msg.x, 0 * 4 + off)
+    floattobytes!(buf, msg.y, 1 * 4 + off)
+    floattobytes!(buf, msg.z, 2 * 4 + off)
+    floattobytes!(buf, msg.qw, 3 * 4 + off)
+    floattobytes!(buf, msg.qx, 4 * 4 + off)
+    floattobytes!(buf, msg.qy, 5 * 4 + off)
+    floattobytes!(buf, msg.qz, 6 * 4 + off)
+    floattobytes!(buf, msg.vx, 7 * 4 + off)
+    floattobytes!(buf, msg.vy, 8 * 4 + off)
+    floattobytes!(buf, msg.vz, 9 * 4 + off)
+    floattobytes!(buf, msg.wx, 10 * 4 + off)
+    floattobytes!(buf, msg.wy, 11 * 4 + off)
+    floattobytes!(buf, msg.wz, 12 * 4 + off)
+    buf
+end
+
+function StateMsg(buf::AbstractVector{UInt8}, off::Integer=0)
+    msgid_is_correct = buf[1+off] == msgid(StateMsg)
+    msgid_is_correct || throw(MessageIDError(msgid(MeasurementMsg), buf[1+off]))
+    off += 1
+    StateMsg(
+        bytestofloat(buf, 0 * 4 + off),
+        bytestofloat(buf, 1 * 4 + off),
+        bytestofloat(buf, 2 * 4 + off),
+        bytestofloat(buf, 3 * 4 + off),
+        bytestofloat(buf, 4 * 4 + off),
+        bytestofloat(buf, 5 * 4 + off),
+        bytestofloat(buf, 6 * 4 + off),
+        bytestofloat(buf, 7 * 4 + off),
+        bytestofloat(buf, 8 * 4 + off),
+        bytestofloat(buf, 9 * 4 + off),
+        bytestofloat(buf, 10 * 4 + off),
+        bytestofloat(buf, 11 * 4 + off),
+        bytestofloat(buf, 12 * 4 + off),
+    )
+end
+
+function getstate(xu::StateMsg)
+    SA[
+        xu.x, xu.y, xu.z, 
+        xu.qw, xu.qx, xu.qy, xu.qz, 
+        xu.vx, xu.vy, xu.vz, 
+        xu.wx, xu.wy, xu.wz, 
+    ]
+end
