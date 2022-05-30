@@ -10,6 +10,10 @@
 #include "common/lqr_constants.hpp"
 #include "common/messages.hpp"
 #include "common/pose.hpp"
+#include "common/workspace.h"
+#include "common/problem_data.h"
+#include "EmbeddedMPC.h"
+#include "osqpsolver.hpp"
 
 // Options
 // const int kHeartbeatTimeoutMs = 200;
@@ -44,10 +48,12 @@ Pose posedata;
 StateControl statecontrolmsg;
 Measurement measurementmsg;
 IMUMeasurement imudata;
+OSQPSolver osqpsolver(nstates, ninputs, nhorizon);  // from problem_data.h
 void* context;
 void* pub;
 void* sub;
 auto tstart = std::chrono::high_resolution_clock::now();
+
 
 // Buffers
 uint8_t buf_recv[kMaxBufferSize];
@@ -158,12 +164,26 @@ void setup() {
   filter.SetIntegrateLinearAccel(false);
 
   // Set up ZMQ Subscriber to get info from simulator
+  fmt::print("Setting up ZMQ connections...\n");
   context = zmq_ctx_new();
   setup_subscriber(context, subport);
   setup_publisher(context, pubport);
 
+  // Initialize controller
+  fmt::print("Initializing controller...\n");
+  MPCProblem& prob = osqpsolver.GetProblem();
+  prob.SetDynamics(dynamics_Adata, dynamics_Bdata, dynamics_fdata);
+  prob.SetCostTerminal(cost_Qfdata, cost_qfdata);
+  prob.SetCostState(cost_Qdata, cost_qdata);
+  prob.SetCostInput(cost_Rdata, cost_rdata);
+  prob.SetCostConstant(cost_c);
+  osqpsolver.Initialize(&workspace);
+  fmt::print("Controller Initialized!\n");
+
   // Start timer
   tstart = std::chrono::high_resolution_clock::now();
+
+  fmt::print("Starting loop...\n");
 }
 
 void loop() {
@@ -249,7 +269,17 @@ void loop() {
 
     // Calculate control
     rexquad::ErrorState(e, xhat, xeq);
-    u = -K * e + ueq;
+    osqpsolver.SetInitialState(xhat.data());
+    bool solve_successful = osqpsolver.Solve();
+    if (!solve_successful) {
+      fmt::print("OSQP Solve Failed!\n");
+    }
+    osqpsolver.GetInput(u.data(), 0);
+    
+    for (int i = 0; i < ninputs; ++i) {
+      u[i] += rexquad::kHoverInput;
+    }
+    // u = -K * e + ueq;
 
     // Send control and state estimate back over ZMQ to simulator
     UpdateStateControlMsg(statecontrolmsg, xhat, u);

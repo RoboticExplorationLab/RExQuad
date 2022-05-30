@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18.0)
+cmake_minimum_required(VERSION 3.21.0)
 list(APPEND CMAKE_MESSAGE_CONTEXT rexquad)
 project(RExQuad VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -82,6 +82,10 @@ set_target_properties(NatNetSDK PROPERTIES
 target_include_directories(NatNetSDK INTERFACE
   "${NATNET_DIR}/include"
 )
+
+# Embedded MPC
+add_library(EmbeddedMPC INTERFACE)
+add_subdirectory(${ARDUINO_LIB_DIR}/EmbeddedMPC)
 
 #############################################
 # Compilation

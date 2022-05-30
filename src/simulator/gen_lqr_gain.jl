@@ -62,22 +62,31 @@ function print_gains(K, xeq, ueq)
     """
 end
 
-# Get discrete error state Jacobians 
+# Hover state
+xe = [0;0;1; 1;0;0;0; zeros(6)]
+ue = trim_controls()
+dt = 0.01  # 100 Hz
+xg = [0;0;1.5; 1; zeros(3); zeros(6)]  # goal state
+dxg = state_error(xg, xe)              # error state from equilibrium to goal
+
+# Get discrete error state Jacobians about equilibrium
 commondir = joinpath(@__DIR__, "..", "common")
 E = error_state_jacobian(xhover)
-A = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, uhover, dt), xhover)*E
-B = E'ForwardDiff.jacobian(_u->dynamics_rk4(xhover, _u, dt), uhover)
+A = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, uhover, dt), xe)*E
+B = E'ForwardDiff.jacobian(_u->dynamics_rk4(xhover, _u, dt), ue)
 
 # Cost
-Qk = [1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)]
-qk = zeros(12)
-Qf = Qd * 100 
-qf = copy(qk)
-Rk = fill(1e-3, 4)
+Qk = spdiagm([1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)])
+qk = -Qk*dxg
+Qf = Qk * 100 
+qf = -Qf*dxg  
+Rk = spdiagm(fill(1e-3, 4))
 rk = zeros(4)
-xhover = [0;0;1; 1;0;0;0; zeros(6)]
-uhover = trim_controls()
-dt = 0.01  # 100 Hz
+
+N = 11
+P = blockdiag(kron(sparse(I,N-1,N-1), Qk), Qf, kron(sparse(I,N-1,N-1), Rk))
+q = [kron(ones(N-1), qk); qf; kron(ones(N-1), rk)]
+A = 
 
 open(joinpath(commondir, "mpc_data.json"), "w") do f
     data = Dict(

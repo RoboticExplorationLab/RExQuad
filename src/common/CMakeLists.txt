@@ -1,3 +1,4 @@
+add_compile_options(-Wno-error=missing-field-initializers)
 add_library(quadcommon
     pose.hpp
     pose.cpp
@@ -18,10 +19,17 @@ add_library(quadcommon
     control.cpp
 
     constants.hpp
+
+    workspace.h
+    workspace.c
+
+    problem_data.h
+    problem_data.c
 )
 target_link_libraries(quadcommon
     PUBLIC
     ArduinoEigen
+    empc
 )
 target_include_directories(quadcommon
     INTERFACE

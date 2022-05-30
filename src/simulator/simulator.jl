@@ -12,6 +12,35 @@ include("ratelimiter.jl")
 include("visualization.jl")
 include("messages.jl")
 
+function build_osqp_controller(N)
+
+    # Hover state
+    n = 12
+    m = 4
+    xhover = [0; 0; 1; 1; 0; 0; 0; zeros(6)]
+    uhover = trim_controls()
+    dt = 0.01  # 100 Hz
+
+    # Get discrete error state Jacobians 
+    commondir = joinpath(@__DIR__, "..", "common")
+    E = error_state_jacobian(xhover)
+    A = E'ForwardDiff.jacobian(_x -> dynamics_rk4(_x, uhover, dt), xhover) * E
+    B = E'ForwardDiff.jacobian(_u -> dynamics_rk4(xhover, _u, dt), uhover)
+
+    # Cost
+    Qk = [1.1; 1.1; 10; fill(1.0, 3); fill(0.1, 3); fill(1.0, 3)]
+    qk = zeros(12)
+    Qf = Qd * 100
+    qf = copy(qk)
+    Rk = fill(1e-3, 4)
+    rk = zeros(4)
+
+    # Build cost 
+    P = blockdiag(kron(sparse(I,N-1,N-1), Diagonal(Qk)), Diagonal(Qf), kron(sparse(I,N-1,N-1), Diagonal(Rk)))
+
+    
+end
+
 const ZMQ_CONFLATE = 54
 function set_conflate(socket::ZMQ.Socket, option_val::Integer)
     rc = ccall(
@@ -264,6 +293,7 @@ function getdata(sim::Simulator, t)
     if bytes_read >= msgsize(StateControlMsg)
         return StateControlMsg(buf)
     else
+        @warn "Didn't receive any data before timing out. Is the interface process running?"
         return nothing
     end
 end

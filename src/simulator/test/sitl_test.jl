@@ -43,7 +43,7 @@ sim = Simulator(5562, 5563)
 open(sim.vis)
 
 ## Run the simulator
-x = [0;0.5;0.5; 1; zeros(3); zeros(6)]
+x = [0;0.0;0.5; 1; zeros(3); zeros(6)]
 u = trim_controls()
 rate = 100  # Hertz
 dt = 1/rate

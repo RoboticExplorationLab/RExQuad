@@ -14,9 +14,9 @@ constexpr double kMinInput = 1148.0;
 constexpr double kIdleInput = 1180;
 constexpr double kMaxInput = 1832.0;
 
-using StateVector = Eigen::Vector<float, kNumStates>;
-using ErrorVector = Eigen::Vector<float, kNumErrStates>;
-using InputVector = Eigen::Vector<float, kNumInputs>;
-using FeedbackGain = Eigen::Matrix<float, kNumInputs, kNumErrStates>;
+using StateVector = Eigen::Vector<double, kNumStates>;
+using ErrorVector = Eigen::Vector<double, kNumErrStates>;
+using InputVector = Eigen::Vector<double, kNumInputs>;
+using FeedbackGain = Eigen::Matrix<double, kNumInputs, kNumErrStates>;
 
 }  // namespace rexquad

@@ -280,8 +280,12 @@ c = 0.0
 np.set_printoptions(edgeitems=30, linewidth=1000)
 render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk, Rk,rk, Qf,qf, c, N, target_dir)
 
-target_dir_codegen = os.path.join(target_dir, "codegen")
-prob.codegen(target_dir_codegen, parameters='matrices', force_rewrite=True, LONG=False)
+# Write to common dir
+codegen_workspace_files(prob, dirname)
+render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk, Rk,rk, Qf,qf, c, N, dirname)
+
+# target_dir_codegen = os.path.join(target_dir, "codegen")
+# prob.codegen(target_dir_codegen, parameters='matrices', force_rewrite=True, LONG=False)
 
 # Solve once
 res = prob.solve()

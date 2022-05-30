@@ -13,6 +13,7 @@ function (quad_node targetname)
     quadutils
     quadcommon
     ArduinoEigen
+    empc
   )
 endfunction()
 
