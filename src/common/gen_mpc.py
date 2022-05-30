@@ -152,7 +152,7 @@ def render_problem_data(A, B, f, Q,q, R,r, Qf,qf, c, N, target_dir):
     # Write constants to header file
     incFile.write("const int nstates = {};\n".format(nx))
     incFile.write("const int ninputs = {};\n".format(nu))
-    incFile.write("const int nhorizon = {};\n".format(N))
+    incFile.write("const int nhorizon = {};\n".format(N+1))
 
     # Write dynamics matrices
     write_dense_array_extern(incFile, A, 'dynamics_Adata', 'c_float')
@@ -273,13 +273,19 @@ prob = osqp.OSQP()
 prob.setup(P, q, A, l, u, warm_start=True, verbose=0)
 
 # Generate C code
-target_dir = os.path.join(dirname, "codegen")
+empc_dir = os.path.join(dirname, "../firmware/libraries/EmbeddedMPC/")
+target_dir = os.path.join(empc_dir, "test/")
 codegen_workspace_files(prob, target_dir)
 c = 0.0
 np.set_printoptions(edgeitems=30, linewidth=1000)
 render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk, Rk,rk, Qf,qf, c, N, target_dir)
 
+target_dir_codegen = os.path.join(target_dir, "codegen")
+prob.codegen(target_dir_codegen, parameters='matrices', force_rewrite=True, LONG=False)
+
 # Solve once
 res = prob.solve()
 u = res.x[-N*nu:-(N-1)*nu]
+x0 = res.x[:nx]
+print(x0)
 print(u)
