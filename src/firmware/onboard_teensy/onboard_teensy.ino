@@ -1,18 +1,20 @@
+#include <RHHardwareSPI.h> 
+
 #include "constants.hpp"
 #include "messages.hpp"
 #include "quad_utils.hpp"
 #include "sensors.hpp"
 #include "pose.hpp"
-#define RF69_FREQ 915.0
+#define RF69_FREQ 910.0
 
 // Pin setup
 #define LED_PIN 13
 
 // Radio Wing
 #define RFM69_CS 10   // "F"
-#define RFM69_INT 18  // "D"
-#define RFM69_RST 19  // "C"
-RH_RF69 rf69(RFM69_CS, RFM69_INT);
+#define RFM69_INT 9  // "D"
+#define RFM69_RST 8  // "C"
+RH_RF69 rf69(RFM69_CS, RFM69_INT, hardware_spi);
 
 // Options
 constexpr bool kWaitForSerial = 1;
@@ -29,11 +31,13 @@ constexpr int kStateMsgSize = sizeof(StateMsg) + 1;
 constexpr int kStateControlSize = sizeof(StateControl) + 1;
 
 // Globals
-uint8_t g_bufrecv[kMaxBufferSize];
+uint8_t g_bufrecv[kMaxBufferSize];  // buffer for receiving state estimate from feather
 uint8_t g_statebuf[kStateMsgSize];
-uint8_t g_bufrx[kMaxBufferSize];
+uint8_t g_bufrx[kMaxBufferSize];  // buffer for receiving radio messages from base station
+uint8_t g_buftx[kMaxBufferSize];  // buffer for sending radio messages to base station
 
 StateMsg g_statemsg;
+StateControl g_statecontrolmsg;  // for sending back to base station
 rexquad::Heartbeat g_heartbeat;
 
 // Controller
@@ -84,34 +88,27 @@ void setup() {
 /////////////////////////////////////////////
 int packets_received = 0;
 void loop() {
-  // Process MOCAP pose
+  // Receive messages from base station
   bool pose_received = false;
   if (rf69.available()) {
-    uint8_t len_mocap = sizeof(g_bufrx);
-    Serial.println("Radio packet available!");
+    uint8_t len_rx = sizeof(g_bufrx);
 
-    if (rf69.recv(g_bufrx, &len_mocap)) {
+    if (rf69.recv(g_bufrx, &len_rx)) {
       // Time t_mocap_us = curtime_us();
       ++packets_received;
       pose_received = true;
-      g_heartbeat.Pulse();
 
-      // Convert bytes into pose message
-      // rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
-
-      Serial.print("Received Pose Message over radio! Number of bytes = ");
-      Serial.println("len_mocap");
-      // // Update State Estimate
-      // filter.PoseMeasurement(pose_mocap, t_mocap_us);
+      Serial.print("Received message from base station! Number of bytes = ");
+      Serial.println(len_rx);
     }
   }
 
-  // Check for message over serial from onboard Feather
+  // Check for state estimate message over serial from onboard Feather
   int bytes_available = Serial1.available();
+  bool state_received = false;
   if (bytes_available >= kStateMsgSize) {
     g_heartbeat.Pulse();
     int bytes_received = Serial1.readBytes((char*)g_bufrecv, bytes_available);
-    // Serial.write(g_bufrecv, bytes_received)
     int start_index = 0;
     int msgid = StateMsg::MsgID;  
     for (int i = 0; i < bytes_received; ++i) {
@@ -120,21 +117,13 @@ void loop() {
         break;
       }
     }
-    // Serial.print("Number of bytes received: ");
-    // Serial.println(bytes_received);
     
     // Copy received message to state estimate
     if (g_bufrecv[start_index] == msgid) {
+      state_received = true;
       memcpy(g_statebuf, g_bufrecv+start_index, kStateMsgSize);
       rexquad::StateMsgFromBytes(g_statemsg, g_statebuf, 0);
       Serial.print("Got state message!");
-      // Serial.print(start_index);
-      // Serial.print("  payload = [ ");
-      // for (int i = 0; i < 3 * sizeof(float) + 1; ++i) {
-      //   Serial.print(g_bufrecv[i], HEX);
-      //   Serial.print(" ");
-      // }
-      // Serial.println("]");
       Serial.print("  position = [");
       Serial.print(g_statemsg.x, 3);
       Serial.print(", ");
@@ -143,6 +132,17 @@ void loop() {
       Serial.print(g_statemsg.z, 3);
       Serial.println("]");
     }
+  }
+
+  // TODO: Calculate control
+
+  // Send message to base station
+  if (state_received) {
+    rexquad::StateControlMsgFromVectors(g_statecontrolmsg, xhat.data(), u.data());
+    rexquad::StateControlMsgToBytes(g_statecontrolmsg, g_buftx);
+    rf69.send(g_buftx, kStateControlSize);
+    rf69.waitPacketSent();  // needed?
+    Serial.println("Sent message to base station.");
   }
 
   // Heartbeat indicator

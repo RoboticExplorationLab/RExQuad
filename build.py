@@ -65,6 +65,7 @@ targets = [
     "onboard_teensy",
     "radio_wing",
     "teensy_radio",
+    "basestation",
 ]
 parser = argparse.ArgumentParser()
 parser.add_argument("target",

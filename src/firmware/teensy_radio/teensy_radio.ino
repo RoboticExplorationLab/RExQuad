@@ -58,24 +58,6 @@ void setup() {
   Serial.println("Connected to onboard Teensy!");
 
   // Initialize Packet Radio
-  // SPI1.begin();
-  // Serial.println("SPI started.");
-  // digitalWrite(RFM69_RST, HIGH);
-  // delay(10);
-  // digitalWrite(RFM69_RST, LOW);
-  // delay(10);
-  // if (!rf69.init()) {
-  //   Serial.println("RFM69 radio init failed");
-  //   digitalWrite(RFM69_RST, HIGH);
-  //   digitalWrite(LED_PIN, HIGH);
-  //   delay(100);
-  //   digitalWrite(RFM69_RST, LOW);
-  //   digitalWrite(LED_PIN, LOW);
-  //   delay(100);
-  // }
-  // rf69.setFrequency(RF69_FREQ);
-  // rf69.setModemConfig(RH_RF69::GFSK_Rb250Fd250);
-  // Serial.println("RFM69 radio init successful!");
   rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
 
   // Setup Heartbeat
