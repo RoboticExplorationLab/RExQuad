@@ -28,18 +28,18 @@
 #define LSM_SDA 20
 rexquad::IMU imureal;
 
-// Radio Setup
-#define RFM69_CS 8
-#define RFM69_INT 3
-#define RFM69_RST 4
-#define RF69_FREQ 915.0
-RH_RF69 rf69(RFM69_CS, RFM69_INT);
+// Radio Wing
+#define RF69_FREQ 910.0
+#define RFM69_CS 10   // "F"
+#define RFM69_INT 9  // "D"
+#define RFM69_RST 8  // "C"
+RH_RF69 rf69(RFM69_CS, RFM69_INT, hardware_spi);
 
 // Motors
-#define FRONT_LEFT_PIN 9
-#define FRONT_RIGHT_PIN 10
-#define BACK_RIGHT_PIN 11
-#define BACK_LEFT_PIN 12
+#define FRONT_LEFT_PIN 14 
+#define FRONT_RIGHT_PIN 15 
+#define BACK_RIGHT_PIN 16 
+#define BACK_LEFT_PIN 17 
 rexquad::QuadMotors motors(FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK_LEFT_PIN);
 
 // Options
@@ -78,16 +78,7 @@ void setup() {
       rexquad::Blink(LED_PIN, 100, 1);
     }
   }
-  Serial.println("Connected to Onboard computer!");
-
-  // Connect IMU
-  bool imu_is_connected = imureal.Connect();
-  if (!imu_is_connected) {
-    while (1) {
-      rexquad::Blink(LED_PIN, 1000, 1);
-    }
-  }
-  Serial.println("Connected to IMU!");
+  Serial.println("Connected to Onboard Teensy!");
 
   // Initialize Radio
   rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);

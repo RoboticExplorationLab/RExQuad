@@ -1,24 +1,32 @@
 #include <RHHardwareSPI.h> 
 
+#include "motors.hpp"
 #include "constants.hpp"
 #include "messages.hpp"
 #include "quad_utils.hpp"
 #include "sensors.hpp"
 #include "pose.hpp"
 #include "serial_utils.hpp"
-#define RF69_FREQ 910.0
 
 // Pin setup
 #define LED_PIN 13
 
 // Radio Wing
+#define RF69_FREQ 910.0
 #define RFM69_CS 10   // "F"
 #define RFM69_INT 9  // "D"
 #define RFM69_RST 8  // "C"
 RH_RF69 rf69(RFM69_CS, RFM69_INT, hardware_spi);
 
+// Motors
+#define FRONT_LEFT_PIN 14 
+#define FRONT_RIGHT_PIN 15 
+#define BACK_RIGHT_PIN 16 
+#define BACK_LEFT_PIN 17 
+rexquad::QuadMotors motors(FRONT_LEFT_PIN, FRONT_RIGHT_PIN, BACK_RIGHT_PIN, BACK_LEFT_PIN);
+
 // Options
-constexpr bool kWaitForSerial = 0;
+constexpr bool kWaitForSerial = 1;
 constexpr int kMaxBufferSize = 200;
 const int kHeartbeatTimeoutMs = 200;
 
@@ -53,6 +61,7 @@ rexquad::ErrorVector e;  // error state
 // Setup
 /////////////////////////////////////////////
 void setup() {
+  motors.Kill();
   pinMode(RFM69_RST, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
   Serial1.begin(256000);
@@ -82,9 +91,23 @@ void setup() {
   Serial.println("RFM69 radio init successful!");
   // rexquad::InitRadio(rf69, RF69_FREQ, RFM69_RST, LED_PIN, /*encrypt=*/false);
 
+  if (kWaitForSerial) {
+    String user_response = rexquad::GetUserResponse(Serial, "Spin motors? (y/n)");
+    user_response.toLowerCase();
+    if (user_response.equals("y")) {
+      int range = rexquad::kMaxInput - rexquad::kMinInput;
+      motors.SendConstantCommandPWM(rexquad::kMinInput + range / 2);
+      delay(1000);
+      motors.Kill();
+      // motors.Ramp(rexquad::kMinInput, rexquad::kMinInput +  range / 2, 20);
+      // motors.Ramp(rexquad::kMinInput +  range / 2, rexquad::kMinInput,  20);
+    }
+  }
+
   // Setup Heartbeat
   g_heartbeat.SetTimeoutMs(kHeartbeatTimeoutMs);
   g_heartbeat.Activate();
+  motors.Kill();
 }
 
 /////////////////////////////////////////////
@@ -167,6 +190,7 @@ void loop() {
   // Heartbeat indicator
   if (g_heartbeat.IsDead()) {
     digitalWrite(LED_PIN, LOW);
+    motors.Kill();
   } else {
     digitalWrite(LED_PIN, HIGH);
   }
