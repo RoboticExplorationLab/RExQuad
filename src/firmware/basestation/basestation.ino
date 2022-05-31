@@ -82,6 +82,7 @@ void setup() {
 // Loop
 /////////////////////////////////////////////
 int packets_received = 0;
+int tsend = millis();
 void loop() {
   // Process MOCAP pose
   bool msg_received = false;
@@ -93,6 +94,7 @@ void loop() {
       ++packets_received;
       msg_received = true;
       heartbeat.Pulse();
+      // rexquad::RatePrinter();
 
       int msgid = g_bufrecv[0];
       switch (msgid) {
@@ -106,25 +108,16 @@ void loop() {
           Serial.println("Got unrecognized message.");
           break;
       }
-      // Serial.println("Got message!");
-      // bool found_msgid = false;
-      // int start_index = 0;
-      // int msgid = StateControl::MsgID; 
-      // for (int i = 0; i < len_recv; ++i) {
-      //   if (g_bufrecv[i] == msgid) {
-      //     start_index = i;
-      //     found_msgid;
-      //     break;
-      //   }
-      // }
-
-      // if (found_msgid) {
-      //   memcpy(g_bufstatecontrol, g_bufrecv+start_index, kStateControlSize);
-      // }
-
-      // // Convert bytes into statecontrol message
-      // rexquad::StateControlMsgFromBytes(g_statecontrol_msg, g_bufrecv);
     }
+  }
+
+  if (millis() - tsend > 1000) {
+    Serial.println("Sending message to Teensy");
+    String message = "Do something!";
+    rf69.send((uint8_t*)message.c_str(), message.length());
+    rf69.waitPacketSent();
+    tsend = millis();
+    // rexquad::RatePrinter();
   }
 
   // Heartbeat indicator

@@ -5,6 +5,7 @@
 #include "quad_utils.hpp"
 #include "sensors.hpp"
 #include "pose.hpp"
+#include "serial_utils.hpp"
 #define RF69_FREQ 910.0
 
 // Pin setup
@@ -128,14 +129,14 @@ void loop() {
       ++states_received;
       memcpy(g_statebuf, g_bufrecv+start_index, kStateMsgSize);
       rexquad::StateMsgFromBytes(g_statemsg, g_statebuf, 0);
-      Serial.print("Got state message!");
-      Serial.print("  position = [");
-      Serial.print(g_statemsg.x, 3);
-      Serial.print(", ");
-      Serial.print(g_statemsg.y, 3);
-      Serial.print(", ");
-      Serial.print(g_statemsg.z, 3);
-      Serial.println("]");
+      // Serial.print("Got state message!");
+      // Serial.print("  position = [");
+      // Serial.print(g_statemsg.x, 3);
+      // Serial.print(", ");
+      // Serial.print(g_statemsg.y, 3);
+      // Serial.print(", ");
+      // Serial.print(g_statemsg.z, 3);
+      // Serial.println("]");
     }
   }
 
@@ -143,11 +144,13 @@ void loop() {
 
   // Send message to base station
   if (state_received) {
-    if (states_received % 2 == 0) {
+    const int rate_limiter = 2;
+    if (states_received % (2*rate_limiter) == 0) {
+      rexquad::RatePrinter();
       rexquad::ControlMsgFromVector(g_controlmsg, u.data());
       rexquad::ControlMsgToBytes(g_controlmsg, g_buftx);
       rf69.send(g_buftx, kControlMsgSize);
-    } else {
+    } else if (states_received % (2*rate_limiter) == rate_limiter) {
       rexquad::StateMsgFromVector(g_statemsg, xhat.data());
       rexquad::StateMsgToBytes(g_statemsg, g_buftx);
       rf69.send(g_buftx, kStateMsgSize);
