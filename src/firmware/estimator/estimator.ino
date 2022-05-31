@@ -32,8 +32,8 @@ enum RXOUTPUT {
 constexpr int kConnectoToIMU = 0;
 constexpr int kWaitForSerial = 0;
 const int kHeartbeatTimeoutMs = 200;
-// const RXOUTPUT output = MOCAPRATE;
-const RXOUTPUT output = NOOUTPUT;
+const RXOUTPUT output = MOCAPRATE;
+// const RXOUTPUT output = NOOUTPUT;
 
 // Aliases
 using Time = uint64_t;
@@ -44,23 +44,19 @@ using StateControl = rexquad::StateControlMsg;
 // Constants
 constexpr int kMaxBufferSize = 200;
 constexpr int kPoseSize = sizeof(Pose) + 1;
-constexpr int kStateControlSize = sizeof(StateControl) + 1;
 constexpr int kStateMsgSize = sizeof(StateMsg) + 1;
 
 // Globals
-uint8_t buf_mocap[kMaxBufferSize];
-uint8_t buf_send[kStateControlSize];
+uint8_t g_bufmocap[kMaxBufferSize];
 uint8_t g_bufstate[kStateMsgSize];
 
-Pose pose_mocap;
-StateControl statecontrol_msg;
+Pose g_posemocap;
 StateMsg g_statemsg;
 rexquad::Heartbeat heartbeat;
 
 // State estimator
 rexquad::StateEstimator filter;
 rexquad::StateVector xhat;
-// rexquad::InputVector u;
 
 // Timing
 Time g_tstart;
@@ -125,19 +121,19 @@ void loop() {
   // Process MOCAP pose
   bool pose_received = false;
   if (rf69.available()) {
-    uint8_t len_mocap = sizeof(buf_mocap);
+    uint8_t len_mocap = sizeof(g_bufmocap);
 
-    if (rf69.recv(buf_mocap, &len_mocap)) {
+    if (rf69.recv(g_bufmocap, &len_mocap)) {
       Time t_mocap_us = curtime_us();
       ++packets_received;
       pose_received = true;
       heartbeat.Pulse();
 
       // Convert bytes into pose message
-      rexquad::PoseFromBytes(pose_mocap, (char*)buf_mocap);
+      rexquad::PoseFromBytes(g_posemocap, (char*)g_bufmocap);
 
       // Update State Estimate
-      filter.PoseMeasurement(pose_mocap, t_mocap_us);
+      filter.PoseMeasurement(g_posemocap, t_mocap_us);
     }
   }
 
@@ -145,27 +141,11 @@ void loop() {
   filter.GetStateEstimate(xhat);
 
   // Convert to state estimate message and send over serial to Teensy
-  if (pose_received && packets_received % 25 == 0) {
+  //   for now, limit message to the rate of the mocap (100 Hz)
+  if (pose_received) {
     rexquad::StateMsgFromVector(g_statemsg, xhat.data());
     rexquad::StateMsgToBytes(g_statemsg, g_bufstate);
-    Serial.print("Sent state estimate to Teensy. msgid = ");
-    Serial.print(StateMsg::MsgID);
-    // Serial.print(" / ");
-    // Serial.print(g_bufstate[0]);
-    // Serial.print("  payload = [ ");
-    // for (int i = 0; i < 3 * sizeof(float) + 1; ++i) {
-    //   Serial.print(g_bufstate[i], HEX);
-    //   Serial.print(" ");
-    // }
-    // Serial.println("]");
     Serial1.write(g_bufstate, kStateMsgSize);
-    Serial.print(" position = [ ");
-    Serial.print(g_statemsg.x, 3);
-    Serial.print(", ");
-    Serial.print(g_statemsg.y, 3);
-    Serial.print(", ");
-    Serial.print(g_statemsg.z, 3);
-    Serial.println("]");
   }
 
   // Heartbeat indicator
@@ -185,11 +165,11 @@ void loop() {
     case PRINTPOSE:
       if (pose_received) {
         Serial.print("position = [");
-        Serial.print(pose_mocap.x, 3);
+        Serial.print(g_posemocap.x, 3);
         Serial.print(", ");
-        Serial.print(pose_mocap.y, 3);
+        Serial.print(g_posemocap.y, 3);
         Serial.print(", ");
-        Serial.print(pose_mocap.z, 3);
+        Serial.print(g_posemocap.z, 3);
         Serial.println("]");
       }
       break;
@@ -200,7 +180,7 @@ void loop() {
     case ALTCOMP:
       if (pose_received) {
         Serial.print("received z = ");
-        Serial.print(pose_mocap.z, 3);
+        Serial.print(g_posemocap.z, 3);
         Serial.print("  estimate z = ");
         Serial.print(xhat[2], 3);
         Serial.print("\n");

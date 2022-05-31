@@ -17,9 +17,9 @@
 RH_RF69 rf69(RFM69_CS, RFM69_INT, hardware_spi);
 
 // Options
-constexpr bool kWaitForSerial = 1;
+constexpr bool kWaitForSerial = 0;
 constexpr int kMaxBufferSize = 200;
-const int kHeartbeatTimeoutMs = 1500;
+const int kHeartbeatTimeoutMs = 200;
 
 // Aliases
 using Time = uint64_t;
@@ -137,12 +137,17 @@ void loop() {
   // TODO: Calculate control
 
   // Send message to base station
+  // if (state_received) {
+  //   rexquad::StateControlMsgFromVectors(g_statecontrolmsg, xhat.data(), u.data());
+  //   rexquad::StateControlMsgToBytes(g_statecontrolmsg, g_buftx);
+  //   rf69.send(g_buftx, kStateControlSize);
+  //   rf69.waitPacketSent();  // needed?
+  //   Serial.println("Sent message to base station.");
+  // }
   if (state_received) {
-    rexquad::StateControlMsgFromVectors(g_statecontrolmsg, xhat.data(), u.data());
-    rexquad::StateControlMsgToBytes(g_statecontrolmsg, g_buftx);
-    rf69.send(g_buftx, kStateControlSize);
-    rf69.waitPacketSent();  // needed?
-    Serial.println("Sent message to base station.");
+    String message = "Hello from Teensy";
+    rf69.send(message.c_str(), message.length());
+    Serial.println("Sent message over radio");
   }
 
   // Heartbeat indicator

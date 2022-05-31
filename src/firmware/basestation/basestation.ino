@@ -13,19 +13,19 @@
 #define RFM69_CS 8
 #define RFM69_INT 3
 #define RFM69_RST 4
-#define RF69_FREQ 915.0
+#define RF69_FREQ 910.0
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // Options
 enum RXOUTPUT {
-  MOCAPRATE,
+  RECVRATE,
   PRINTPOSE,
   NOOUTPUT,
 };
 constexpr int kWaitForSerial = 1;
 const int kHeartbeatTimeoutMs = 200;
-// const RXOUTPUT output = MOCAPRATE;
-const RXOUTPUT output = NOOUTPUT;
+const RXOUTPUT output = RECVRATE;
+// const RXOUTPUT output = NOOUTPUT;
 
 // Aliases
 using Time = uint64_t;
@@ -37,6 +37,7 @@ constexpr int kStateControlSize = sizeof(StateControl) + 1;
 
 // Globals
 uint8_t g_bufrecv[kMaxBufferSize];
+uint8_t g_bufstatecontrol[kStateControlSize];
 rexquad::StateVector xhat;
 rexquad::InputVector u;
 
@@ -59,7 +60,7 @@ void setup() {
     while (!Serial) {
       rexquad::Blink(LED_PIN, 100, 1);
     }
-    Serial.println("Connected to Receiver!");
+    Serial.println("Connected to Base Station Radio!");
   }
   Serial1.begin(256000);
 
@@ -81,20 +82,34 @@ void setup() {
 int packets_received = 0;
 void loop() {
   // Process MOCAP pose
-  bool pose_received = false;
+  bool msg_received = false;
   if (rf69.available()) {
     uint8_t len_recv = sizeof(g_bufrecv);
 
     if (rf69.recv(g_bufrecv, &len_recv)) {
       Time t_mocap_us = curtime_us();
       ++packets_received;
-      pose_received = true;
+      msg_received = true;
       heartbeat.Pulse();
 
-      Serial.print("Got message from Teensy! bytes received = ");
-      Serial.println(len_recv);
-      // Convert bytes into pose message
-      // rexquad::PoseFromBytes(g_statecontrol_msg, (char*)g_bufrecv);
+      // Serial.println("Got message!");
+      // bool found_msgid = false;
+      // int start_index = 0;
+      // int msgid = StateControl::MsgID; 
+      // for (int i = 0; i < len_recv; ++i) {
+      //   if (g_bufrecv[i] == msgid) {
+      //     start_index = i;
+      //     found_msgid;
+      //     break;
+      //   }
+      // }
+
+      // if (found_msgid) {
+      //   memcpy(g_bufstatecontrol, g_bufrecv+start_index, kStateControlSize);
+      // }
+
+      // // Convert bytes into statecontrol message
+      // rexquad::StateControlMsgFromBytes(g_statecontrol_msg, g_bufrecv);
     }
   }
 
@@ -107,13 +122,13 @@ void loop() {
 
   // Printing
   switch (output) {
-    case MOCAPRATE:
-      if (pose_received) {
+    case RECVRATE:
+      if (msg_received) {
         rexquad::RatePrinter();
       }
       break;
     case PRINTPOSE:
-      if (pose_received) {
+      if (msg_received) {
         Serial.print("position = [");
         Serial.print(g_statecontrol_msg.x, 3);
         Serial.print(", ");
