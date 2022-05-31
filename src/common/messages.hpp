@@ -35,6 +35,13 @@ struct ControlMsg {
 bool ControlMsgFromBytes(ControlMsg& msg, uint8_t* buf, int off = 0);
 void ControlMsgToBytes(const ControlMsg& msg, uint8_t* buf, int off = 0);
 
+template <class T>
+void ControlMsgFromVector(ControlMsg& msg, const T* u) {
+  for (int i = 0; i < 4; ++i)  {
+    msg.data[i] = u[i];
+  }
+}
+
 /**
  * @brief 
  * 

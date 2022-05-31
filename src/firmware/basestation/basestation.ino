@@ -29,6 +29,8 @@ const RXOUTPUT output = RECVRATE;
 
 // Aliases
 using Time = uint64_t;
+using StateMsg = rexquad::StateMsg;
+using ControlMsg = rexquad::ControlMsg;
 using StateControl = rexquad::StateControlMsg;
 
 // Constants
@@ -92,6 +94,18 @@ void loop() {
       msg_received = true;
       heartbeat.Pulse();
 
+      int msgid = g_bufrecv[0];
+      switch (msgid) {
+        case StateMsg::MsgID:
+          Serial.println("Got State Message!");
+          break;
+        case ControlMsg::MsgID:
+          Serial.println("Got Control Message!");
+          break;
+        default:
+          Serial.println("Got unrecognized message.");
+          break;
+      }
       // Serial.println("Got message!");
       // bool found_msgid = false;
       // int start_index = 0;

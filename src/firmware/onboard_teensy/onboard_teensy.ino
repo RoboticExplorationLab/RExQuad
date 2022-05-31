@@ -24,19 +24,22 @@ const int kHeartbeatTimeoutMs = 200;
 // Aliases
 using Time = uint64_t;
 using StateMsg = rexquad::StateMsg;
+using ControlMsg = rexquad::ControlMsg;
 using StateControl = rexquad::StateControlMsg;
 
 // Constants
 constexpr int kStateMsgSize = sizeof(StateMsg) + 1;
+constexpr int kControlMsgSize = sizeof(ControlMsg) + 1;
 constexpr int kStateControlSize = sizeof(StateControl) + 1;
 
 // Globals
 uint8_t g_bufrecv[kMaxBufferSize];  // buffer for receiving state estimate from feather
 uint8_t g_statebuf[kStateMsgSize];
 uint8_t g_bufrx[kMaxBufferSize];  // buffer for receiving radio messages from base station
-uint8_t g_buftx[kMaxBufferSize];  // buffer for sending radio messages to base station
+uint8_t g_buftx[kStateControlSize];  // buffer for sending radio messages to base station
 
 StateMsg g_statemsg;
+ControlMsg g_controlmsg;
 StateControl g_statecontrolmsg;  // for sending back to base station
 rexquad::Heartbeat g_heartbeat;
 
@@ -87,6 +90,7 @@ void setup() {
 // Loop 
 /////////////////////////////////////////////
 int packets_received = 0;
+int states_received = 0;
 void loop() {
   // Receive messages from base station
   bool pose_received = false;
@@ -121,6 +125,7 @@ void loop() {
     // Copy received message to state estimate
     if (g_bufrecv[start_index] == msgid) {
       state_received = true;
+      ++states_received;
       memcpy(g_statebuf, g_bufrecv+start_index, kStateMsgSize);
       rexquad::StateMsgFromBytes(g_statemsg, g_statebuf, 0);
       Serial.print("Got state message!");
@@ -137,18 +142,24 @@ void loop() {
   // TODO: Calculate control
 
   // Send message to base station
-  // if (state_received) {
-  //   rexquad::StateControlMsgFromVectors(g_statecontrolmsg, xhat.data(), u.data());
-  //   rexquad::StateControlMsgToBytes(g_statecontrolmsg, g_buftx);
-  //   rf69.send(g_buftx, kStateControlSize);
-  //   rf69.waitPacketSent();  // needed?
-  //   Serial.println("Sent message to base station.");
-  // }
   if (state_received) {
-    String message = "Hello from Teensy";
-    rf69.send(message.c_str(), message.length());
-    Serial.println("Sent message over radio");
+    if (states_received % 2 == 0) {
+      rexquad::ControlMsgFromVector(g_controlmsg, u.data());
+      rexquad::ControlMsgToBytes(g_controlmsg, g_buftx);
+      rf69.send(g_buftx, kControlMsgSize);
+    } else {
+      rexquad::StateMsgFromVector(g_statemsg, xhat.data());
+      rexquad::StateMsgToBytes(g_statemsg, g_buftx);
+      rf69.send(g_buftx, kStateMsgSize);
+    }
+    // rf69.waitPacketSent();  // needed?
+    // Serial.println("Sent message to base station.");
   }
+  // if (state_received) {
+  //   String message = "Hello from Teensy";
+  //   rf69.send(message.c_str(), message.length());
+  //   Serial.println("Sent message over radio");
+  // }
 
   // Heartbeat indicator
   if (g_heartbeat.IsDead()) {
