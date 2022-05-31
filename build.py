@@ -4,10 +4,11 @@ import string
 
 def arduino_cli(scriptfile: str, fqbn: str, action="compile", verbose=False, port="tty/ACM0"):
     if action == "compile" or action == "all":
-        cmd = "arduino-cli compile --warnings all --fqbn {} --libraries {} --library {} --build-path {} --build-cache-path {} {}".format(
+        cmd = "arduino-cli compile --warnings all --fqbn {} --libraries {} --library {} --library {} --build-path {} --build-cache-path {} {}".format(
             fqbn,
             arduino_libs_dir,
             common_lib_dir,
+            rh_lib_dir,
             bin_dir,
             cache_dir,
             scriptfile
@@ -62,6 +63,8 @@ targets = [
     "radio_lora",
     "lora_bridge",
     "onboard_teensy",
+    "radio_wing",
+    "teensy_radio",
 ]
 parser = argparse.ArgumentParser()
 parser.add_argument("target",
@@ -96,6 +99,12 @@ arduino_libs_dir = os.path.join(rootdir, "src", "firmware", "libraries")
 common_lib_dir = os.path.join(rootdir, "src", "common")
 bin_dir = os.path.join(rootdir, "bin", args.target)
 cache_dir = os.path.join(bin_dir, "cache")
+
+# Select radiohead library
+if args.board == "teensy":
+    rh_lib_dir = os.path.join(arduino_libs_dir, "radiohead_libraries", "RadioHead_Teensy")
+else:  # adafruit version
+    rh_lib_dir = os.path.join(arduino_libs_dir, "radiohead_libraries", "RadioHead")
 
 # Call the right build function
 if args.target == "default":

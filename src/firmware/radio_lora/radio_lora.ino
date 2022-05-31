@@ -29,7 +29,7 @@ rexquad::IMU imureal;
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 // LoRa Wing pinouts
-#define RFM95_CS 10   // "B"
+#define RFM95_CS 10   // ""
 #define RFM95_RST 11  // "A"
 // #define RFM95_INT 6
 #define RFM95_INT 9
