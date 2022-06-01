@@ -39,15 +39,28 @@ finish(sim)
 ## Initialize controller
 xeq = [0;0;1; 1; zeros(3); zeros(6)]
 ueq = trim_controls()
-Nmpc = 21
-xg = [0;0;1.5; 1; zeros(3); zeros(6)]
+Nmpc = 201
+dt = 0.01
+# xg = [0;0;1.5; 1; zeros(3); zeros(6)]
+xg = copy(xeq)
 x0 = [0;0;0.5; 1; zeros(3); zeros(6)]
 ctrl = OSQPController(xeq, ueq, dt, Nmpc; xg)
 
-update_goal_state!(ctrl, x0)
-update_initial_state!(ctrl, x0)
-getcontrol(ctrl, x0) - ueq
-update_goal_state!(ctrl, [zeros(3); 1; zeros(3+6)])
-getcontrol(ctrl, x0) - ueq
-
 ## 
+sim = Simulator(ctrl)
+open(sim.vis)
+reset!(sim)
+tf = 5.0
+x0 = [0;1;0.5; 1; zeros(3); zeros(6)]
+update_initial_state!(ctrl, x0)
+xg[3] = 1.5
+update_goal_state!(ctrl, xg)
+Qd = [1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)]
+Rd = fill(1e-3, 4)
+# update_problem!(ctrl; Qd, Rd, Qf=copy(Qd))
+runsim(sim, x0, dt=dt, tf=tf)
+RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
+ctrl.q
+sim.xhist
+
+finish(sim)

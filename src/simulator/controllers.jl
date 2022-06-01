@@ -1,5 +1,5 @@
 
-struct OSQPController{T}
+mutable struct OSQPController{T}
     # QP data
     P::SparseMatrixCSC{T,Int}
     q::Vector{T}
@@ -7,6 +7,8 @@ struct OSQPController{T}
     l::Vector{T}
     u::Vector{T}
     prob::OSQP.Model
+    X::Vector{Vector{Float64}}
+    U::Vector{Vector{Float64}}
 
     # Problem data
     Qd::Vector{T}
@@ -21,41 +23,81 @@ struct OSQPController{T}
     N::Int
     function OSQPController(xeq, ueq, dt, N; xg=copy(xeq))
         n,m = 12,4
-        x0 = copy(xeq)
-        dxg = state_error(xg, xeq)
-        dx0 = state_error(x0, xeq)
+        Ad = zeros(n,n)
+        Bd = zeros(n,m)
+        Nx = N*n
+        Nu = (N-1)*m
+        P = spzeros(Nx+Nu, Nx+Nu)
+        q = zeros(Nx+Nu)
+        A = spzeros(Nx,Nx+Nu)
+        l = spzeros(Nx)
+        u = spzeros(Nx)
 
-        # Calculate discrete Jacobians
-        E = error_state_jacobian(xeq)
-        Ad = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, ueq, dt), xeq)*E
-        Bd = E'ForwardDiff.jacobian(_u->dynamics_rk4(xeq, _u, dt), ueq)
+        Qd = [1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)]
+        Rd = fill(1e-3, 4)
+        Qf = copy(Qd)
 
-        # Cost
-        Qk = spdiagm([1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)])
-        qk = -Qk*dxg
-        Qf = Qk * 100 
-        qf = -Qf*dxg  
-        Rk = spdiagm(fill(1e-3, 4))
-        rk = zeros(4)
-        
-        # Build QP 
-        P = blockdiag(kron(speye(N-1), Qk), Qf, kron(speye(N-1), Rk))
-        q = [kron(ones(N-1), qk); qf; kron(ones(N-1), rk)]
-        Ax = kron(speye(N), -speye(n)) + kron(spdiagm(-1=>ones(N-1)), Ad)
-        Bu = kron(spdiagm(N,N-1,-1=>ones(N-1)), Bd)
-        A_eq = [Ax Bu]
-        l_eq = [-dx0; zeros((N-1)*n)]
-        u_eq = copy(l_eq)
-        A = copy(A_eq)
-        l = copy(l_eq)
-        u = copy(u_eq)
+        X = [zeros(n) for k = 1:N]
+        U = [copy(ueq) for k = 1:N-1]
         
         prob = OSQP.Model()
-        OSQP.setup!(prob; P, q, A, l, u, verbose=0)
-        
+
         T = eltype(xeq)
-        new{T}(P,q,A,l,u,prob, diag(Qk), diag(Rk), diag(Qf), Ad, Bd, xeq, ueq, xg, dt, N)
+        ctrl = new{T}(P,q,A,l,u,prob, X,U, Qd, Rd, Qf, Ad, Bd, xeq, ueq, xg, dt, N)
+        update_problem!(ctrl; Qd, Rd, Qf, xeq, ueq, N, xg)
     end
+end
+
+function update_problem!(ctrl::OSQPController; Qd=ctrl.Qd, Rd=ctrl.Rd, Qf=ctrl.Qf, 
+                         xeq=ctrl.xeq, ueq=ctrl.ueq, N=ctrl.N, xg=ctrl.xg, dt=ctrl.dt)
+    n,m = 12,4
+    x0 = copy(xeq)
+    dxg = state_error(xg, xeq)
+    dx0 = state_error(x0, xeq)
+
+    # Calculate discrete Jacobians
+    E = error_state_jacobian(xeq)
+    Ad = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, ueq, dt), xeq)*E
+    Bd = E'ForwardDiff.jacobian(_u->dynamics_rk4(xeq, _u, dt), ueq)
+
+    # Cost
+    Qk = spdiagm(Qd)
+    Rk = spdiagm(Rd)
+    Qf = spdiagm(Qf)
+    qk = -Qk*dxg
+    rk = zeros(4)
+    qf = -Qf*dxg  
+    
+    # Build QP 
+    P = blockdiag(kron(speye(N-1), Qk), Qf, kron(speye(N-1), Rk))
+    q = [kron(ones(N-1), qk); qf; kron(ones(N-1), rk)]
+    Ax = kron(speye(N), -speye(n)) + kron(spdiagm(-1=>ones(N-1)), Ad)
+    Bu = kron(spdiagm(N,N-1,-1=>ones(N-1)), Bd)
+    A_eq = [Ax Bu]
+    l_eq = [-dx0; zeros((N-1)*n)]
+    u_eq = copy(l_eq)
+    A = copy(A_eq)
+    l = copy(l_eq)
+    u = copy(u_eq)
+
+    prob = OSQP.Model()
+    OSQP.setup!(prob; P, q, A, l, u, verbose=0)
+    ctrl.prob = prob
+    ctrl.P = P
+    ctrl.q .= q
+    ctrl.A = A
+    ctrl.l .= l
+    ctrl.u .= u
+    ctrl.Qd .= Qd
+    ctrl.Rd .= Rd
+    ctrl.Ad .= Ad
+    ctrl.Bd .= Bd
+    ctrl.xeq .= xeq
+    ctrl.ueq .= ueq
+    ctrl.xg .= xg
+    ctrl.N = N
+    ctrl.dt = dt
+    ctrl
 end
 
 function update_initial_state!(ctrl::OSQPController, x0)
@@ -71,9 +113,10 @@ function update_goal_state!(ctrl::OSQPController, xg)
     n = 12
     for k = 1:ctrl.N
         ix = (k-1)*n .+ (1:n)
-        Q = k == ctrl.N ? Diagonal(ctrl.Qd) : Diagonal(ctrl.Qf)
+        Q = k == ctrl.N ? Diagonal(ctrl.Qf) : Diagonal(ctrl.Qd)
         ctrl.q[ix] .= .-Q*dxg
     end
+    ctrl.xg .= xg
     OSQP.update!(ctrl.prob, q=ctrl.q)
 end
 
@@ -83,8 +126,18 @@ function getcontrol(ctrl::OSQPController, x, y, t)
     N = ctrl.N
     update_initial_state!(ctrl, x)
     res = OSQP.solve!(ctrl.prob)
+    for k = 1:ctrl.N
+        ix = (k-1).*n .+ (1:n)
+        iu = n*N + (k-1)*m .+ (1:m)
+        ctrl.X[k] .= res.x[ix]
+        if k < N
+          ctrl.U[k] .= res.x[iu]
+        end
+    end
     return res.x[n*N .+ (1:m)] + ctrl.ueq
 end
+
+finish(ctrl::OSQPController) = nothing
 
 
 const ZMQ_CONFLATE = 54

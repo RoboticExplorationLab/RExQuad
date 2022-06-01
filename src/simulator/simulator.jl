@@ -32,7 +32,10 @@ end
 
 function Simulator(pub_port=5555, sub_port=5556)
     ctrl = ZMQController(pub_port, sub_port)
+    Simulator(ctrl)
+end
 
+function Simulator(ctrl::C) where C
     vis = Visualizer()
     RobotMeshes.setdrone!(vis["truth"])
     RobotMeshes.setdrone!(vis["estimate"], color=RGBA(1.0, 0.0, 0.0, 0.5))
@@ -46,7 +49,7 @@ function Simulator(pub_port=5555, sub_port=5556)
     msg_data = Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}()
     stats = Dict{String,Any}()
     opts = SimOpts()
-    Simulator{ZMQController}(ctrl, vis, xhist, uhist, thist, msg_meas, msg_data, stats, opts)
+    Simulator{C}(ctrl, vis, xhist, uhist, thist, msg_meas, msg_data, stats, opts)
 end
 
 function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
@@ -118,56 +121,16 @@ end
 
 function step!(sim::Simulator, x, u, t, dt; t_start=time(), visualize=:none, send_measurement=false, imu_per_pose=1, pose_delay=0, send_ground_truth=false)
     # Initialize state estimate
+    if isempty(sim.stats["xhat"])
+        push!(sim.stats["xhat"], x)
+    end
     xhat = sim.stats["xhat"][end]
 
     # Get measurement
     y = getmeasurement(sim, x, u, t)
 
+    # Evaluate controller
     u = getcontrol(sim.ctrl, x, y, t)
-    # # Send measurement
-    # if send_measurement
-    #     imu_messages_sent = sim.stats["imu_messages_sent"]::Int
-    #     tsend = time() - t_start
-
-    #     if send_ground_truth
-    #         sendmessage(sim, y, t)
-    #         if imu_per_pose > 1 || pose_delay > 0
-    #             @warn "Ignoring imu_per_pose and pose_delay settings when sending ground truth."
-    #         end
-    #     else
-    #         y_pose = PoseMsg(y.x, y.y, y.z, y.qw, y.qx, y.qy, y.qz)
-    #         y_imu = IMUMeasurementMsg(y.ax, y.ay, y.az, y.wx, y.wy, y.wz)
-    #         push!(sim.msg_meas, (; tsim=t, twall=tsend, y))
-
-    #         if imu_messages_sent % imu_per_pose == 0
-    #             enqueue!(sim.pose_queue, y_pose)
-    #             if length(sim.pose_queue) > pose_delay
-    #                 y_pose_delayed = dequeue!(sim.pose_queue)
-    #                 # println("Sent pose message")
-    #                 sendmessage(sim, y_pose_delayed, tsend)
-    #                 sleep(0.001)  # wait a little bit before sending the imu message
-    #             end
-    #         end
-
-    #         sendmessage(sim, y_imu, t)
-    #         imu_messages_sent += 1
-    #         sim.stats["imu_messages_sent"] = imu_messages_sent
-    #     end
-    # end
-
-    # # Get response from onboard computer
-    # statecontrol = getdata(sim, t)
-    # trecv = time() - t_start
-    # if !isnothing(statecontrol)
-    #     push!(sim.msg_data, (; tsim=t, twall=trecv, xu=statecontrol))
-    #     if send_measurement
-    #         push!(sim.stats["latency"], trecv - tsend)
-    #     end
-    #     xhat = getstate(statecontrol)
-    #     push!(sim.stats["xhat"], xhat)
-    #     u .= getcontrol(statecontrol)
-    #     # @show u
-    # end
 
     # Propagate dynamics
     push!(sim.xhist, copy(x))
