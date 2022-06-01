@@ -137,6 +137,8 @@ function step!(sim::Simulator, x, u, t, dt; t_start=time(), visualize=:none, sen
     push!(sim.uhist, copy(u))
     push!(sim.thist, t)
     x .= dynamics_rk4(x, u, dt)
+    # dx = ctrl.Ad*state_error(x, ctrl.xeq) + ctrl.Bd*(u - ctrl.ueq)
+    # x .= add_state(x, dx)
 
     # Visualize
     if visualize in (:truth, :all)

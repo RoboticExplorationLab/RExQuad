@@ -116,6 +116,16 @@ function state_error(x2, x1)
     return dx
 end
 
+function add_state(x, dx)
+    emap = Rotations.CayleyMap()
+    p2 = x[1:3] + dx[1:3]
+    q = Rotations.QuatRotation(x[4:7])
+    ϕ = dx[4:6]
+    q2 = q * emap(phi)
+    v2 = x[8:13] + dx[7:12]
+    return [p2; Rotations.params(q2); v2]
+end
+
 function error_state_jacobian(x)
     # Get various compoents
     q = Rotations.QuatRotation(x[4:7])

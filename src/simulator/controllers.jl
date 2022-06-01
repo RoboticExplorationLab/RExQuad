@@ -84,17 +84,17 @@ function update_problem!(ctrl::OSQPController; Qd=ctrl.Qd, Rd=ctrl.Rd, Qf=ctrl.Q
     OSQP.setup!(prob; P, q, A, l, u, verbose=0)
     ctrl.prob = prob
     ctrl.P = P
-    ctrl.q .= q
+    ctrl.q = q
     ctrl.A = A
-    ctrl.l .= l
-    ctrl.u .= u
-    ctrl.Qd .= Qd
-    ctrl.Rd .= Rd
-    ctrl.Ad .= Ad
-    ctrl.Bd .= Bd
-    ctrl.xeq .= xeq
-    ctrl.ueq .= ueq
-    ctrl.xg .= xg
+    ctrl.l = l
+    ctrl.u = u
+    ctrl.Qd = Qd
+    ctrl.Rd = Rd
+    ctrl.Ad = Ad
+    ctrl.Bd = Bd
+    ctrl.xeq = xeq
+    ctrl.ueq = ueq
+    ctrl.xg = xg
     ctrl.N = N
     ctrl.dt = dt
     ctrl
@@ -134,7 +134,8 @@ function getcontrol(ctrl::OSQPController, x, y, t)
           ctrl.U[k] .= res.x[iu]
         end
     end
-    return res.x[n*N .+ (1:m)] + ctrl.ueq
+    # return res.x[n*N .+ (1:m)] + ctrl.ueq
+    return ctrl.U[1] + ctrl.ueq
 end
 
 finish(ctrl::OSQPController) = nothing
