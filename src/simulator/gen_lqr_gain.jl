@@ -1,4 +1,6 @@
 using JSON
+using SparseArrays
+using OSQP
 include("dynamics.jl")
 
 function dlqr(A,B,Q,R; max_iters=200, tol=1e-6, verbose=false)
@@ -61,19 +63,23 @@ function print_gains(K, xeq, ueq)
     }  // namespace rexquad
     """
 end
+speye(n) = spdiagm(ones(n))
 
 # Hover state
-xe = [0;0;1; 1;0;0;0; zeros(6)]
+xe = [0;0;1; 1;0;0;0; zeros(6)]        # equilibrium state (linearization point)
 ue = trim_controls()
 dt = 0.01  # 100 Hz
 xg = [0;0;1.5; 1; zeros(3); zeros(6)]  # goal state
+x0 = [0;0;0.75; 1;0;0;0; zeros(6)]     # initial state
 dxg = state_error(xg, xe)              # error state from equilibrium to goal
+dx0 = state_error(x0, xe)
+n,m = 12,4
 
 # Get discrete error state Jacobians about equilibrium
 commondir = joinpath(@__DIR__, "..", "common")
-E = error_state_jacobian(xhover)
-A = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, uhover, dt), xe)*E
-B = E'ForwardDiff.jacobian(_u->dynamics_rk4(xhover, _u, dt), ue)
+E = error_state_jacobian(xe)
+A = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, ue, dt), xe)*E
+B = E'ForwardDiff.jacobian(_u->dynamics_rk4(xe, _u, dt), ue)
 
 # Cost
 Qk = spdiagm([1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)])
@@ -84,9 +90,19 @@ Rk = spdiagm(fill(1e-3, 4))
 rk = zeros(4)
 
 N = 11
-P = blockdiag(kron(sparse(I,N-1,N-1), Qk), Qf, kron(sparse(I,N-1,N-1), Rk))
-q = [kron(ones(N-1), qk); qf; kron(ones(N-1), rk)]
-A = 
+P = blockdiag(kron(speye(N-1), Qk), Qf, kron(speye(N-1), Rk))
+q = [kron(ones(n-1), qk); qf; kron(ones(n-1), rk)]
+ax = kron(speye(n), -speye(n)) + kron(spdiagm(-1=>ones(n-1)), a)
+bu = kron(spdiagm(n,n-1,-1=>ones(n-1)), b)
+aeq = [ax bu]
+leq = [-dx0; zeros((n-1)*n)]
+ueq = copy(leq)
+
+prob = OSQP.Model()
+OSQP.setup!(prob; P, q, A=Aeq, l=leq, u=ueq)
+res = OSQP.solve!(prob)
+res.x[1:n]
+res.x[(N+1)*n .+ (1:m)]
 
 open(joinpath(commondir, "mpc_data.json"), "w") do f
     data = Dict(

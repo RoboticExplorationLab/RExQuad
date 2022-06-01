@@ -21,7 +21,7 @@ constexpr int kMaxBufferSize = 100;
 // const bool kUseGroundTruth = 0;
 std::string pubport = "5555";
 std::string subport = "5556";
-bool g_verbose = 0;
+bool g_verbose = 1;
 
 // Aliases
 using Time = uint64_t;
@@ -269,17 +269,17 @@ void loop() {
 
     // Calculate control
     rexquad::ErrorState(e, xhat, xeq);
-    osqpsolver.SetInitialState(xhat.data());
-    bool solve_successful = osqpsolver.Solve();
-    if (!solve_successful) {
-      fmt::print("OSQP Solve Failed!\n");
-    }
-    osqpsolver.GetInput(u.data(), 0);
+    // osqpsolver.SetInitialState(xhat.data());
+    // bool solve_successful = osqpsolver.Solve();
+    // if (!solve_successful) {
+    //   fmt::print("OSQP Solve Failed!\n");
+    // }
+    // osqpsolver.GetInput(u.data(), 0);
     
-    for (int i = 0; i < ninputs; ++i) {
-      u[i] += rexquad::kHoverInput;
-    }
-    // u = -K * e + ueq;
+    // for (int i = 0; i < ninputs; ++i) {
+    //   u[i] += rexquad::kHoverInput;
+    // }
+    u = -K * e + ueq;
 
     // Send control and state estimate back over ZMQ to simulator
     UpdateStateControlMsg(statecontrolmsg, xhat, u);
@@ -289,7 +289,9 @@ void loop() {
       }
       fmt::print("State Estimate: ");
       PrintVector(xhat);
-      fmt::print("Error state: ");
+      fmt::print("State error: ");
+      PrintVector(e);
+      fmt::print("Control: ");
       PrintVector(u);
     }
     rexquad::StateControlMsgToBytes(statecontrolmsg, buf_send);

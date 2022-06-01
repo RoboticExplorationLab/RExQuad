@@ -216,7 +216,7 @@ end
 
 function StateControlMsg(buf::AbstractVector{UInt8}, off::Integer=0)
     msgid_is_correct = buf[1+off] == msgid(StateControlMsg)
-    msgid_is_correct || throw(MessageIDError(msgid(MeasurementMsg), buf[1+off]))
+    msgid_is_correct || throw(MessageIDError(msgid(StateControlMsg), buf[1+off]))
     off += 1
     u = SA_F32[
       bytestofloat(buf, 13 * 4 + off),
@@ -303,7 +303,7 @@ struct StateMsg
     wy::Float32
     wz::Float32
 end
-msgid(::Type{StateControlMsg}) = UInt8('s')
+msgid(::Type{StateMsg}) = UInt8('s')
 
 function Base.copyto!(buf::AbstractVector{UInt8}, msg::StateMsg, off=0)
     buf[1 + off] = msgid(StateMsg)
