@@ -3,6 +3,7 @@
     // "cmake.sourceDirectory": "${workspaceFolder}/src/simulator",
     "editor.tabSize": 2,
     "files.associations": {
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "mpc_types.hpp": "c"
     }
 }

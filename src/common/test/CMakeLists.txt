@@ -11,3 +11,5 @@ function (common_test testname)
 endfunction()
 
 common_test(control)
+common_test(osqpsolver)
+common_test(problem)

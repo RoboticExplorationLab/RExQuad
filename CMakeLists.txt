@@ -83,9 +83,8 @@ target_include_directories(NatNetSDK INTERFACE
   "${NATNET_DIR}/include"
 )
 
-# Embedded MPC
-add_library(EmbeddedMPC INTERFACE)
-add_subdirectory(${ARDUINO_LIB_DIR}/EmbeddedMPC)
+# OSQP
+add_subdirectory(${DEP_DIR}/osqp)
 
 #############################################
 # Compilation

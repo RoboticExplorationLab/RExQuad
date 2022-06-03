@@ -1,6 +1,6 @@
+#include "osqp/osqp.h"
 #include "osqpsolver.hpp"
 
-#include "memory.hpp"
 OSQPSolver::OSQPSolver(int nstates, int ninputs, int nhorizon)
     : nstates_(nstates),
       ninputs_(ninputs),

@@ -74,7 +74,8 @@ def render_workspace(variables, hfname, cfname):
     srcFile.write(" */\n\n")
 
     # Include types, constants and linsys_solver header
-    incFile.write("#include <EmbeddedMPC.h>\n")
+    incFile.write("#include \"osqp/types.h\"\n")
+    incFile.write("#include \"osqp/qdldl_interface.h\"\n")
 
     srcFile.write("#include \"workspace.h\"\n")
 
@@ -146,7 +147,7 @@ def render_problem_data(A, B, f, Q,q,R,r,Qf,qf,c, xe,ue,xg, N, target_dir):
     srcFile.write(" */\n\n")
 
     # Include types, constants and linsys_solver header
-    incFile.write("#include <EmbeddedMPC.h>\n\n")
+    incFile.write("#include \"common/mpc_types.hpp\"\n\n")
     srcFile.write("#include \"problem_data.h\"\n")
 
     # Write constants to header file
@@ -284,16 +285,12 @@ prob = osqp.OSQP()
 prob.setup(P, q, A, l, u, warm_start=True, verbose=0)
 
 # Generate C code
-empc_dir = os.path.join(dirname, "../firmware/libraries/EmbeddedMPC/")
-target_dir = os.path.join(empc_dir, "test/")
+commondir = dirname
+target_dir = commondir 
 codegen_workspace_files(prob, target_dir)
 c = 0.0
 np.set_printoptions(edgeitems=30, linewidth=1000)
 render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk,Rk,rk,Qf,qf,c, xe,ue,xg, N, target_dir)
-
-# Write to common dir
-codegen_workspace_files(prob, dirname)
-render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk,Rk,rk,Qf,qf,c, xe,ue,xg, N, dirname)
 
 # target_dir_codegen = os.path.join(target_dir, "codegen")
 # prob.codegen(target_dir_codegen, parameters='matrices', force_rewrite=True, LONG=False)

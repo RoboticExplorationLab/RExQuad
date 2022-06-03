@@ -12,8 +12,8 @@
 #include "common/pose.hpp"
 #include "common/workspace.h"
 #include "common/problem_data.h"
-#include "EmbeddedMPC.h"
-#include "osqpsolver.hpp"
+// #include "EmbeddedMPC.h"
+#include "common/osqpsolver.hpp"
 
 // Options
 // const int kHeartbeatTimeoutMs = 200;

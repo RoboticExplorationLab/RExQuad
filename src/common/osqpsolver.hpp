@@ -1,6 +1,5 @@
 #pragma once
 
-#include "EmbeddedMPC.h"
 #include "osqp/qdldl_interface.h"
 #include "problem.hpp"
 
