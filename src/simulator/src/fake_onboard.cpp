@@ -48,7 +48,7 @@ Pose posedata;
 StateControl statecontrolmsg;
 Measurement measurementmsg;
 IMUMeasurement imudata;
-OSQPSolver osqpsolver(nstates, ninputs, nhorizon);  // from problem_data.h
+rexquad::OSQPSolver osqpsolver(nstates, ninputs, nhorizon);  // from problem_data.h
 void* context;
 void* pub;
 void* sub;
@@ -171,7 +171,7 @@ void setup() {
 
   // Initialize controller
   fmt::print("Initializing controller...\n");
-  MPCProblem& prob = osqpsolver.GetProblem();
+  rexquad::MPCProblem& prob = osqpsolver.GetProblem();
   prob.SetDynamics(dynamics_Adata, dynamics_Bdata, dynamics_fdata);
   prob.SetCostTerminal(cost_Qfdata, cost_qfdata);
   prob.SetCostState(cost_Qdata, cost_qdata);

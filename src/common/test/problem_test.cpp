@@ -6,6 +6,7 @@
 // #include "doubleintegrator.h"
 #include "common/problem_data.h"
 
+namespace rexquad {
 const float h = 0.01;
 const float b = h * h / 2.0;
 
@@ -45,3 +46,4 @@ TEST(ProblemTests, Constructor) {
 //   EXPECT_TRUE(B.isApprox(Btrue));
 //   EXPECT_TRUE(f.isApprox(ftrue));
 // }
+}

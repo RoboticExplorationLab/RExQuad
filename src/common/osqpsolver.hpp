@@ -3,6 +3,7 @@
 #include "osqp/qdldl_interface.h"
 #include "problem.hpp"
 
+namespace rexquad {
 class OSQPSolver {
  public:
   OSQPSolver(int nstates, int ninputs, int nhorizon);
@@ -26,3 +27,4 @@ class OSQPSolver {
   MPCProblem prob_;
   OSQPWorkspace* p_workspace_;
 };
+}

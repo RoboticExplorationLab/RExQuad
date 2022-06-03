@@ -1,6 +1,7 @@
 #include "osqp/osqp.h"
 #include "osqpsolver.hpp"
 
+namespace rexquad {
 OSQPSolver::OSQPSolver(int nstates, int ninputs, int nhorizon)
     : nstates_(nstates),
       ninputs_(ninputs),
@@ -75,4 +76,5 @@ bool OSQPSolver::GetControl(mpc_float* u, const mpc_float* dx, mpc_float t) {
     }
   }
   return solve_successful;
+}
 }

@@ -11,6 +11,7 @@
 #include "common/problem_data.h"
 #include "common/workspace.h"
 
+namespace rexquad {
 TEST(OSQPSolverTests, RawSolve) {
   osqp_solve(&workspace);
   // Print status
@@ -106,4 +107,5 @@ TEST(OSQPSolverTests, GetControl) {
   // EXPECT_LT(x0.norm(), 1e-5);
   // EXPECT_LT((u0-u_expected).norm(), 1e-5);
   // EXPECT_STREQ(workspace.info->status, "solved");
+}
 }

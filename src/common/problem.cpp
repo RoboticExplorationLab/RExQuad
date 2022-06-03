@@ -1,5 +1,6 @@
 #include "problem.hpp"
 
+namespace rexquad {
 MPCProblem::MPCProblem(int nstates, int ninputs, int nhorizon)
     : nstates_(nstates),
       ninputs_(ninputs),
@@ -108,4 +109,5 @@ const mpc_float* MPCProblem::GetEquilibriumInput() const {
 }
 const mpc_float* MPCProblem::GetGoalState() const {
   return xg_.data();
+}
 }

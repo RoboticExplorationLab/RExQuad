@@ -4,14 +4,17 @@
 
 // #include "problemdata.hpp"
 #include "mpc_types.hpp"
+#include "constants.hpp"
+// using namespace::rexquad;
 
-using StateVector = Eigen::Vector<mpc_float, Eigen::Dynamic>;
-using ErrorVector = Eigen::Vector<mpc_float, Eigen::Dynamic>;
-using InputVector = Eigen::Vector<mpc_float, Eigen::Dynamic>;
-using StateMatrix = Eigen::Matrix<mpc_float, Eigen::Dynamic, Eigen::Dynamic>;
-using InputMatrix = Eigen::Matrix<mpc_float, Eigen::Dynamic, Eigen::Dynamic>;
-using FeedbackGain = Eigen::Matrix<mpc_float, Eigen::Dynamic, Eigen::Dynamic>;
+// using StateVector = Eigen::Vector<mpc_float, Eigen::Dynamic>;
+// using ErrorVector = Eigen::Vector<mpc_float, Eigen::Dynamic>;
+// using InputVector = Eigen::Vector<mpc_float, Eigen::Dynamic>;
+// using StateMatrix = Eigen::Matrix<mpc_float, Eigen::Dynamic, Eigen::Dynamic>;
+// using InputMatrix = Eigen::Matrix<mpc_float, Eigen::Dynamic, Eigen::Dynamic>;
+// using FeedbackGain = Eigen::Matrix<mpc_float, Eigen::Dynamic, Eigen::Dynamic>;
 
+namespace rexquad {
 class MPCProblem {
  public:
   MPCProblem(int nstates, int ninputs, int nhorizon);
@@ -68,3 +71,4 @@ class MPCProblem {
 
 // void DiscreteDoubleIntegratorDynamics(double h, double dim, Matrix* A,
 // Matrix* B);
+}
