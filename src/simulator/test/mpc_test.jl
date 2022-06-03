@@ -60,7 +60,8 @@ update_goal_state!(ctrl, xeq)
 
 Qd = [0.5;0.5;10; fill(10.0, 3); fill(0.1,3); fill(1.0,3)]
 Rd = fill(1e-3, 4)
-update_problem!(ctrl; Qd, Rd, Qf=copy(Qd)*1000, N=21)
+# note that a large terminal cost is needed for this to work
+update_problem!(ctrl; Qd, Rd, Qf=copy(Qd)*1000, N=21)  
 runsim(sim, x0, dt=dt, tf=tf)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
 ctrl.q

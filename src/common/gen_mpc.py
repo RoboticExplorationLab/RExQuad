@@ -113,7 +113,7 @@ def render_workspace(variables, hfname, cfname):
     srcFile.close()
 
 
-def render_problem_data(A, B, f, Q,q, R,r, Qf,qf, c, N, target_dir):
+def render_problem_data(A, B, f, Q,q,R,r,Qf,qf,c, xe,ue,xg, N, target_dir):
     hfname = os.path.join(target_dir, 'problem_data.h')
     cfname = os.path.join(target_dir, 'problem_data.c')
 
@@ -179,6 +179,14 @@ def render_problem_data(A, B, f, Q,q, R,r, Qf,qf, c, N, target_dir):
     cgutils.write_vec(srcFile, qf, 'cost_qfdata', 'c_float')
     incFile.write("const c_float cost_c = {};\n".format(c))
 
+    # Write vectors
+    cgutils.write_vec_extern(incFile, xe, 'dynamics_xe', 'c_float')
+    cgutils.write_vec(srcFile, xe, 'dynamics_xe', 'c_float')
+    cgutils.write_vec_extern(incFile, ue, 'dynamics_ue', 'c_float')
+    cgutils.write_vec(srcFile, ue, 'dynamics_ue', 'c_float')
+    cgutils.write_vec_extern(incFile, xg, 'dynamics_xg', 'c_float')
+    cgutils.write_vec(srcFile, xg, 'dynamics_xg', 'c_float')
+
     incFile.close()
     srcFile.close()
 
@@ -208,6 +216,9 @@ data = json.load(f)
 # Dynamics
 Ad = sparse.csc_matrix(data['A'])
 Bd = sparse.csc_matrix(data['B'])
+xe = data['xe']
+ue = data['ue']
+xg = data['xg']
 
 # Objective function
 Qk = sparse.diags(data['Qk'])
@@ -278,11 +289,11 @@ target_dir = os.path.join(empc_dir, "test/")
 codegen_workspace_files(prob, target_dir)
 c = 0.0
 np.set_printoptions(edgeitems=30, linewidth=1000)
-render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk, Rk,rk, Qf,qf, c, N, target_dir)
+render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk,Rk,rk,Qf,qf,c, xe,ue,xg, N, target_dir)
 
 # Write to common dir
 codegen_workspace_files(prob, dirname)
-render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk, Rk,rk, Qf,qf, c, N, dirname)
+render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk,Rk,rk,Qf,qf,c, xe,ue,xg, N, dirname)
 
 # target_dir_codegen = os.path.join(target_dir, "codegen")
 # prob.codegen(target_dir_codegen, parameters='matrices', force_rewrite=True, LONG=False)

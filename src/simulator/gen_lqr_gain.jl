@@ -82,20 +82,20 @@ A = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, ue, dt), xe)*E
 B = E'ForwardDiff.jacobian(_u->dynamics_rk4(xe, _u, dt), ue)
 
 # Cost
-Qk = spdiagm([1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)])
+Qk = spdiagm([0.5;0.5;10; fill(10.0, 3); fill(0.1,3); fill(1.0,3)])
 qk = -Qk*dxg
-Qf = Qk * 100 
-qf = -Qf*dxg  
+Qf = Qk * 1000
+qf = -Qf*dxg
 Rk = spdiagm(fill(1e-3, 4))
 rk = zeros(4)
 
 N = 11
 P = blockdiag(kron(speye(N-1), Qk), Qf, kron(speye(N-1), Rk))
-q = [kron(ones(n-1), qk); qf; kron(ones(n-1), rk)]
-ax = kron(speye(n), -speye(n)) + kron(spdiagm(-1=>ones(n-1)), a)
-bu = kron(spdiagm(n,n-1,-1=>ones(n-1)), b)
-aeq = [ax bu]
-leq = [-dx0; zeros((n-1)*n)]
+q = [kron(ones(N-1), qk); qf; kron(ones(N-1), rk)]
+Ax = kron(speye(N), -speye(n)) + kron(spdiagm(-1=>ones(N-1)), A)
+Bu = kron(spdiagm(N,N-1,-1=>ones(N-1)), B)
+Aeq = [Ax Bu]
+leq = [-dx0; zeros((N-1)*n)]
 ueq = copy(leq)
 
 prob = OSQP.Model()
@@ -107,18 +107,19 @@ res.x[(N+1)*n .+ (1:m)]
 open(joinpath(commondir, "mpc_data.json"), "w") do f
     data = Dict(
         "A"=>A', "B"=>B',  # store transpose for easy Python loading
-        "Qk"=>Qk, "Rk"=>Rk, "Qf"=>Qf, 
+        "Qk"=>diag(Qk), "Rk"=>diag(Rk), "Qf"=>diag(Qf),
         "qk"=>qk, "rk"=>rk, "qf"=>qf,
+        "xe"=>xeq, "ue"=>ueq, "xg"=>xg
     )  
     indent = 2
     JSON.print(f, data, indent)
 end
 
-K = generate_LQR_hover_gains(xhover, uhover, dt; Qd, Rd)
+K = generate_LQR_hover_gains(xe, ue, dt; Qd, Rd)
 dx = [0;0;1; zeros(9)]
-K*dx + uhover
+K*dx + ue
 
 open(joinpath(commondir, "lqr_constants.hpp"), "w") do f
-    write(f, print_gains(K, xhover, uhover))
+    write(f, print_gains(K, xe, ue))
 end
 
