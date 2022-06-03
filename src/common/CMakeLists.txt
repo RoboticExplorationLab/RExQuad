@@ -25,6 +25,14 @@ add_library(quadcommon
 
     problem_data.h
     problem_data.c
+
+    osqpsolver.hpp
+    osqpsolver.cpp
+
+    problem.hpp
+    problem.cpp
+
+    mpc_types.hpp
 )
 target_link_libraries(quadcommon
     PUBLIC
