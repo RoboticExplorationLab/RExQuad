@@ -1,0 +1,37 @@
+set(OSQP_SOURCES
+  auxil.c
+  auxil.h
+  constants.h
+  error.c
+  error.h
+  glob_opts.h
+  kkt.c
+  kkt.h
+  lin_alg.c
+  lin_alg.h
+  osqp.c
+  osqp.h
+  osqp_configure.h
+  proj.c
+  proj.h
+  qdldl.c
+  qdldl.h
+  qdldl_interface.c
+  qdldl_interface.h
+  qdldl_types.h
+  qdldl_version.h
+  scaling.c
+  scaling.h
+  types.h
+  util.c
+  util.h
+)
+
+add_library(empc
+  # osqp
+  ${OSQP_SOURCES}
+)
+target_include_directories(empc
+  INTERFACE 
+  ${CMAKE_CURRENT_LIST_DIR}/..
+)
