@@ -147,7 +147,7 @@ def render_problem_data(A, B, f, Q,q,R,r,Qf,qf,c, xe,ue,xg, N, target_dir):
     srcFile.write(" */\n\n")
 
     # Include types, constants and linsys_solver header
-    incFile.write("#include \"common/mpc_types.hpp\"\n\n")
+    incFile.write("#include \"mpc_types.hpp\"\n\n")
     srcFile.write("#include \"problem_data.h\"\n")
 
     # Write constants to header file
@@ -217,9 +217,11 @@ data = json.load(f)
 # Dynamics
 Ad = sparse.csc_matrix(data['A'])
 Bd = sparse.csc_matrix(data['B'])
-xe = data['xe']
-ue = data['ue']
-xg = data['xg']
+xe = np.array(data['xe'])
+ue = np.array(data['ue'])
+xg = np.array(data['xg'])
+dx0 = np.array(data['dx0'])
+dxg = np.array(data['dxg'])
 
 # Objective function
 Qk = sparse.diags(data['Qk'])
@@ -241,10 +243,6 @@ xmin = np.array([-np.pi/6, -np.pi/6, -np.inf, -np.inf, -np.inf, -1.,
 xmax = np.array([np.pi/6, np.pi/6, np.inf, np.inf, np.inf, np.inf,
                  np.inf, np.inf, np.inf, np.inf, np.inf, np.inf])
 
-# Initial and reference states
-x0 = np.zeros(12)
-xr = np.array([0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-
 # Prediction horizon
 N = 10
 
@@ -253,14 +251,14 @@ N = 10
 P = sparse.block_diag([sparse.kron(sparse.eye(N), Qk), Qf,
                        sparse.kron(sparse.eye(N), Rk)], format='csc')
 # - linear objective
-q = np.hstack([np.kron(np.ones(N), -Qk.dot(xr) - qk), -Qf.dot(xr) - qf,
+q = np.hstack([np.kron(np.ones(N), -Qk.dot(dxg) - qk), -Qf.dot(dxg) - qf,
                np.kron(np.ones(N), -rk)])
 # - linear dynamics
 Ax = sparse.kron(sparse.eye(N+1), -sparse.eye(nx)) + \
     sparse.kron(sparse.eye(N+1, k=-1), Ad)
 Bu = sparse.kron(sparse.vstack([sparse.csc_matrix((1, N)), sparse.eye(N)]), Bd)
 Aeq = sparse.hstack([Ax, Bu], format='csc')
-leq = np.hstack([-x0, np.zeros(N*nx)])
+leq = np.hstack([-dx0, np.zeros(N*nx)])
 ueq = leq
 # - input and state constraints
 use_inequality_constraints = False 
@@ -290,6 +288,7 @@ target_dir = commondir
 codegen_workspace_files(prob, target_dir)
 c = 0.0
 np.set_printoptions(edgeitems=30, linewidth=1000)
+print(ue)
 render_problem_data(Ad.toarray(), Bd.toarray(), fd, Qk,qk,Rk,rk,Qf,qf,c, xe,ue,xg, N, target_dir)
 
 # target_dir_codegen = os.path.join(target_dir, "codegen")

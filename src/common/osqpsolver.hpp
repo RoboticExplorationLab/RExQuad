@@ -14,8 +14,13 @@ class OSQPSolver {
   void SetInitialState(const mpc_float* x0);
   void SetReferenceState(const mpc_float* xr);
   MPCProblem& GetProblem();
-  const c_float* GetSolution() const { return p_workspace_->solution->x; }
+  c_float* GetSolution() { return p_workspace_->solution->x; }
   bool GetControl(mpc_float* u, const mpc_float* dx, mpc_float t);
+  void GetInitialState(mpc_float* x0) const;
+  void GetBounds(mpc_float* l, mpc_float* u) const;
+  void GetLinCost(mpc_float* q) const;
+  int NumPrimals() const;
+  int NumDuals() const;
 
  private:
   void BuildKKTSystem();

@@ -2,6 +2,7 @@
 #include "osqpsolver.hpp"
 
 namespace rexquad {
+
 OSQPSolver::OSQPSolver(int nstates, int ninputs, int nhorizon)
     : nstates_(nstates),
       ninputs_(ninputs),
@@ -34,13 +35,24 @@ void OSQPSolver::GetInput(mpc_float* u, int k) const {
 }
 
 void OSQPSolver::SetInitialState(const mpc_float* x0) {
-  c_float* l = p_workspace_->data->l;
-  c_float* u = p_workspace_->data->u;
-  for (int i = 0; i < nstates_; ++i) {
-    l[i] = x0[i];
-    u[i] = x0[i];
+  // c_float* l = p_workspace_->data->l;
+  // c_float* u = p_workspace_->data->u;
+  int ncons = NumDuals(); 
+  c_float* l = (c_float*)malloc(ncons * sizeof(c_float));
+  c_float* u = (c_float*)malloc(ncons * sizeof(c_float));
+  
+  for (int i = 0; i < ncons; ++i) {
+    l[i] = 0.0;
+    u[i] = 0.0;
   }
+  for (int i = 0; i < nstates_; ++i) {
+    l[i] = -x0[i];
+    u[i] = -x0[i];
+  }
+  // prob_.SetInitialState(x0);
   osqp_update_bounds(p_workspace_, l, u);
+  free(l);
+  free(u);
 }
 
 void OSQPSolver::SetReferenceState(const mpc_float* xr) {
@@ -54,6 +66,7 @@ void OSQPSolver::SetReferenceState(const mpc_float* xr) {
       q[i + offset] = -Q[i] * xr[i];
     }
   }
+  prob_.SetGoalState(xr);
   osqp_update_lin_cost(p_workspace_, q);
 }
 
@@ -77,4 +90,39 @@ bool OSQPSolver::GetControl(mpc_float* u, const mpc_float* dx, mpc_float t) {
   }
   return solve_successful;
 }
+
+void OSQPSolver::GetInitialState(mpc_float* x0) const {
+  c_float* l = p_workspace_->data->l;
+  for (int i = 0; i < nstates_; ++i) {
+    x0[i] = -l[i];
+  }
+}
+
+int OSQPSolver::NumPrimals() const {
+  return nstates_ * nhorizon_ + (nhorizon_ - 1) * ninputs_;
+}
+
+int OSQPSolver::NumDuals() const {
+  return nstates_ * nhorizon_;
+}
+
+void OSQPSolver::GetBounds(mpc_float* l, mpc_float* u) const {
+  int ncon = NumDuals();
+  c_float* ldata = p_workspace_->data->l;
+  c_float* udata = p_workspace_->data->u;
+  for (int i = 0; i < ncon; ++i) {
+    l[i] = ldata[i];
+    u[i] = udata[i];
+  }
+}
+
+void OSQPSolver::GetLinCost(mpc_float* q) const {
+  int nvars = NumPrimals();
+  c_float* qdata = p_workspace_->data->q;
+  for (int i = 0; i < nvars; ++i) {
+    q[i] = qdata[i];
+  }
+}
+
+
 }

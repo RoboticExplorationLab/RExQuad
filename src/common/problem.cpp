@@ -10,7 +10,7 @@ MPCProblem::MPCProblem(int nstates, int ninputs, int nhorizon)
       f_(StateVector::Zero(nstates)),
       x0_(StateVector::Zero(nstates)),
       xe_(StateVector::Zero(nstates)),
-      ue_(StateVector::Zero(ninputs)),
+      ue_(InputVector::Zero(ninputs)),
       xg_(StateVector::Zero(nstates)),
       Qfdiag_(StateVector::Zero(nstates)),
       qf_(StateVector::Zero(nstates)),

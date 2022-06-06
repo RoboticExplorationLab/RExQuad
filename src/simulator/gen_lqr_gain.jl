@@ -65,12 +65,12 @@ function print_gains(K, xeq, ueq)
 end
 speye(n) = spdiagm(ones(n))
 
-# Hover state
+## Hover state
 xe = [0;0;1; 1;0;0;0; zeros(6)]        # equilibrium state (linearization point)
 ue = trim_controls()
 dt = 0.01  # 100 Hz
-xg = [0;0;1.5; 1; zeros(3); zeros(6)]  # goal state
-x0 = [0;0;0.75; 1;0;0;0; zeros(6)]     # initial state
+xg = [0;0;1.0; 1; zeros(3); zeros(6)]  # goal state
+x0 = [0;0;1.0; 1;0;0;0; zeros(6)]     # initial state
 dxg = state_error(xg, xe)              # error state from equilibrium to goal
 dx0 = state_error(x0, xe)
 n,m = 12,4
@@ -109,7 +109,8 @@ open(joinpath(commondir, "mpc_data.json"), "w") do f
         "A"=>A', "B"=>B',  # store transpose for easy Python loading
         "Qk"=>diag(Qk), "Rk"=>diag(Rk), "Qf"=>diag(Qf),
         "qk"=>qk, "rk"=>rk, "qf"=>qf,
-        "xe"=>xeq, "ue"=>ueq, "xg"=>xg
+        "xe"=>xe, "ue"=>ue, "xg"=>xg,
+        "dx0"=>dx0, "dxg"=>dxg
     )  
     indent = 2
     JSON.print(f, data, indent)

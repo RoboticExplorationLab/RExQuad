@@ -4,36 +4,34 @@
 #include <fmt/ostream.h>
 #include <gtest/gtest.h>
 
-// #include "EmbeddedMPC.h"
-// #include "doubleintegrator.h"
-// #include "memory.cpp"
 #include "osqp/osqp.h"
 #include "common/problem_data.h"
 #include "common/workspace.h"
+#include "common/control.hpp"
 
 namespace rexquad {
-TEST(OSQPSolverTests, RawSolve) {
-  osqp_solve(&workspace);
-  // Print status
-  printf("Status:                %s\n", (&workspace)->info->status);
-  printf("Number of iterations:  %d\n", (int)((&workspace)->info->iter));
-  printf("Objective value:       %.4e\n", (&workspace)->info->obj_val);
-  printf("Primal residual:       %.4e\n", (&workspace)->info->pri_res);
-  printf("Dual residual:         %.4e\n", (&workspace)->info->dua_res);
-  c_float* x = workspace.solution->x;
-  printf("x0 = [ ");
-  for (int i = 0; i < 12; ++i) {
-    printf("%0.3g ", x[i]);
-  }
-  printf("]\n");
+// TEST(OSQPSolverTests, RawSolve) {
+//   osqp_solve(&workspace);
+//   // Print status
+//   printf("Status:                %s\n", (&workspace)->info->status);
+//   printf("Number of iterations:  %d\n", (int)((&workspace)->info->iter));
+//   printf("Objective value:       %.4e\n", (&workspace)->info->obj_val);
+//   printf("Primal residual:       %.4e\n", (&workspace)->info->pri_res);
+//   printf("Dual residual:         %.4e\n", (&workspace)->info->dua_res);
+//   c_float* x = workspace.solution->x;
+//   printf("x0 = [ ");
+//   for (int i = 0; i < 12; ++i) {
+//     printf("%0.3g ", x[i]);
+//   }
+//   printf("]\n");
 
-  int nstates_total = 12 * 11;
-  printf("u0 = [ ");
-  for (int i = 0; i < 4; ++i) {
-    printf("%0.4g ", x[i + nstates_total]);
-  }
-  printf("]\n");
-}
+//   int nstates_total = 12 * 11;
+//   printf("u0 = [ ");
+//   for (int i = 0; i < 4; ++i) {
+//     printf("%0.4g ", x[i + nstates_total]);
+//   }
+//   printf("]\n");
+// }
 
 TEST(OSQPSolverTests, Initialization) {
   // Set up a double integrator problem
@@ -61,22 +59,32 @@ TEST(OSQPSolverTests, Solve) {
   prob.SetCostState(cost_Qdata, cost_qdata);
   prob.SetCostInput(cost_Rdata, cost_rdata);
   prob.SetCostConstant(0.0);
-
   solver.Initialize(&workspace);
+
+  // Set initial state
+  ErrorVector dx0 = ErrorVector::Zero();
+  solver.SetInitialState(dx0.data());
+
+  // Solve
   solver.Solve();
-  Eigen::Vector<c_float, 12> x0;
-  Eigen::Vector<c_float, 4> u0;
+  ErrorVector x0;
+  InputVector u0;
   solver.GetState(x0.data(), 0);
   solver.GetInput(u0.data(), 0);
-  Eigen::Vector<c_float, 4> u_expected;
+  InputVector u_expected = InputVector::Zero();;
   // u_expected << 12.02562626, 12.02562626, 12.02562626, 12.02562626;
-  u_expected << 55.43705474, 55.43705474, 55.43705474, 55.43705474;
+  // u_expected << 55.43705474, 55.43705474, 55.43705474, 55.43705474;
   EXPECT_LT(x0.norm(), 1e-5);
   EXPECT_LT((u0-u_expected).norm(), 1e-5);
   EXPECT_STREQ(workspace.info->status, "solved");
+
+  // Solve again
+  solver.Solve();
+  solver.GetInput(u0.data(), 0);
+  EXPECT_LT((u0-u_expected).norm(), 1e-5);
 }
 
-TEST(OSQPSolverTests, GetControl) {
+TEST(OSQPSolverTests, ChangeInitialState) {
   OSQPSolver solver(nstates, ninputs, nhorizon);
   MPCProblem& prob = solver.GetProblem();
   prob.SetDynamics(dynamics_Adata, dynamics_Bdata, dynamics_fdata);
@@ -84,28 +92,97 @@ TEST(OSQPSolverTests, GetControl) {
   prob.SetCostState(cost_Qdata, cost_qdata);
   prob.SetCostInput(cost_Rdata, cost_rdata);
   prob.SetCostConstant(0.0);
-  prob.SetEquilibriumPoint(dynamics_xe, dynamics_ue);
-  prob.SetGoalState(dynamics_xg);
-
   solver.Initialize(&workspace);
-  Eigen::Vector<mpc_float,13> xe = Eigen::Vector<mpc_float, 13>::Zero();
-  Eigen::Vector<mpc_float,4> ue = Eigen::Vector<mpc_float, 4>::Zero();
-  Eigen::Vector<mpc_float,13> x0 = Eigen::Vector<mpc_float, 13>::Zero();
-  Eigen::Vector<mpc_float,13> xg = Eigen::Vector<mpc_float, 13>::Zero();
-  prob.GetEquilibriumPoint(xe.data(), ue.data());
-  prob.GetGoalState(xg.data());
-  prob.GetInitialState(x0.data());
-  // solver.GetControl()
+
+  // Vectors
+  int nvars = solver.NumPrimals();
+  int ncons = solver.NumDuals();
+  ErrorVector dxe;
+  InputVector due;
+  ErrorVector dxg;
+  Eigen::VectorXd l = Eigen::VectorXd::Zero(ncons);
+  Eigen::VectorXd u = Eigen::VectorXd::Zero(ncons);
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(nvars);
+  Eigen::Map<Eigen::Vector<c_float, Eigen::Dynamic>> xsol(solver.GetSolution(), nvars);
+
+  // Set initial state
+  ErrorVector dx0 = ErrorVector::Zero();
+  solver.SetInitialState(dx0.data());
+
+  xsol.setZero();
+  solver.Solve();
+  InputVector u0;
+  solver.GetInput(u0.data(), 0);
+  EXPECT_LT(u0.norm(), 1e-6);
+
+  prob.GetGoalState(dx0.data());
+  prob.GetEquilibriumPoint(dxe.data(), due.data());
+  prob.GetGoalState(dxg.data());
+  solver.GetBounds(l.data(), u.data());
+  solver.GetLinCost(q.data());
+  fmt::print("First Solve\n");
+  fmt::print("  xe = [{}]\n", dxe.transpose());
+  fmt::print("  ue = [{}]\n", due.transpose());
+  fmt::print("  xg = [{}]\n", dxg.transpose());
+  fmt::print("  x0 = [{}]\n", dx0.transpose());
+  fmt::print("  u0 = [{}]\n", u0.transpose());
+  fmt::print("  ||q|| = {}\n", q.norm());
+  fmt::print("  ||l|| = {}\n", l.norm());
+  fmt::print("  ||u|| = {}\n", u.norm());
+  fmt::print("  ||z|| = {}\n", xsol.norm());
+
+  printf("Status:                %s\n", (&workspace)->info->status);
+  printf("Number of iterations:  %d\n", (int)((&workspace)->info->iter));
+  printf("Objective value:       %.4e\n", (&workspace)->info->obj_val);
+  printf("Primal residual:       %.4e\n", (&workspace)->info->pri_res);
+  printf("Dual residual:         %.4e\n", (&workspace)->info->dua_res);
+
+  // Set initial state to lower
+  dx0[2] = +0.5;
+  solver.SetInitialState(dx0.data());
+  xsol.setZero();
+  solver.Solve();
+  solver.GetInput(u0.data(), 0);
+  fmt::print("u0 = [{}]\n", u0.transpose());
+  // EXPECT_GT(u0.maxCoeff(), 10);
+
+  // // Set initial state to higher
+  // dx0[2] = +0.5;
+  // solver.SetInitialState(dx0.data());
   // solver.Solve();
-  // Eigen::Vector<c_float, 12> x0;
-  // Eigen::Vector<c_float, 4> u0;
-  // solver.GetState(x0.data(), 0);
   // solver.GetInput(u0.data(), 0);
-  // Eigen::Vector<c_float, 4> u_expected;
-  // // u_expected << 12.02562626, 12.02562626, 12.02562626, 12.02562626;
-  // u_expected << 55.43705474, 55.43705474, 55.43705474, 55.43705474;
-  // EXPECT_LT(x0.norm(), 1e-5);
-  // EXPECT_LT((u0-u_expected).norm(), 1e-5);
-  // EXPECT_STREQ(workspace.info->status, "solved");
+  // // fmt::print("u0 = [{}]\n", u0.transpose());
+  // EXPECT_LT(u0.maxCoeff(), -10);
+
+  // Set initial state back
+  dx0[2] = 0.0;
+  solver.SetInitialState(dx0.data());
+  xsol.setZero();
+  solver.Solve();
+  solver.GetInput(u0.data(), 0);
+
+  prob.GetGoalState(dx0.data());
+  prob.GetEquilibriumPoint(dxe.data(), due.data());
+  prob.GetGoalState(dxg.data());
+  solver.GetBounds(l.data(), u.data());
+  solver.GetLinCost(q.data());
+  fmt::print("Second Solve\n");
+  fmt::print("  xe = [{}]\n", dxe.transpose());
+  fmt::print("  ue = [{}]\n", due.transpose());
+  fmt::print("  xg = [{}]\n", dxg.transpose());
+  fmt::print("  x0 = [{}]\n", dx0.transpose());
+  fmt::print("  u0 = [{}]\n", u0.transpose());
+  fmt::print("  ||q|| = {}\n", q.norm());
+  fmt::print("  ||l|| = {}\n", l.norm());
+  fmt::print("  ||u|| = {}\n", u.norm());
+  fmt::print("  ||z|| = {}\n", xsol.norm());
+
+  printf("Status:                %s\n", (&workspace)->info->status);
+  printf("Number of iterations:  %d\n", (int)((&workspace)->info->iter));
+  printf("Objective value:       %.4e\n", (&workspace)->info->obj_val);
+  printf("Primal residual:       %.4e\n", (&workspace)->info->pri_res);
+  printf("Dual residual:         %.4e\n", (&workspace)->info->dua_res);
 }
+
+
 }
