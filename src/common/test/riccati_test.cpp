@@ -114,4 +114,29 @@ TEST(RiccatiSolver, ChangeGoalState) {
   EXPECT_FLOAT_EQ(u_higher, -u_lower);
 }
 
+
+TEST(RiccatiSolver, ControlPolicy) {
+  int nhorizon = 11;
+  RiccatiSolver solver(nhorizon);
+  solver.SetDynamics(dynamics_Adata, dynamics_Bdata, dynamics_fdata, dynamics_xe,
+                     dynamics_ue);
+  solver.SetCost(cost_Qdata, cost_Rdata, cost_Qfdata);
+  StateVector x0;
+  StateVector xg;
+  InputVector u0;
+  x0 << 0, 0, 1.0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  xg << 0, 0, 1.0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  solver.SetInitialState(x0.data());
+  solver.SetGoalState(xg.data());
+
+  double t = 0.0;
+  u0 = solver.ControlPolicy(x0, t);
+  InputVector u_trim = InputVector::Constant(kHoverInput);
+  EXPECT_LT((u0 - u_trim).norm(), 1e-5);
+
+  x0[2] = 0.5;
+  u0 = solver.ControlPolicy(x0, t);
+  EXPECT_GT((u0 - u_trim).minCoeff(), 10);
+}
+
 }  // namespace rexquad

@@ -22,6 +22,8 @@ class RiccatiSolver {
   const ErrorVector& GetState(int k) const;
   const InputVector& GetInput(int k) const;
 
+  InputVector ControlPolicy(const StateVector& x, double t);
+
  private:
   void BackwardPass();
   void ForwardPass();

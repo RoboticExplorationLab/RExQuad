@@ -153,4 +153,11 @@ const InputVector& RiccatiSolver::GetInput(int k) const {
   return U_[k];
 }
 
+InputVector RiccatiSolver::ControlPolicy(const StateVector& x, double t) {
+  (void) t;
+  this->SetInitialState(x.data());
+  this->Solve();
+  return U_[0] + ue_;
+}
+
 }  // namespace rexquad
