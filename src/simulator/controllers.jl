@@ -1,3 +1,4 @@
+include("riccati.jl")
 
 mutable struct OSQPController{T}
     # QP data
@@ -22,59 +23,68 @@ mutable struct OSQPController{T}
     dt::T
     N::Int
     function OSQPController(xeq, ueq, dt, N; xg=copy(xeq))
-        n,m = 12,4
-        Ad = zeros(n,n)
-        Bd = zeros(n,m)
-        Nx = N*n
-        Nu = (N-1)*m
-        P = spzeros(Nx+Nu, Nx+Nu)
-        q = zeros(Nx+Nu)
-        A = spzeros(Nx,Nx+Nu)
+        n, m = 12, 4
+        Ad = zeros(n, n)
+        Bd = zeros(n, m)
+        Nx = N * n
+        Nu = (N - 1) * m
+        P = spzeros(Nx + Nu, Nx + Nu)
+        q = zeros(Nx + Nu)
+        A = spzeros(Nx, Nx + Nu)
         l = spzeros(Nx)
         u = spzeros(Nx)
 
-        Qd = [1.1;1.1;10; fill(1.0, 3); fill(0.1,3); fill(1.0,3)]
+        Qd = [1.1; 1.1; 10; fill(1.0, 3); fill(0.1, 3); fill(1.0, 3)]
         Rd = fill(1e-3, 4)
         Qf = copy(Qd)
 
-        X = [zeros(n) for k = 1:N]
-        U = [copy(ueq) for k = 1:N-1]
-        
+        X = [zeros(n) for k in 1:N]
+        U = [copy(ueq) for k in 1:(N - 1)]
+
         prob = OSQP.Model()
 
         T = eltype(xeq)
-        ctrl = new{T}(P,q,A,l,u,prob, X,U, Qd, Rd, Qf, Ad, Bd, xeq, ueq, xg, dt, N)
-        update_problem!(ctrl; Qd, Rd, Qf, xeq, ueq, N, xg)
+        ctrl = new{T}(P, q, A, l, u, prob, X, U, Qd, Rd, Qf, Ad, Bd, xeq, ueq, xg, dt, N)
+        return update_problem!(ctrl; Qd, Rd, Qf, xeq, ueq, N, xg)
     end
 end
 
-function update_problem!(ctrl::OSQPController; Qd=ctrl.Qd, Rd=ctrl.Rd, Qf=ctrl.Qf, 
-                         xeq=ctrl.xeq, ueq=ctrl.ueq, N=ctrl.N, xg=ctrl.xg, dt=ctrl.dt)
-    n,m = 12,4
+function update_problem!(
+    ctrl::OSQPController;
+    Qd=ctrl.Qd,
+    Rd=ctrl.Rd,
+    Qf=ctrl.Qf,
+    xeq=ctrl.xeq,
+    ueq=ctrl.ueq,
+    N=ctrl.N,
+    xg=ctrl.xg,
+    dt=ctrl.dt,
+)
+    n, m = 12, 4
     x0 = copy(xeq)
     dxg = state_error(xg, xeq)
     dx0 = state_error(x0, xeq)
 
     # Calculate discrete Jacobians
     E = error_state_jacobian(xeq)
-    Ad = E'ForwardDiff.jacobian(_x->dynamics_rk4(_x, ueq, dt), xeq)*E
-    Bd = E'ForwardDiff.jacobian(_u->dynamics_rk4(xeq, _u, dt), ueq)
+    Ad = E'ForwardDiff.jacobian(_x -> dynamics_rk4(_x, ueq, dt), xeq) * E
+    Bd = E'ForwardDiff.jacobian(_u -> dynamics_rk4(xeq, _u, dt), ueq)
 
     # Cost
     Qk = spdiagm(Qd)
     Rk = spdiagm(Rd)
     Qf = spdiagm(Qf)
-    qk = -Qk*dxg
+    qk = -Qk * dxg
     rk = zeros(4)
-    qf = -Qf*dxg  
-    
+    qf = -Qf * dxg
+
     # Build QP 
-    P = blockdiag(kron(speye(N-1), Qk), Qf, kron(speye(N-1), Rk))
-    q = [kron(ones(N-1), qk); qf; kron(ones(N-1), rk)]
-    Ax = kron(speye(N), -speye(n)) + kron(spdiagm(-1=>ones(N-1)), Ad)
-    Bu = kron(spdiagm(N,N-1,-1=>ones(N-1)), Bd)
+    P = blockdiag(kron(speye(N - 1), Qk), Qf, kron(speye(N - 1), Rk))
+    q = [kron(ones(N - 1), qk); qf; kron(ones(N - 1), rk)]
+    Ax = kron(speye(N), -speye(n)) + kron(spdiagm(-1 => ones(N - 1)), Ad)
+    Bu = kron(spdiagm(N, N - 1, -1 => ones(N - 1)), Bd)
     A_eq = [Ax Bu]
-    l_eq = [-dx0; zeros((N-1)*n)]
+    l_eq = [-dx0; zeros((N - 1) * n)]
     u_eq = copy(l_eq)
     A = copy(A_eq)
     l = copy(l_eq)
@@ -97,7 +107,7 @@ function update_problem!(ctrl::OSQPController; Qd=ctrl.Qd, Rd=ctrl.Rd, Qf=ctrl.Q
     ctrl.xg = xg
     ctrl.N = N
     ctrl.dt = dt
-    ctrl
+    return ctrl
 end
 
 function update_initial_state!(ctrl::OSQPController, x0)
@@ -105,19 +115,19 @@ function update_initial_state!(ctrl::OSQPController, x0)
     dx0 = state_error(x0, ctrl.xeq)
     ctrl.l[1:n] .= .-dx0
     ctrl.u[1:n] .= .-dx0
-    OSQP.update!(ctrl.prob, l=ctrl.l, u=ctrl.u)
+    return OSQP.update!(ctrl.prob; l=ctrl.l, u=ctrl.u)
 end
 
 function update_goal_state!(ctrl::OSQPController, xg)
     dxg = state_error(xg, ctrl.xeq)
     n = 12
-    for k = 1:ctrl.N
-        ix = (k-1)*n .+ (1:n)
+    for k in 1:(ctrl.N)
+        ix = (k - 1) * n .+ (1:n)
         Q = k == ctrl.N ? Diagonal(ctrl.Qf) : Diagonal(ctrl.Qd)
-        ctrl.q[ix] .= .-Q*dxg
+        ctrl.q[ix] .= .-Q * dxg
     end
     ctrl.xg .= xg
-    OSQP.update!(ctrl.prob, q=ctrl.q)
+    return OSQP.update!(ctrl.prob; q=ctrl.q)
 end
 
 function getcontrol(ctrl::OSQPController, x, y, t)
@@ -126,12 +136,12 @@ function getcontrol(ctrl::OSQPController, x, y, t)
     N = ctrl.N
     update_initial_state!(ctrl, x)
     res = OSQP.solve!(ctrl.prob)
-    for k = 1:ctrl.N
-        ix = (k-1).*n .+ (1:n)
-        iu = n*N + (k-1)*m .+ (1:m)
+    for k in 1:(ctrl.N)
+        ix = (k - 1) .* n .+ (1:n)
+        iu = n * N + (k - 1) * m .+ (1:m)
         ctrl.X[k] .= res.x[ix]
         if k < N
-          ctrl.U[k] .= res.x[iu]
+            ctrl.U[k] .= res.x[iu]
         end
     end
     # return res.x[n*N .+ (1:m)] + ctrl.ueq
@@ -139,7 +149,6 @@ function getcontrol(ctrl::OSQPController, x, y, t)
 end
 
 finish(ctrl::OSQPController) = nothing
-
 
 const ZMQ_CONFLATE = 54
 function set_conflate(socket::ZMQ.Socket, option_val::Integer)
@@ -161,6 +170,18 @@ Base.@kwdef mutable struct SimOpts
     recvtimeout_ms::Int = 100
 end
 
+struct RiccatiController{T}
+    A::Matrix{T}
+    B::Matrix{T}
+    Q::Diagonal{T,Vector{T}}
+    R::Diagonal{T,Vector{T}}
+    xg::Vector{T}
+    xe::Vector{T}
+    ue::Vector{T}
+    x0::Vector{T}
+    N::Int
+end
+
 struct ZMQController
     ctx::ZMQ.Context
     pub::ZMQ.Socket
@@ -171,7 +192,7 @@ struct ZMQController
     pose_queue::Queue{PoseMsg}
     opts::Dict{Symbol,Real}
 end
-function ZMQController(pub_port=5555, sub_port=pub_port+1)
+function ZMQController(pub_port=5555, sub_port=pub_port + 1)
     buf_out = ZMQ.Message(msgsize(MeasurementMsg))
     buf_in = ZMQ.Message(2 * msgsize(StateControlMsg))
     ctx = ZMQ.Context()
@@ -200,11 +221,16 @@ function ZMQController(pub_port=5555, sub_port=pub_port+1)
         end
     end
 
-    opts = Dict{Symbol,Real}(:send_ground_truth=>false, :imu_per_pose=>1, :pose_delay=>0, 
-                             :recvtimeout_ms=>200, :imu_messages_sent=>0)
+    opts = Dict{Symbol,Real}(
+        :send_ground_truth => false,
+        :imu_per_pose => 1,
+        :pose_delay => 0,
+        :recvtimeout_ms => 200,
+        :imu_messages_sent => 0,
+    )
     uprev = zeros(4)
     pose_queue = Queue{PoseMsg}()
-    ZMQController(ctx, pub, sub, buf_out, buf_in, uprev, pose_queue, opts)
+    return ZMQController(ctx, pub, sub, buf_out, buf_in, uprev, pose_queue, opts)
 end
 
 function getcontrol(ctrl::ZMQController, x, y, t)
@@ -278,10 +304,10 @@ function sendmessage(ctrl::ZMQController, y, t)
     # TODO: avoid this dynamic memory allocation
     zmsg = ZMQ.Message(msgsize(y))
     copyto!(zmsg, y)
-    ZMQ.send(ctrl.pub, zmsg)
+    return ZMQ.send(ctrl.pub, zmsg)
 end
 
 function finish(ctrl::ZMQController)
     ZMQ.close(ctrl.pub)
-    ZMQ.close(ctrl.sub)
+    return ZMQ.close(ctrl.sub)
 end

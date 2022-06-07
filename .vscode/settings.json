@@ -6,4 +6,8 @@
         "chrono": "cpp",
         "mpc_types.hpp": "c"
     }
+    "[julia]": {
+        "editor.tabSize": 4
+    }
+    "editor.tabSize": 2
 }
