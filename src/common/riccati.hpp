@@ -3,8 +3,8 @@
 #include <ArduinoEigen/Eigen/Dense>
 #include <vector>
 
-#include "control.hpp"
 #include "constants.hpp"
+#include "control.hpp"
 #include "mpc_types.hpp"
 
 namespace rexquad {
@@ -12,11 +12,15 @@ namespace rexquad {
 class RiccatiSolver {
  public:
   RiccatiSolver(int nhorizon);
-  void SetDynamics(const StateMatrix& A, const InputMatrix& B, const ErrorVector& f);
-  void SetCost(const StatePenalty& Q, const InputPenalty& R, const StatePenalty& Qf);
-  void SetGoalState(const StateVector xf);
-  void SetInitialState(const StateVector x0);
+  void SetDynamics(const mpc_float* Adata, const mpc_float* Bdata, const mpc_float* fdata,
+                   const mpc_float* xe, const mpc_float* ue);
+  void SetCost(const mpc_float* Qdata, const mpc_float* Rdata, const mpc_float* Qfdata);
+  void SetGoalState(const mpc_float* xf);
+  void SetInitialState(const mpc_float* x0);
   void Solve();
+
+  const ErrorVector& GetState(int k) const;
+  const InputVector& GetInput(int k) const;
 
  private:
   void BackwardPass();
