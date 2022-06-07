@@ -22,6 +22,7 @@ using ErrorVector = Eigen::Vector<mpc_float, kNumErrStates>;
 using InputVector = Eigen::Vector<mpc_float, kNumInputs>;
 using StateMatrix = Eigen::Matrix<mpc_float, kNumErrStates, kNumErrStates>;
 using InputMatrix = Eigen::Matrix<mpc_float, kNumErrStates, kNumInputs>;
+using InputMatrixSquare = Eigen::Matrix<mpc_float, kNumInputs, kNumInputs>;
 using FeedbackGain = Eigen::Matrix<mpc_float, kNumInputs, kNumErrStates>;
 
 using StatePenalty = Eigen::DiagonalMatrix<mpc_float, kNumErrStates>;
