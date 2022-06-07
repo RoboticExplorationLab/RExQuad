@@ -33,6 +33,9 @@ add_library(quadcommon
     problem.cpp
 
     mpc_types.hpp
+
+    riccati.hpp
+    riccati.cpp
 )
 target_link_libraries(quadcommon
     PUBLIC

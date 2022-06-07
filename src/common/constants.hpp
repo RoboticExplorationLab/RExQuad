@@ -6,7 +6,7 @@
 
 namespace rexquad {
 
-using mpc_float = c_float;
+// using mpc_float = c_float;
 
 constexpr int kNumStates = 13;
 constexpr int kNumErrStates = 12;
@@ -17,11 +17,14 @@ constexpr double kMinInput = 1148.0;
 constexpr double kIdleInput = 1180;
 constexpr double kMaxInput = 1832.0;
 
-using StateVector = Eigen::Vector<double, kNumStates>;
-using ErrorVector = Eigen::Vector<double, kNumErrStates>;
-using InputVector = Eigen::Vector<double, kNumInputs>;
-using StateMatrix = Eigen::Matrix<double, kNumErrStates, kNumErrStates>;
-using InputMatrix = Eigen::Matrix<double, kNumInputs, kNumInputs>;
-using FeedbackGain = Eigen::Matrix<double, kNumInputs, kNumErrStates>;
+using StateVector = Eigen::Vector<mpc_float, kNumStates>;
+using ErrorVector = Eigen::Vector<mpc_float, kNumErrStates>;
+using InputVector = Eigen::Vector<mpc_float, kNumInputs>;
+using StateMatrix = Eigen::Matrix<mpc_float, kNumErrStates, kNumErrStates>;
+using InputMatrix = Eigen::Matrix<mpc_float, kNumErrStates, kNumInputs>;
+using FeedbackGain = Eigen::Matrix<mpc_float, kNumInputs, kNumErrStates>;
+
+using StatePenalty = Eigen::DiagonalMatrix<mpc_float, kNumErrStates>;
+using InputPenalty = Eigen::DiagonalMatrix<mpc_float, kNumInputs>;
 
 }  // namespace rexquad
