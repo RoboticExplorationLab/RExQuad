@@ -110,4 +110,15 @@ void RiccatiSolver::BackwardPass() {
   }
 }
 
+void RiccatiSolver::ForwardPass() {
+  int N = nhorizon_ - 1;
+  X_[0] = dx0_;
+  for (int k = 0; k < N-1; ++k) {
+    Y_[k] = P_[k] * X_[k] + p_[k];
+    U_[k] = K_[k] * X_[k] + d_[k];
+    X_[k+1] = A_ * X_[k] + B_ * U_[k] + f_;
+  }
+  Y_[N] = P_[N] * X_[N] + p_[N];
+}
+
 }  // namespace rexquad
