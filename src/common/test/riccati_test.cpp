@@ -135,7 +135,7 @@ TEST(RiccatiSolver, ControlPolicy) {
   EXPECT_LT((u0 - u_trim).norm(), 1e-5);
 
   x0[2] = 0.5;
-  u0 = solver.ControlPolicy(x0, t);
+  solver.ControlPolicy(x0, t);
   EXPECT_GT((u0 - u_trim).minCoeff(), 10);
 }
 

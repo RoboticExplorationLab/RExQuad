@@ -19,6 +19,7 @@ class RiccatiSolver {
   void SetInitialState(const mpc_float* x0);
   void Solve();
 
+  int GetHorizonLength() const { return nhorizon_; }
   const ErrorVector& GetState(int k) const;
   const InputVector& GetInput(int k) const;
 

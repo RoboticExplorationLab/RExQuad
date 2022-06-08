@@ -43,15 +43,14 @@ sim = Simulator(5562, 5563)
 open(sim.vis)
 
 ## Run the simulator
-x = [0;0.0;0.5; 1; zeros(3); zeros(6)]
+x = [0;2.0;0.5; 1; zeros(3); zeros(6)]
 u = trim_controls()
 rate = 100  # Hertz
 dt = 1/rate
 
-tf = 3.0
-runsim(sim, x, tf=tf, send_measurement=true, 
-    imu_per_pose=1,  # number of IMU messages per pose message
-    pose_delay=0,    # number of times the pose message should be delayed (total delay = dt * imu_per_pose * pose_delay)
-    send_ground_truth=true # send the ground truth data to the onboard data to use (skipping the state estimator)
-)
+tf = 4.0
+sim.ctrl.opts[:send_ground_truth] = true
+sim.ctrl.opts[:imu_per_pose] = 1
+sim.ctrl.opts[:pose_delay] = 0
+runsim(sim, x, tf=tf)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)

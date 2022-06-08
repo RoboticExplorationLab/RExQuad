@@ -10,10 +10,11 @@
 #include "common/lqr_constants.hpp"
 #include "common/messages.hpp"
 #include "common/pose.hpp"
-#include "common/workspace.h"
+#include "common/riccati.hpp"
+// #include "common/workspace.h"
 #include "common/problem_data.h"
 // #include "EmbeddedMPC.h"
-#include "common/osqpsolver.hpp"
+// #include "common/osqpsolver.hpp"
 
 // Options
 // const int kHeartbeatTimeoutMs = 200;
@@ -48,12 +49,12 @@ Pose posedata;
 StateControl statecontrolmsg;
 Measurement measurementmsg;
 IMUMeasurement imudata;
-rexquad::OSQPSolver osqpsolver(nstates, ninputs, nhorizon);  // from problem_data.h
+// rexquad::OSQPSolver osqpsolver(nstates, ninputs, nhorizon);  // from problem_data.h
+rexquad::RiccatiSolver g_mpc_controller(31);
 void* context;
 void* pub;
 void* sub;
 auto tstart = std::chrono::high_resolution_clock::now();
-
 
 // Buffers
 uint8_t buf_recv[kMaxBufferSize];
@@ -170,14 +171,12 @@ void setup() {
   setup_publisher(context, pubport);
 
   // Initialize controller
-  fmt::print("Initializing controller...\n");
-  rexquad::MPCProblem& prob = osqpsolver.GetProblem();
-  prob.SetDynamics(dynamics_Adata, dynamics_Bdata, dynamics_fdata);
-  prob.SetCostTerminal(cost_Qfdata, cost_qfdata);
-  prob.SetCostState(cost_Qdata, cost_qdata);
-  prob.SetCostInput(cost_Rdata, cost_rdata);
-  prob.SetCostConstant(cost_c);
-  osqpsolver.Initialize(&workspace);
+  fmt::print("Initializing Riccati controller with N = {}...\n",
+             g_mpc_controller.GetHorizonLength());
+  g_mpc_controller.SetDynamics(dynamics_Adata, dynamics_Bdata, dynamics_fdata, dynamics_xe,
+                               dynamics_ue);
+  g_mpc_controller.SetCost(cost_Qdata, cost_Rdata, cost_Qfdata);
+  g_mpc_controller.SetGoalState(dynamics_xg);
   fmt::print("Controller Initialized!\n");
 
   // Start timer
@@ -268,18 +267,10 @@ void loop() {
     }
 
     // Calculate control
-    rexquad::ErrorState(e, xhat, xeq);
-    // osqpsolver.SetInitialState(xhat.data());
-    // bool solve_successful = osqpsolver.Solve();
-    // if (!solve_successful) {
-    //   fmt::print("OSQP Solve Failed!\n");
-    // }
-    // osqpsolver.GetInput(u.data(), 0);
-    
-    // for (int i = 0; i < ninputs; ++i) {
-    //   u[i] += rexquad::kHoverInput;
-    // }
-    u = -K * e + ueq;
+    double t = 0.0;  // TODO: get actual time from start of loop
+    u = g_mpc_controller.ControlPolicy(xhat, t);
+    // rexquad::ErrorState(e, xhat, xeq);
+    // u = -K * e + ueq;
 
     // Send control and state estimate back over ZMQ to simulator
     UpdateStateControlMsg(statecontrolmsg, xhat, u);
