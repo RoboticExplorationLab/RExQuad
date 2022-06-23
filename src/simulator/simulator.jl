@@ -14,6 +14,7 @@ include("ratelimiter.jl")
 include("visualization.jl")
 include("messages.jl")
 include("controllers.jl")
+include("estimator.jl")
 
 speye(n) = spdiagm(ones(n))
 
@@ -28,8 +29,9 @@ Base.@kwdef mutable struct SimOpts
 end
 
 
-struct Simulator{C}
+struct Simulator{C,F}
     ctrl::C
+    filter::F
     vis::Visualizer
     xhist::Vector{Vector{Float64}}   # true state history
     uhist::Vector{Vector{Float64}}   # control history
@@ -54,7 +56,7 @@ function Simulator(pub_port=5555, sub_port=5556)
     Simulator(ctrl)
 end
 
-function Simulator(ctrl::C) where C
+function Simulator(ctrl::C, filter::F) where {C,F}
     vis = Visualizer()
     RobotMeshes.setdrone!(vis["truth"])
     RobotMeshes.setdrone!(vis["estimate"], color=RGBA(1.0, 0.0, 0.0, 0.5))
@@ -77,8 +79,8 @@ function Simulator(ctrl::C) where C
     stats = Dict{String,Any}()
     opts = SimOpts()
 
-    Simulator{C}(ctrl, vis, xhist, uhist, x̂hist, xfhist, Pfhist, xdhist, Pdhist, imuhist, mocaphist, thist, 
-        msg_meas, msg_data, mocap_queue, stats, opts)
+    Simulator{C,F}(ctrl, filter, vis, xhist, uhist, x̂hist, xfhist, Pfhist, xdhist, Pdhist, 
+        imuhist, mocaphist, thist, msg_meas, msg_data, mocap_queue, stats, opts)
 end
 
 function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
@@ -136,6 +138,9 @@ end
 function initialize!(sim::Simulator, x0, xhat0, dt, tf)
     approx_size = tf < Inf ? round(Int, tf / dt) : 10_000
     reset!(sim; approx_size)
+
+    # Initialize filter
+    initialize!(sim.filter, x0, Wf=sim.opts.Wf, Vf=sim.opts.Vf, delay_comp=sim.opts.delay_comp)
 
     # Set initial state
     push!(sim.xhist, x0)
@@ -197,36 +202,38 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
 
     # Get (delayed) mocap measurement
     y_mocap = mocap_measurement(sim, x)
-    if !isnothing(y_mocap)
-        push!(sim.mocaphist, t=>y_mocap)
 
-        # Advance the delayed measurement using the IMU measurement from that time
-        y_imu_delayed = sim.imuhist[end-delay]
-        xpred, Ppred = filter_state_prediction(sim, xd, y_imu_delayed, Pd, dt)
+    # if !isnothing(y_mocap)
+    #     push!(sim.mocaphist, t=>y_mocap)
 
-        # Update the delayed filter estimate using mocap measurement
-        xd, Pd = filter_mocap_update(sim, xpred, Ppred, y_mocap)
-    end
-    push!(sim.xdhist, xd)
-    push!(sim.Pdhist, Pd)
+    #     # Advance the delayed measurement using the IMU measurement from that time
+    #     y_imu_delayed = sim.imuhist[end-delay]
+    #     xpred, Ppred = filter_state_prediction(sim, xd, y_imu_delayed, Pd, dt)
 
-    # Use history of IMU data to predict the state at the current time
-    xf .= xd
-    Pf .= Pd
-    for i = 1:delay-1
-        y_imu_delayed = sim.imuhist[end-delay+i]
-        xf,Pf = filter_state_prediction(sim, xf, y_imu_delayed, Pf, dt)
-    end
-    push!(sim.xfhist, xf)
-    push!(sim.Pfhist, Pf)
+    #     # Update the delayed filter estimate using mocap measurement
+    #     xd, Pd = filter_mocap_update(sim, xpred, Ppred, y_mocap)
+    # end
+    # push!(sim.xdhist, xd)
+    # push!(sim.Pdhist, Pd)
 
-    # Set state estimate to prediction from IMU
-    # y_gyro = gyro_measurement(sim, xn)
-    y_gyro = y_imu[4:6]     # get current angvel from IMU
-    b_gyro = xf[14:16]      # predicted gyro bias
-    ωhat = y_gyro - b_gyro  # predicted angular velocity
-    xhat = [xf[1:10]; ωhat]
-    push!(sim.x̂hist, xhat)
+    # # Use history of IMU data to predict the state at the current time
+    # xf .= xd
+    # Pf .= Pd
+    # for i = 1:delay-1
+    #     y_imu_delayed = sim.imuhist[end-delay+i]
+    #     xf,Pf = filter_state_prediction(sim, xf, y_imu_delayed, Pf, dt)
+    # end
+    # push!(sim.xfhist, xf)
+    # push!(sim.Pfhist, Pf)
+
+    # # Set state estimate to prediction from IMU
+    # # y_gyro = gyro_measurement(sim, xn)
+    # y_gyro = y_imu[4:6]     # get current angvel from IMU
+    # b_gyro = xf[14:16]      # predicted gyro bias
+    # ωhat = y_gyro - b_gyro  # predicted angular velocity
+    # xhat = [xf[1:10]; ωhat]
+    xhat = get_state_estimate!(sim.filter, y_imu, y_mocap, dt)
+    push!(sim.x̂hist, copy(xhat))
 
     # Propagate state
     xn = dynamics_rk4(x, u, dt)

@@ -39,7 +39,8 @@ setcost!(ctrl, Q, R, Qf, dxf, zeros(4))
 solve!(ctrl)
 
 ## 
-sim = Simulator(ctrl)
+filter = DelayedMEKF()
+sim = Simulator(ctrl, filter)
 open(sim.vis)
 
 ##
@@ -47,16 +48,15 @@ reset!(sim)
 tf = 5.0
 tf = 10.0
 t = 0.0
-10*dt
 
 x0 = [0;2;0.5; 1; zeros(3); zeros(6)]
 initialize!(sim, x0, copy(x0), dt, tf)
 step!(sim, t, dt)
 
-sim.opts.mocap_delay = 10 
-sim.opts.delay_comp = 10 
-sim.opts.Vf = Diagonal([fill(1e-4,9); fill(1e-6,6)])  # increase confidence on dynamics
-sim.opts.Wf .= Diagonal([fill(0.3e-3,3); fill(1e-4,3)])
+sim.opts.mocap_delay = 12   # 120 ms
+sim.opts.delay_comp = 12 
+sim.opts.Vf = Diagonal([fill(1e-6,9); fill(1e-6,6)])  # increase confidence on dynamics
+sim.opts.Wf .= Diagonal([fill(1.0e-3,3); fill(1e-3,3)])^2
 runsim(sim, x0; dt=dt, tf=tf)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
 # RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.x̂hist)
