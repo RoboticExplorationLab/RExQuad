@@ -1,4 +1,4 @@
-using Pkg: Pkg;
+import Pkg;
 Pkg.activate(joinpath(@__DIR__, ".."));
 
 using ZMQ
@@ -44,17 +44,14 @@ open(sim.vis)
 reset!(sim)
 tf = 5.0
 t = 0.0
-x = [0;0;1.0; 1; zeros(3); zeros(6)]
-y = getmeasurement(sim, x, trim_controls(), t)
-getcontrol(ctrl, x, y, t) ≈ trim_controls()
-x[3] = 0.5
-all(getcontrol(ctrl, x, y, t) .> trim_controls())
-x[3] = 1.5
-all(getcontrol(ctrl, x, y, t) .< trim_controls())
 
 x0 = [0;2;0.5; 1; zeros(3); zeros(6)]
+initialize!(sim, x0, copy(x0), dt, tf)
+step!(sim, t, dt)
+
 runsim(sim, x0; dt=dt, tf=tf)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
+RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.x̂hist)
 
 finish(sim)
 

@@ -17,15 +17,29 @@ include("controllers.jl")
 
 speye(n) = spdiagm(ones(n))
 
+Base.@kwdef mutable struct SimOpts
+    recvtimeout_ms::Int = 100
+    mocap_delay::Int = 0
+    imu_per_pose::Int = 1
+    imu_bias::Vector{Float64} = 0.1 * randn(6)
+    Wf::Diagonal{Float64,Vector{Float64}} = 0.0001*I(6)  # mocap (measurement) covariance
+    Vf::Diagonal{Float64,Vector{Float64}} = Diagonal([fill(0.0001, 9); fill(1e-6, 6)])  # imu (process) covariance
+end
+
 
 struct Simulator{C}
     ctrl::C
     vis::Visualizer
-    xhist::Vector{Vector{Float64}}
-    uhist::Vector{Vector{Float64}}
+    xhist::Vector{Vector{Float64}}   # true state history
+    uhist::Vector{Vector{Float64}}   # control history
+    x̂hist::Vector{Vector{Float64}}   # state prediction history
+    xfhist::Vector{Vector{Float64}}  # filter state history
+    Pfhist::Vector{Matrix{Float64}}  # state covariance history
+    
     thist::Vector{Float64}
     msg_meas::Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}
     msg_data::Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}
+    mocap_queue::Queue{PoseMsg}
     stats::Dict{String,Any}
     opts::SimOpts
 end
@@ -44,12 +58,18 @@ function Simulator(ctrl::C) where C
     # logs
     xhist = Vector{Float64}[]
     uhist = Vector{Float64}[]
+    xfhist = Vector{Float64}[]
+    x̂hist = Vector{Float64}[]
+    Pfhist = Matrix{Float64}[]
     thist = Vector{Float64}()
     msg_meas = Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}()
     msg_data = Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}()
+    mocap_queue = Queue{PoseMsg}()
     stats = Dict{String,Any}()
     opts = SimOpts()
-    Simulator{C}(ctrl, vis, xhist, uhist, thist, msg_meas, msg_data, stats, opts)
+
+    Simulator{C}(ctrl, vis, xhist, uhist, x̂hist, xfhist, Pfhist, thist, 
+        msg_meas, msg_data, mocap_queue, stats, opts)
 end
 
 function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
@@ -57,6 +77,9 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     empty!(sim.msg_data)
     empty!(sim.xhist)
     empty!(sim.uhist)
+    empty!(sim.xfhist)
+    empty!(sim.x̂hist)
+    empty!(sim.Pfhist)
     empty!(sim.thist)
     empty!(sim.stats)
 
@@ -66,12 +89,14 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     # # end
 
     # Initialize logs
-    xhat = SVector{13,Float32}[]
     latency = Float64[]
+    sizehint!(sim.xhist, approx_size)
+    sizehint!(sim.uhist, approx_size)
+    sizehint!(sim.xfhist, approx_size)
+    sizehint!(sim.x̂hist, approx_size)
+    sizehint!(sim.Pfhist, approx_size)
     sizehint!(latency, approx_size)
-    sizehint!(xhat, approx_size)
     sim.stats["latency"] = latency
-    sim.stats["xhat"] = xhat
     sim.stats["imu_messages_sent"] = 0
 
     return sim
@@ -92,22 +117,34 @@ function finish(sim::Simulator)
     finish(sim.ctrl)
 end
 
-function runsim(sim::Simulator, x0; dt=0.01, tf=Inf, visualize=:none, kwargs...)
+function initialize!(sim::Simulator, x0, xhat0, dt, tf)
+    approx_size = tf < Inf ? round(Int, tf / dt) : 10_000
+    reset!(sim; approx_size)
+
+    # Set initial state
+    push!(sim.xhist, x0)
+    push!(sim.thist, 0)
+
+    # Set initial state estimate
+    push!(sim.x̂hist, xhat0) 
+    push!(sim.xfhist, [xhat0[1:10]; zeros(6)])  # set bias estimate to 0
+    push!(sim.Pfhist, I(15))                    # set initial state covariance
+end
+
+function runsim(sim::Simulator, x0; xhat0=copy(x0), dt=0.01, tf=Inf, visualize=:none, kwargs...)
     x = copy(x0)
     t = 0.0
     freq = 1 / dt  # Hz
     lrl = LoopRateLimiter(10)
     u = trim_controls()
 
-    approx_size = tf < Inf ? round(Int, tf / dt) : 10_000
-    reset!(sim; approx_size, visualize)
+    initialize!(sim, x0, xhat0, dt, tf)
 
     t_start = time()
-    push!(sim.stats["xhat"], SVector{13,Float32}(x))
     while t < tf
         startloop(lrl)
 
-        step!(sim, x, u, t, dt; t_start, visualize, kwargs...)
+        step!(sim, t, dt; t_start, visualize, kwargs...)
 
         println("time = ", t, ", z = ", x[3])
         t += dt
@@ -119,32 +156,50 @@ function runsim(sim::Simulator, x0; dt=0.01, tf=Inf, visualize=:none, kwargs...)
     end
 end
 
-function step!(sim::Simulator, x, u, t, dt; t_start=time(), visualize=:none, send_measurement=false, imu_per_pose=1, pose_delay=0, send_ground_truth=false)
-    # Initialize state estimate
-    if isempty(sim.stats["xhat"])
-        push!(sim.stats["xhat"], x)
-    end
-    xhat = sim.stats["xhat"][end]
-
-    # Get measurement
-    y = getmeasurement(sim, x, u, t)
+function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_measurement=false, imu_per_pose=1, pose_delay=0, send_ground_truth=false)
+    x = sim.xhist[end]    # true state
+    x̂ = sim.x̂hist[end]    # state estimate
+    xf = sim.xfhist[end]  # filter state
+    Pf = sim.Pfhist[end]   # filter state covariance
 
     # Evaluate controller
-    u = getcontrol(sim.ctrl, x, y, t)
+    u = getcontrol(sim.ctrl, x̂, y, t)
 
-    # Propagate dynamics
-    push!(sim.xhist, copy(x))
-    push!(sim.uhist, copy(u))
-    push!(sim.thist, t)
-    x .= dynamics_rk4(x, u, dt)
+    # # Get measurement
+    # y = getmeasurement(sim, x, u, t)
 
+    # Use control to get IMU measurement
+    y_imu = imu_measurement(sim, x, u)
+
+    # Use IMU measurement to predict the next state
+    xpred, Ppred = filter_state_prediction(sim, xf, y_imu, Pf, dt)
+
+    # Propagate state
+    xn = dynamics_rk4(x, u, dt)
+
+    # Set state estimate to prediction from IMU
+    y_gyro = gyro_measurement(sim, xn)
+    b_gyro = xpred[14:16]   # predicted gyro bias
+    ωhat = y_gyro - b_gyro  # predicted angular velocity
+    xhat = [xpred[1:10]; ωhat]
+
+    # Get mocap measurement
+    y_mocap = mocap_measurement(sim, xn)
+    xf, Pf = filter_mocap_update(sim, xpred, Ppred, y_mocap)
+
+    # Save values
+    push!(sim.xhist, xn)
+    push!(sim.x̂hist, xhat)
+    push!(sim.xfhist, xf)
+    push!(sim.Pfhist, Pf)
+    xn
     # Visualize
-    if visualize in (:truth, :all)
-        RobotMeshes.visualize!(sim.vis["truth"], sim, x)
-    elseif visualize in (:estimate, :all)
-        RobotMeshes.visualize!(sim.vis["estimate"], sim, xhat)
-    end
-    x
+    # if visualize in (:truth, :all)
+    #     RobotMeshes.visualize!(sim.vis["truth"], sim, x)
+    # elseif visualize in (:estimate, :all)
+    #     RobotMeshes.visualize!(sim.vis["estimate"], sim, xhat)
+    # end
+    # x
 end
 
 function getcontrol(sim, x, t)
@@ -154,6 +209,7 @@ function getcontrol(sim, x, t)
 end
 
 function getmeasurement(sim::Simulator, x, u, t)
+    y_accel = 1/quad_mass * [zeros(2,4); fill(quad_motor_kf,1,4)]
     # TODO: add noise
     xdot = cont_dynamics(x, u)
     MeasurementMsg(
@@ -163,4 +219,122 @@ function getmeasurement(sim::Simulator, x, u, t)
         xdot[8], xdot[9], xdot[10],
         x[11], x[12], x[13]
     )
+end
+
+function imu_measurement(sim::Simulator, x, u)
+    Kf = [zeros(2,4); fill(quad_motor_kf,1,4)]
+    Bf = [0;0;4*quad_motor_bf]
+    bias = sim.opts.imu_bias
+    Vf = sim.opts.Vf
+    accel = (Kf * u + Bf) / quad_mass
+    gyro = x[11:13]
+    [accel; gyro]  + bias + sqrt(Vf)[1:6,1:6]*randn(6)  # this index seems off?
+end
+
+function gyro_measurement(sim::Simulator, x)
+    bias = sim.opts.imu_bias
+    Vf = sim.opts.Vf
+    gyro = x[11:13]
+    gyro + bias[4:6] + sqrt(Vf)[4:6,4:6]*randn(3)
+end
+
+function mocap_measurement(sim::Simulator, x)
+    Wf = sim.opts.Wf
+    errmap = Rotations.CayleyMap()
+    noise = sqrt(Wf) * randn(6)
+    q = QuatRotation(x[4:7])
+    position = x[1:3] + noise[1:3] 
+    attitude = q * errmap(noise[4:6]) 
+    return [position; Rotations.params(attitude)]
+end
+
+function filter_state_prediction(sim::Simulator, xf,uf,Pf,h)
+    Vf = sim.opts.Vf
+
+    rf = xf[1:3]    # inertial frame
+    qf = xf[4:7]    # body to inertial
+    vf = xf[8:10]   # body frame
+    ab = xf[11:13]  # accel bias
+    ωb = xf[14:16]  # gyro bias
+    
+    af = uf[1:3]    # body frame acceleration (from IMU)
+    ωf = uf[4:6]    # body frame linear velocity (from IMU)
+    
+    ahat = af - ab  # predicted acceleration (with bias removed)
+    ωhat = ωf - ωb  # predicted angular velocity (with bias removed)
+
+    Qf = QuatRotation(qf)
+    g = SA[0,0,9.81]
+
+    # IMU Prediction
+    errmap = Rotations.CayleyMap()
+    y = errmap(-0.5 * h * ωhat)       # rotation from this time step to the next
+    rp = rf + h * Qf * vf             # position prediction
+    qp = Qf * errmap(0.5 * h * ωhat)  # attitude prediction
+    vpk = vf + h * (ahat - Qf\g)      # velocity in old body frame
+    vp = y * vpk                      # velocity in new body frame
+    xp = [rp; Rotations.params(qp); vp; ab; ωb]
+
+    # Jacobian
+    H = Rotations.hmat()
+    L = Rotations.lmult
+    R = Rotations.rmult
+    G(q) = L(q) * H
+    Y = Matrix(y)
+
+    # Derivative of Q(q)*v wrt q
+    dvdq = Rotations.∇rotate(Qf, vf) * G(Qf)
+
+    # Derivative of Q(q)*g wrt g
+    dgdq = Rotations.∇rotate(Qf', g) * G(Qf)
+
+    # Derivative of vp wrt ωb
+    dvdb = 0.5*h*Rotations.∇rotate(y, vpk) * Rotations.jacobian(errmap, -0.5 * h * ωhat)
+
+    # Derivative of qp wrt ωb
+    dqdb = -0.5*h*G(qp)'L(Qf) * Rotations.jacobian(errmap, 0.5 * h * ωhat)
+
+    # Jacobian of prediction (xp wrt xf)
+    #    r           q          v           ab          ωb
+    Af = [
+        I(3)       h*dvdq     h*Matrix(Qf) zeros(3,3) zeros(3,3)
+        zeros(3,3) Y          zeros(3,3)   zeros(3,3) dqdb
+        zeros(3,3) -h*y*dgdq  Y            -h*Y       dvdb
+        zeros(6,3) zeros(6,3) zeros(6,3)            I(6)
+    ]
+    Pp = Af*Pf*Af' + Vf
+
+    xp, Pp
+end
+
+function filter_mocap_update(sim::Simulator, xf, Pf, y_mocap)
+    errmap = Rotations.CayleyMap()
+    Wf = sim.opts.Wf
+    Cf = Matrix(I,6,15)   # measurement Jacobian
+
+    rf = xf[1:3]    # inertial frame
+    qf = xf[4:7]    # body to inertial
+    vf = xf[8:10]   # body frame
+    ab = xf[11:13]  # acceleration bias
+    ωb = xf[14:16]  # IMU bias
+
+    rm = y_mocap[1:3]
+    qm = y_mocap[4:7]
+
+    Qf = QuatRotation(qf)
+    Qm = QuatRotation(qm)
+
+    z = [rm-rf; inv(errmap)(Qf'Qm)]  # innovation
+    S = Cf * Pf * Cf' + Wf
+    Lf = (Pf*Cf')/S  # Kalman filter gain
+    Δx = Lf * z
+    xn = [
+        rf + Δx[1:3]; 
+        Rotations.params(Qf*errmap(Δx[4:6])); 
+        vf + Δx[7:9]; 
+        ab + Δx[10:12]; 
+        ωb + Δx[13:15]
+    ]
+    Pn = (I-Lf*Cf)*Pf*(I-Lf*Cf)' + Lf * Wf * Lf'
+    return xn,Pn
 end

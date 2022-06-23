@@ -166,10 +166,6 @@ function set_conflate(socket::ZMQ.Socket, option_val::Integer)
     end
 end
 
-Base.@kwdef mutable struct SimOpts
-    recvtimeout_ms::Int = 100
-end
-
 struct RiccatiController{T}
     A::Matrix{T}
     B::Matrix{T}
