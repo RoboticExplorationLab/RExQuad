@@ -19,8 +19,9 @@ speye(n) = spdiagm(ones(n))
 
 Base.@kwdef mutable struct SimOpts
     recvtimeout_ms::Int = 100
-    mocap_delay::Int = 0
+    mocap_delay::Int = 0  # actual delay of mocap data
     imu_per_pose::Int = 1
+    delay_comp::Int = 0   # approximate delay used by estimator
     imu_bias::Vector{Float64} = 0.1 * randn(6)
     Wf::Diagonal{Float64,Vector{Float64}} = 0.0001*I(6)  # mocap (measurement) covariance
     Vf::Diagonal{Float64,Vector{Float64}} = Diagonal([fill(0.0001, 9); fill(1e-6, 6)])  # imu (process) covariance
@@ -35,13 +36,15 @@ struct Simulator{C}
     x̂hist::Vector{Vector{Float64}}   # state prediction history
     xfhist::Vector{Vector{Float64}}  # filter state history
     Pfhist::Vector{Matrix{Float64}}  # state covariance history
+    xdhist::Vector{Vector{Float64}}  # delayed filter state history
+    Pdhist::Vector{Matrix{Float64}}  # delayed state covariance history
     imuhist::Vector{Vector{Float64}}    # imu measurement history
     mocaphist::Vector{Pair{Float64,Vector{Float64}}}  # mocap measurement history
     thist::Vector{Float64}
 
     msg_meas::Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}
     msg_data::Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}
-    mocap_queue::Queue{PoseMsg}
+    mocap_queue::Queue{Vector{Float64}}
     stats::Dict{String,Any}
     opts::SimOpts
 end
@@ -60,19 +63,21 @@ function Simulator(ctrl::C) where C
     # logs
     xhist = Vector{Float64}[]
     uhist = Vector{Float64}[]
-    xfhist = Vector{Float64}[]
     x̂hist = Vector{Float64}[]
+    xfhist = Vector{Float64}[]
     Pfhist = Matrix{Float64}[]
+    xdhist = Vector{Float64}[]
+    Pdhist = Matrix{Float64}[]
     imuhist = Vector{Float64}[]
     mocaphist = Pair{Float64,Vector{Float64}}[]
     thist = Vector{Float64}()
     msg_meas = Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}()
     msg_data = Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}()
-    mocap_queue = Queue{PoseMsg}()
+    mocap_queue = Queue{Vector{Float64}}()
     stats = Dict{String,Any}()
     opts = SimOpts()
 
-    Simulator{C}(ctrl, vis, xhist, uhist, x̂hist, xfhist, Pfhist, imuhist, mocaphist, thist, 
+    Simulator{C}(ctrl, vis, xhist, uhist, x̂hist, xfhist, Pfhist, xdhist, Pdhist, imuhist, mocaphist, thist, 
         msg_meas, msg_data, mocap_queue, stats, opts)
 end
 
@@ -81,9 +86,11 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     empty!(sim.msg_data)
     empty!(sim.xhist)
     empty!(sim.uhist)
-    empty!(sim.xfhist)
     empty!(sim.x̂hist)
+    empty!(sim.xfhist)
     empty!(sim.Pfhist)
+    empty!(sim.xdhist)
+    empty!(sim.Pdhist)
     empty!(sim.imuhist)
     empty!(sim.mocaphist)
     empty!(sim.mocap_queue)
@@ -99,9 +106,11 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     latency = Float64[]
     sizehint!(sim.xhist, approx_size)
     sizehint!(sim.uhist, approx_size)
-    sizehint!(sim.xfhist, approx_size)
     sizehint!(sim.x̂hist, approx_size)
+    sizehint!(sim.xfhist, approx_size)
     sizehint!(sim.Pfhist, approx_size)
+    sizehint!(sim.xdhist, approx_size)
+    sizehint!(sim.Pdhist, approx_size)
     sizehint!(latency, approx_size)
     sim.stats["latency"] = latency
     sim.stats["imu_messages_sent"] = 0
@@ -136,6 +145,8 @@ function initialize!(sim::Simulator, x0, xhat0, dt, tf)
     push!(sim.x̂hist, xhat0) 
     push!(sim.xfhist, [xhat0[1:10]; zeros(6)])  # set bias estimate to 0
     push!(sim.Pfhist, I(15))                    # set initial state covariance
+    push!(sim.xdhist, copy(sim.xfhist[end]))
+    push!(sim.Pdhist, I(15))                    # set initial state covariance
 end
 
 function runsim(sim::Simulator, x0; xhat0=copy(x0), dt=0.01, tf=Inf, visualize=:none, kwargs...)
@@ -168,42 +179,60 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
     x̂ = sim.x̂hist[end]    # state estimate
     xf = sim.xfhist[end]  # filter state
     Pf = sim.Pfhist[end]   # filter state covariance
+    xd = sim.xdhist[end]   # delayed filter state
+    Pd = sim.Pdhist[end]   # delayed filter state covariance
+    delay = min(sim.opts.delay_comp, length(sim.xhist))
 
     # Evaluate controller
     u = getcontrol(sim.ctrl, x̂, [], t)
+    # u = getcontrol(sim.ctrl, x, [], t)
 
     # # Get measurement
     # y = getmeasurement(sim, x, u, t)
 
-    # Use control to get IMU measurement
+    # Use control to get simulated IMU measurement
     y_imu = imu_measurement(sim, x, u)
+    push!(sim.imuhist, y_imu)
 
-    # Use IMU measurement to predict the next state
-    xpred, Ppred = filter_state_prediction(sim, xf, y_imu, Pf, dt)
 
-    # Propagate state
-    xn = dynamics_rk4(x, u, dt)
+    # Get (delayed) mocap measurement
+    y_mocap = mocap_measurement(sim, x)
+    if !isnothing(y_mocap)
+        push!(sim.mocaphist, t=>y_mocap)
+
+        # Advance the delayed measurement using the IMU measurement from that time
+        y_imu_delayed = sim.imuhist[end-delay]
+        xpred, Ppred = filter_state_prediction(sim, xd, y_imu_delayed, Pd, dt)
+
+        # Update the delayed filter estimate using mocap measurement
+        xd, Pd = filter_mocap_update(sim, xpred, Ppred, y_mocap)
+    end
+    push!(sim.xdhist, xd)
+    push!(sim.Pdhist, Pd)
+
+    # Use history of IMU data to predict the state at the current time
+    xf .= xd
+    Pf .= Pd
+    for i = 1:delay-1
+        y_imu_delayed = sim.imuhist[end-delay+i]
+        xf,Pf = filter_state_prediction(sim, xf, y_imu_delayed, Pf, dt)
+    end
+    push!(sim.xfhist, xf)
+    push!(sim.Pfhist, Pf)
 
     # Set state estimate to prediction from IMU
     # y_gyro = gyro_measurement(sim, xn)
-    y_gyro = y_imu[4:6] 
-    b_gyro = xpred[14:16]   # predicted gyro bias
+    y_gyro = y_imu[4:6]     # get current angvel from IMU
+    b_gyro = xf[14:16]      # predicted gyro bias
     ωhat = y_gyro - b_gyro  # predicted angular velocity
-    xhat = [xpred[1:10]; ωhat]
-
-    # Get mocap measurement
-    y_mocap = mocap_measurement(sim, xn)
-    xf, Pf = filter_mocap_update(sim, xpred, Ppred, y_mocap)
-
-    # Save values
-    push!(sim.xhist, xn)
+    xhat = [xf[1:10]; ωhat]
     push!(sim.x̂hist, xhat)
-    push!(sim.xfhist, xf)
-    push!(sim.Pfhist, Pf)
-    push!(sim.imuhist, y_imu)
-    push!(sim.mocaphist, t=>y_mocap)
+
+    # Propagate state
+    xn = dynamics_rk4(x, u, dt)
+    push!(sim.xhist, xn)
     push!(sim.thist, t)
-    xn
+
     # Visualize
     # if visualize in (:truth, :all)
     #     RobotMeshes.visualize!(sim.vis["truth"], sim, x)
@@ -256,7 +285,15 @@ function mocap_measurement(sim::Simulator, x)
     q = QuatRotation(x[4:7])
     position = x[1:3] + noise[1:3] 
     attitude = q * errmap(noise[4:6]) 
-    return [position; Rotations.params(attitude)]
+    y_mocap = [position; Rotations.params(attitude)]
+
+    # Handle pose delay
+    enqueue!(sim.mocap_queue, y_mocap)
+    if length(sim.mocap_queue) > sim.opts.mocap_delay
+        return dequeue!(sim.mocap_queue)
+    else
+        return nothing
+    end
 end
 
 function filter_state_prediction(sim::Simulator, xf,uf,Pf,h)
