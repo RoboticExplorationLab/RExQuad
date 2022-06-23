@@ -12,8 +12,10 @@ using Statistics
 using Printf
 using CoordinateTransformations
 using RobotZoo
+using Plots
 
 include("../simulator.jl")
+include("../utils.jl")
 
 ## Initialize controller
 xe = [0; 0; 1; 1; zeros(3); zeros(6)]
@@ -49,11 +51,22 @@ x0 = [0;2;0.5; 1; zeros(3); zeros(6)]
 initialize!(sim, x0, copy(x0), dt, tf)
 step!(sim, t, dt)
 
+sim.opts.Vf = Diagonal([fill(1e-6,9); fill(1e-6,6)])  # increase confidence on dynamics
 runsim(sim, x0; dt=dt, tf=tf)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.x̂hist)
 
 finish(sim)
+
+## Plot the states
+plotstates(sim.thist, sim.xhist, inds=1:3)
+plotstates!(sim.thist, sim.x̂hist, inds=1:3, c=[1 2 3])
+plotstates!(sim.thist[2:end], last.(sim.mocaphist), inds=1:3, c=[1 2 3])
+
+plotstates(sim.thist, sim.xhist, inds=4:7)
+plotstates!(sim.thist, sim.x̂hist, inds=4:7, c=[1 2 3 4])
+plotstates!(sim.thist[2:end], last.(sim.mocaphist), inds=4:7, c=[1 2 3 4])
+
 
 function linear_sim(ctrl, x0, tf=2.0)
     n, m, N = 12, 4, ctrl.N

@@ -35,8 +35,10 @@ struct Simulator{C}
     x̂hist::Vector{Vector{Float64}}   # state prediction history
     xfhist::Vector{Vector{Float64}}  # filter state history
     Pfhist::Vector{Matrix{Float64}}  # state covariance history
-    
+    imuhist::Vector{Vector{Float64}}    # imu measurement history
+    mocaphist::Vector{Pair{Float64,Vector{Float64}}}  # mocap measurement history
     thist::Vector{Float64}
+
     msg_meas::Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}
     msg_data::Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}
     mocap_queue::Queue{PoseMsg}
@@ -61,6 +63,8 @@ function Simulator(ctrl::C) where C
     xfhist = Vector{Float64}[]
     x̂hist = Vector{Float64}[]
     Pfhist = Matrix{Float64}[]
+    imuhist = Vector{Float64}[]
+    mocaphist = Pair{Float64,Vector{Float64}}[]
     thist = Vector{Float64}()
     msg_meas = Vector{NamedTuple{(:tsim, :twall, :y),Tuple{Float64,Float64,MeasurementMsg}}}()
     msg_data = Vector{NamedTuple{(:tsim, :twall, :xu),Tuple{Float64,Float64,StateControlMsg}}}()
@@ -68,7 +72,7 @@ function Simulator(ctrl::C) where C
     stats = Dict{String,Any}()
     opts = SimOpts()
 
-    Simulator{C}(ctrl, vis, xhist, uhist, x̂hist, xfhist, Pfhist, thist, 
+    Simulator{C}(ctrl, vis, xhist, uhist, x̂hist, xfhist, Pfhist, imuhist, mocaphist, thist, 
         msg_meas, msg_data, mocap_queue, stats, opts)
 end
 
@@ -80,6 +84,9 @@ function reset!(sim::Simulator; approx_size=10_000, visualize=:truth)
     empty!(sim.xfhist)
     empty!(sim.x̂hist)
     empty!(sim.Pfhist)
+    empty!(sim.imuhist)
+    empty!(sim.mocaphist)
+    empty!(sim.mocap_queue)
     empty!(sim.thist)
     empty!(sim.stats)
 
@@ -146,7 +153,7 @@ function runsim(sim::Simulator, x0; xhat0=copy(x0), dt=0.01, tf=Inf, visualize=:
 
         step!(sim, t, dt; t_start, visualize, kwargs...)
 
-        println("time = ", t, ", z = ", x[3])
+        println("time = ", t, ", z = ", sim.xhist[end][3])
         t += dt
         # sleep(lrl)
     end
@@ -163,7 +170,7 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
     Pf = sim.Pfhist[end]   # filter state covariance
 
     # Evaluate controller
-    u = getcontrol(sim.ctrl, x̂, y, t)
+    u = getcontrol(sim.ctrl, x̂, [], t)
 
     # # Get measurement
     # y = getmeasurement(sim, x, u, t)
@@ -178,7 +185,8 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
     xn = dynamics_rk4(x, u, dt)
 
     # Set state estimate to prediction from IMU
-    y_gyro = gyro_measurement(sim, xn)
+    # y_gyro = gyro_measurement(sim, xn)
+    y_gyro = y_imu[4:6] 
     b_gyro = xpred[14:16]   # predicted gyro bias
     ωhat = y_gyro - b_gyro  # predicted angular velocity
     xhat = [xpred[1:10]; ωhat]
@@ -192,6 +200,9 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
     push!(sim.x̂hist, xhat)
     push!(sim.xfhist, xf)
     push!(sim.Pfhist, Pf)
+    push!(sim.imuhist, y_imu)
+    push!(sim.mocaphist, t=>y_mocap)
+    push!(sim.thist, t)
     xn
     # Visualize
     # if visualize in (:truth, :all)
@@ -202,7 +213,7 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
     # x
 end
 
-function getcontrol(sim, x, t)
+function getcontrol(sim::Simulator, x, t)
     # TODO: Get this from ZMQ
     u = trim_controls() .+ 0.1
     return ControlMsg(u)
