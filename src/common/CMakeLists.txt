@@ -36,6 +36,12 @@ add_library(quadcommon
 
     riccati.hpp
     riccati.cpp
+
+    delayed_mekf.h
+    delayed_mekf.c
+
+    linear_algebra.h
+    linear_algebra.c
 )
 target_link_libraries(quadcommon
     PUBLIC
