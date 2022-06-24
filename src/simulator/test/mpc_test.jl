@@ -46,7 +46,6 @@ open(sim.vis)
 ##
 reset!(sim)
 tf = 5.0
-tf = 10.0
 t = 0.0
 
 x0 = [0;2;0.5; 1; zeros(3); zeros(6)]

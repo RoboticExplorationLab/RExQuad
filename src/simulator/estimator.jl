@@ -1,3 +1,5 @@
+include("rotations.jl")
+
 mutable struct DelayedMEKF
     Wf::Diagonal{Float64,Vector{Float64}}  # mocap (measurement) noise
     Vf::Diagonal{Float64,Vector{Float64}}  # imu (process) noise
@@ -99,43 +101,44 @@ function state_prediction(filter::DelayedMEKF, xf, uf, Pf, h)
     ahat = af - ab  # predicted acceleration (with bias removed)
     ωhat = ωf - ωb  # predicted angular velocity (with bias removed)
 
-    Qf = QuatRotation(qf)
+    # Qf = QuatRotation(qf)
+    Qf = quat2rotmat(qf)
     g = SA[0,0,9.81]
 
+    H = hmat()
+    L = lmat
+    R = rmat
+    G(q) = lmat(q) * H
+
     # IMU Prediction
-    errmap = Rotations.CayleyMap()
-    y = errmap(-0.5 * h * ωhat)       # rotation from this time step to the next
-    rp = rf + h * Qf * vf             # position prediction
-    qp = Qf * errmap(0.5 * h * ωhat)  # attitude prediction
-    vpk = vf + h * (ahat - Qf\g)      # velocity in old body frame
-    vp = y * vpk                      # velocity in new body frame
-    xp = [rp; Rotations.params(qp); vp; ab; ωb]
+    y = cay(-0.5 * h * ωhat)             # rotation from this time step to the next
+    Y = quat2rotmat(y)
+    rp = rf + h * Qf * vf                # position prediction
+    qp = lmat(qf) * cay(0.5 * h * ωhat)  # attitude prediction
+    vpk = vf + h * (ahat - Qf'g)         # velocity in old body frame
+    vp = Y * vpk                         # velocity in new body frame
+    xp = [rp; qp; vp; ab; ωb]
 
     # Jacobian
-    H = Rotations.hmat()
-    L = Rotations.lmult
-    R = Rotations.rmult
-    G(q) = L(q) * H
-    Y = Matrix(y)
 
     # Derivative of Q(q)*v wrt q
-    dvdq = Rotations.∇rotate(Qf, vf) * G(Qf)
+    dvdq = drotate(Qf, vf) * G(Qf)
 
     # Derivative of Q(q)*g wrt g
-    dgdq = Rotations.∇rotate(Qf', g) * G(Qf)
+    dgdq = drotate(Qf', g) * G(Qf)
 
     # Derivative of vp wrt ωb
-    dvdb = 0.5*h*Rotations.∇rotate(y, vpk) * Rotations.jacobian(errmap, -0.5 * h * ωhat)
+    dvdb = 0.5*h*drotate(y, vpk) * dcay(-0.5 * h * ωhat)
 
     # Derivative of qp wrt ωb
-    dqdb = -0.5*h*G(qp)'L(Qf) * Rotations.jacobian(errmap, 0.5 * h * ωhat)
+    dqdb = -0.5*h*G(qp)'L(Qf) * dcay(0.5 * h * ωhat)
 
     # Jacobian of prediction (xp wrt xf)
     #    r           q          v           ab          ωb
     Af = [
         I(3)       h*dvdq     h*Matrix(Qf) zeros(3,3) zeros(3,3)
         zeros(3,3) Y          zeros(3,3)   zeros(3,3) dqdb
-        zeros(3,3) -h*y*dgdq  Y            -h*Y       dvdb
+        zeros(3,3) -h*Y*dgdq  Y            -h*Y       dvdb
         zeros(6,3) zeros(6,3) zeros(6,3)            I(6)
     ]
     Pp = Af*Pf*Af' + Vf
@@ -144,7 +147,6 @@ function state_prediction(filter::DelayedMEKF, xf, uf, Pf, h)
 end
 
 function measurement_update(filter::DelayedMEKF, xf, Pf, y_mocap)
-    errmap = Rotations.CayleyMap()
     Wf = filter.Wf
     Cf = Matrix(I,6,15)   # measurement Jacobian
 
@@ -157,16 +159,13 @@ function measurement_update(filter::DelayedMEKF, xf, Pf, y_mocap)
     rm = y_mocap[1:3]
     qm = y_mocap[4:7]
 
-    Qf = QuatRotation(qf)
-    Qm = QuatRotation(qm)
-
-    z = [rm-rf; inv(errmap)(Qf'Qm)]  # innovation
+    z = [rm-rf; icay(lmat(qf)'qm)]  # innovation
     S = Cf * Pf * Cf' + Wf
     Lf = (Pf*Cf')/S  # Kalman filter gain
     Δx = Lf * z
     xn = [
         rf + Δx[1:3]; 
-        Rotations.params(Qf*errmap(Δx[4:6])); 
+        lmat(qf)*cay(Δx[4:6]);
         vf + Δx[7:9]; 
         ab + Δx[10:12]; 
         ωb + Δx[13:15]
