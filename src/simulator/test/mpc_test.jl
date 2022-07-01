@@ -66,7 +66,7 @@ finish(sim)
 ## Plot the states
 plotstates(sim.thist, sim.xhist, inds=1:3)
 plotstates!(sim.thist, sim.x̂hist, inds=1:3, c=[1 2 3])
-plotstates!(sim.thist[2:end], last.(sim.mocaphist), inds=1:3, c=[1 2 3])
+plotstates!(sim.thist[14:end], last.(sim.mocaphist), inds=1:3, c=[1 2 3])
 
 plotstates(sim.thist, sim.xhist, inds=4:7)
 plotstates!(sim.thist, sim.x̂hist, inds=4:7, c=[1 2 3 4])

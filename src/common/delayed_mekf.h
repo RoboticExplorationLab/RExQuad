@@ -32,5 +32,7 @@ const double* rexquad_GetStateEstimate(const rexquad_DelayedMEKF* filter);
 
 const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter);
 
+const double* rexquad_GetPredictedCovariance(const rexquad_DelayedMEKF* filter);
+
 void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
                              const double* uf, const double* Pf, double h);

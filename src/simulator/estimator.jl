@@ -112,7 +112,6 @@ function state_prediction(filter::DelayedMEKF, xf, uf, Pf, h)
 
     phi1 = -0.5*h*ωhat
     phi2 = +0.5*h*ωhat
-    display(lmqt(qf))
 
     # IMU Prediction
     y = cay(phi1)             # rotation from this time step to the next
@@ -126,16 +125,17 @@ function state_prediction(filter::DelayedMEKF, xf, uf, Pf, h)
     # Jacobian
 
     # Derivative of Q(q)*v wrt q
-    dvdq = drotate(Qf, vf) * G(Qf)
+    dvdq = drotate(qf, vf) * G(qf)
 
     # Derivative of Q(q)*g wrt g
-    dgdq = drotate(Qf', g) * G(Qf)
+    dgdq = drotate(qinv(qf), g) * G(qf)
+    display(dgdq)
 
     # Derivative of vp wrt ωb
     dvdb = 0.5*h*drotate(y, vpk) * dcay(-0.5 * h * ωhat)
 
     # Derivative of qp wrt ωb
-    dqdb = -0.5*h*G(qp)'L(Qf) * dcay(0.5 * h * ωhat)
+    dqdb = -0.5*h*G(qp)'L(qf) * dcay(0.5 * h * ωhat)
 
     # Jacobian of prediction (xp wrt xf)
     #    r           q          v           ab          ωb

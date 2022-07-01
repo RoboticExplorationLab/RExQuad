@@ -100,17 +100,17 @@ void rexquad_InitializeDelayedMEKF(rexquad_DelayedMEKF* filter, int delay_comp,
 }
 
 void rexquad_InitializeDelayMEKFDefault(rexquad_DelayedMEKF* filter) {
-  Matrix Wf = slap_MatrixFromArray(6, 6, filter->Wf);
-  Matrix Vf = slap_MatrixFromArray(6, 6, filter->Vf);
+  Matrix Wf = slap_MatrixFromArray(6, 1, filter->Wf);
+  Matrix Vf = slap_MatrixFromArray(15, 1, filter->Vf);
   Matrix xf = slap_MatrixFromArray(16, 1, filter->xf);
   Matrix Pf = slap_MatrixFromArray(15, 15, filter->Pf);
   Matrix xd = slap_MatrixFromArray(16, 1, filter->xd);
   Matrix Pd = slap_MatrixFromArray(15, 15, filter->Pd);
   Matrix xhat = slap_MatrixFromArray(13, 1, filter->xhat);
-  slap_MatrixSetIdentity(&Wf, 0.0001);
-  slap_MatrixSetIdentity(&Vf, 0.0001);
+  slap_MatrixSetConst(&Wf, 0.0001);
+  slap_MatrixSetConst(&Vf, 0.0001);
   for (int i = 0; i < 6; ++i) {
-    slap_MatrixSetElement(&Vf, i + 9, i + 9, 1e-6);
+     slap_MatrixSetElement(&Vf, i + 9, 0, 1e-6);
   }
   slap_MatrixSetIdentity(&Pf, 1.0);
   slap_MatrixSetIdentity(&Pd, 1.0);
@@ -248,14 +248,8 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   Matrix dgdq = slap_MatrixFromArray(3, 4, drot_);
   Matrix dgdp = slap_MatrixFromArray(3, 3, dgdp_);
   Matrix dvdp = slap_MatrixFromArray(3, 3, dvdp_);
-  printf("qf_inv: ");
-  slap_PrintRowVector(&qf_inv);
-  printf("g: ");
-  slap_PrintRowVector(&g);
   qmat_drotate(dgdq.data, qf_inv.data, g.data);
   slap_MatrixMultiply(&dgdp, &dgdq, &G, 0, 0, 1.0, 0.0);
-  printf("dgdp:\n");
-  slap_PrintMatrix(&dgdp);
   slap_MatrixMultiply(&dvdp, &Y1, &dgdp, 0, 0, -h, 0.0);
 
   // Derivative of vp wrt wb
@@ -303,11 +297,25 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   slap_SubMatrixCopyFromMatrix(&Af_dvdw, &dvdb);
   SubMatrix Af_dbdb = slap_SubMatrixFromMatrix(9, 9, 6, 6, &Af);
   slap_SubMatrixSetIdentity(&Af_dbdb, 1.0);
-  slap_PrintMatrix(&Af);
+
+  // Calculate Predicted Covariance
+  double PAt_[225];
+  Matrix PAt = slap_MatrixFromArray(15, 15, PAt_);
+  slap_MatrixSetConst(&PAt, 0.0);
+  const Matrix Pf_mat = slap_MatrixFromArray(15, 15, (double*)Pf);
+  // slap_MatrixCopyFromArray(&P)
+  slap_MatrixSetConst(&Pp, 0.0);
+  slap_MatrixSetDiagonal(&Pp, filter->Vf);
+
+  slap_MatrixMultiply(&PAt, &Pf_mat, &Af, 0, 1, 1.0, 0.0);
+  slap_MatrixMultiply(&Pp, &Af, &PAt, 0, 0, 1.0, 1.0);
 
   (void)Pf;
   (void)Pp;
 }
-const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter) {
+inline const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter) {
   return filter->xp;
+}
+inline const double* rexquad_GetPredictedCovariance(const rexquad_DelayedMEKF* filter) {
+  return filter->Pp;
 }
