@@ -1,8 +1,9 @@
 #include "delayed_mekf.h"
 
 #include <slap/slap.h>
-#include <stdlib.h>
+#include <slap/submatrix.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "linear_algebra.h"
 #include "rotations.h"
@@ -109,7 +110,7 @@ void rexquad_InitializeDelayMEKFDefault(rexquad_DelayedMEKF* filter) {
   slap_MatrixSetIdentity(&Wf, 0.0001);
   slap_MatrixSetIdentity(&Vf, 0.0001);
   for (int i = 0; i < 6; ++i) {
-    slap_MatrixSetElement(&Vf, i+9, i+9, 1e-6);
+    slap_MatrixSetElement(&Vf, i + 9, i + 9, 1e-6);
   }
   slap_MatrixSetIdentity(&Pf, 1.0);
   slap_MatrixSetIdentity(&Pd, 1.0);
@@ -144,6 +145,7 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   Matrix vp = slap_MatrixFromArray(3, 1, filter->xp + 7);
   Matrix ap = slap_MatrixFromArray(3, 1, filter->xp + 10);
   Matrix wp = slap_MatrixFromArray(3, 1, filter->xp + 13);
+  Matrix Pp = slap_MatrixFromArray(15, 15, filter->Pp);
 
   // Calculate predicted (corrected) IMU terms
   //   ahat = af - ab
@@ -155,22 +157,25 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   slap_MatrixAddition(&ahat, &af, &ab, -1.0);
   slap_MatrixAddition(&what, &wf, &wb, -1.0);
 
-  //
+  // Calculate useful quaternion matrices
   double Qf_[9];
   double g_[3] = {0, 0, 9.81};
   double L_[16];
   double R_[16];
   double G_[12];
+  double qf_inv_[3];
   Matrix Qf = slap_MatrixFromArray(3, 3, Qf_);
   Matrix g = slap_MatrixFromArray(3, 1, g_);
   Matrix L = slap_MatrixFromArray(4, 4, L_);
   Matrix R = slap_MatrixFromArray(4, 4, R_);
   Matrix G = slap_MatrixFromArray(4, 3, G_);
+  Matrix qf_inv = slap_MatrixFromArray(4, 1, qf_inv_);
 
   qmat_quat2rotmat(Qf.data, qf.data);
   qmat_lmat(L.data, qf.data);
   qmat_rmat(R.data, qf.data);
   qmat_gmat(G.data, qf.data);
+  qmat_inv(qf_inv.data, qf.data);
 
   // Calculate
   //  phi1 = -0.5 * h * (wf - wb)
@@ -199,8 +204,10 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
 
   // Predicted position
   //  rp = rf + Qf * vf
-  slap_MatrixCopy(&rp, &rf);
-  slap_MatrixMultiply(&rp, &Qf, &vf, 0, 0, h, 1.0);
+  double vi_[3];
+  Matrix vi = slap_MatrixFromArray(3, 1, vi_);  // velocity in inertial (world) frame
+  qmat_rotate(vi.data, qf.data, vf.data);
+  slap_MatrixAddition(&rp, &rf, &vi, h);
 
   // Predicted quaternion
   //  qp = L(qf) * cay(phi2)
@@ -208,11 +215,14 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
 
   // Velocity in the old body frame
   //  vpk = vf + h * (ahat - Qf'g)
+  double gi_[3];
   double vpk_[3];
   Matrix vpk = slap_MatrixFromArray(3, 1, vpk_);
+  Matrix gi = slap_MatrixFromArray(3, 1, gi_);  // gravity in inertial (world) frame
+  qmat_rotate(gi.data, qf.data, g.data);
   slap_MatrixCopy(&vpk, &ahat);
-  slap_MatrixMultiply(&vpk, &Qf, &g, 1, 0, -h, h);
-  slap_MatrixAddition(&vpk, &vf, &vpk, 1.0);
+  slap_MatrixAddition(&vpk, &vpk, &gi, -1.0);
+  slap_MatrixAddition(&vpk, &vf, &vpk, h);
 
   // Velocity in the new body frame
   //  vp = Y * vpk
@@ -222,18 +232,81 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   slap_MatrixCopy(&ap, &ab);
   slap_MatrixCopy(&wp, &wb);
 
-  (void)filter;
-  (void)wp;
-  (void)ap;
-  (void)g;
-  (void)rf;
-  (void)qf;
-  (void)vf;
-  (void)af;
-  (void)wf;
-  (void)ab;
-  (void)wb;
+  // Derivative of rp wrt q
+  //  dvdp = h * drotate(qf, vf) * G(qf)
+  double drot_[12];
+  double drdp_[9];
+  Matrix drdq = slap_MatrixFromArray(3, 4, drot_);
+  Matrix drdp = slap_MatrixFromArray(3, 3, drdp_);
+  qmat_drotate(drdq.data, qf.data, vf.data);
+  slap_MatrixMultiply(&drdp, &drdq, &G, 0, 0, h, 0.0);
+
+  // Derivative of vp wrt q (rotation error)
+  //  dvdp = -h * Y * drotate(qf' g) * G(qf)
+  double dgdp_[9];
+  double dvdp_[9];
+  Matrix dgdq = slap_MatrixFromArray(3, 4, drot_);
+  Matrix dgdp = slap_MatrixFromArray(3, 3, dgdp_);
+  Matrix dvdp = slap_MatrixFromArray(3, 3, dvdp_);
+  printf("qf_inv: ");
+  slap_PrintRowVector(&qf_inv);
+  printf("g: ");
+  slap_PrintRowVector(&g);
+  qmat_drotate(dgdq.data, qf_inv.data, g.data);
+  slap_MatrixMultiply(&dgdp, &dgdq, &G, 0, 0, 1.0, 0.0);
+  printf("dgdp:\n");
+  slap_PrintMatrix(&dgdp);
+  slap_MatrixMultiply(&dvdp, &Y1, &dgdp, 0, 0, -h, 0.0);
+
+  // Derivative of vp wrt wb
+  //  dvdb = 0.5 * h * drotate(y, vpk) * dcay(phi1)
+  double dcay_[12];
+  double dvdb_[9];
+  Matrix dcay = slap_MatrixFromArray(4, 3, dcay_);
+  Matrix dydq = slap_MatrixFromArray(3, 4, drot_);
+  Matrix dvdb = slap_MatrixFromArray(3, 3, dvdb_);
+  qmat_drotate(dydq.data, y1.data, vpk.data);
+  qmat_dcay(dcay.data, phi1.data);
+  slap_MatrixMultiply(&dvdb, &dydq, &dcay, 0, 0, 0.5 * h, 0.0);
+
+  // Derivative of qp wrt wb
+  //  dqdb = -0.5 * h * G(qp)'L(qf) * dcay(phi2)
+  double dqdb_[9];
+  Matrix GtL = slap_MatrixFromArray(3, 4, drot_);   // steal data from drot
+  Matrix dqdb = slap_MatrixFromArray(3, 3, dqdb_);
+  qmat_gmat(G.data, qp.data);
+  qmat_dcay(dcay.data, phi2.data);
+  slap_MatrixMultiply(&GtL, &G, &L, 1, 0, 1.0, 0.0);
+  slap_MatrixMultiply(&dqdb, &GtL, &dcay, 0, 0, -0.5 * h, 0.0);
+
+  // Calculate Jacobian
+  double Af_[225];
+  Matrix Af = slap_MatrixFromArray(15, 15, Af_);
+  slap_MatrixSetConst(&Af, 0.0);
+  SubMatrix Af_drdr = slap_SubMatrixFromMatrix(0, 0, 3, 3, &Af);
+  slap_SubMatrixSetIdentity(&Af_drdr, 1.0);
+  SubMatrix Af_drdp = slap_SubMatrixFromMatrix(0, 3, 3, 3, &Af);
+  slap_SubMatrixCopyFromMatrix(&Af_drdp, &drdp);
+  SubMatrix Af_drdv = slap_SubMatrixFromMatrix(0, 6, 3, 3, &Af);
+  slap_SubMatrixCopyWithScaling(&Af_drdv, &Qf, h);
+  SubMatrix Af_dpdp = slap_SubMatrixFromMatrix(3, 3, 3, 3, &Af);
+  slap_SubMatrixCopyFromMatrix(&Af_dpdp, &Y1);
+  SubMatrix Af_dpdw = slap_SubMatrixFromMatrix(3, 12, 3, 3, &Af);
+  slap_SubMatrixCopyFromMatrix(&Af_dpdw, &dqdb);
+  SubMatrix Af_dvdp = slap_SubMatrixFromMatrix(6, 3, 3, 3, &Af);
+  slap_SubMatrixCopyFromMatrix(&Af_dvdp, &dvdp);
+  SubMatrix Af_dvdv = slap_SubMatrixFromMatrix(6, 6, 3, 3, &Af);
+  slap_SubMatrixCopyFromMatrix(&Af_dvdv, &Y1);
+  SubMatrix Af_dvda = slap_SubMatrixFromMatrix(6, 9, 3, 3, &Af);
+  slap_SubMatrixCopyWithScaling(&Af_dvda, &Y1, -h);
+  SubMatrix Af_dvdw = slap_SubMatrixFromMatrix(6, 12, 3, 3, &Af);
+  slap_SubMatrixCopyFromMatrix(&Af_dvdw, &dvdb);
+  SubMatrix Af_dbdb = slap_SubMatrixFromMatrix(9, 9, 6, 6, &Af);
+  slap_SubMatrixSetIdentity(&Af_dbdb, 1.0);
+  slap_PrintMatrix(&Af);
+
   (void)Pf;
+  (void)Pp;
 }
 const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter) {
   return filter->xp;
