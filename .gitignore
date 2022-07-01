@@ -5,6 +5,8 @@
 /bin
 /build
 /buildcode
+/cmake-build*
+/.idea
 .cache
 *.pts
 /statprof
