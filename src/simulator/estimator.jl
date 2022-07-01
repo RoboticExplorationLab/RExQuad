@@ -110,11 +110,15 @@ function state_prediction(filter::DelayedMEKF, xf, uf, Pf, h)
     R = rmat
     G(q) = lmat(q) * H
 
+    phi1 = -0.5*h*ωhat
+    phi2 = +0.5*h*ωhat
+    display(lmqt(qf))
+
     # IMU Prediction
-    y = cay(-0.5 * h * ωhat)             # rotation from this time step to the next
+    y = cay(phi1)             # rotation from this time step to the next
     Y = quat2rotmat(y)
     rp = rf + h * Qf * vf                # position prediction
-    qp = lmat(qf) * cay(0.5 * h * ωhat)  # attitude prediction
+    qp = lmat(qf) * cay(phi2)             # attitude prediction
     vpk = vf + h * (ahat - Qf'g)         # velocity in old body frame
     vp = Y * vpk                         # velocity in new body frame
     xp = [rp; qp; vp; ab; ωb]

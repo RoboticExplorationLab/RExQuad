@@ -37,6 +37,9 @@ add_library(quadcommon
     riccati.hpp
     riccati.cpp
 
+    rotations.h
+    rotations.c
+
     delayed_mekf.h
     delayed_mekf.c
 
@@ -47,6 +50,7 @@ target_link_libraries(quadcommon
     PUBLIC
     ArduinoEigen
     empc
+    slap
 )
 target_include_directories(quadcommon
     INTERFACE

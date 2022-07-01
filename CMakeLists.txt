@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include(CMakePrintHelpers)
+cmake_policy(SET CMP0077 NEW)  # propagate options into FetchContent deps
 
 #############################################
 # Options
@@ -46,8 +47,8 @@ FetchContent_Declare(libzmq
   GIT_REPOSITORY https://github.com/zeromq/libzmq
   GIT_TAG 4097855ddaaa65ed7b5e8cb86d143842a594eebd  # version 4.3.4
 )
-FetchContent_MakeAvailable(libzmq)
 set(ZMQ_BUILD_TESTS "OFF" CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(libzmq)
 
 # libserialport
 find_package(PkgConfig)
@@ -69,6 +70,9 @@ target_include_directories(ArduinoEigen
   INTERFACE
   ${ARDUINO_LIB_DIR}/ArduinoEigen
 )
+
+# slap
+add_subdirectory("${ARDUINO_LIB_DIR}/slap")
 
 # NatNet SDK
 set(DEP_DIR "${PROJECT_SOURCE_DIR}/deps")

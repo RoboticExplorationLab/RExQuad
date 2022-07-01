@@ -202,6 +202,9 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
 
     # Get (delayed) mocap measurement
     y_mocap = mocap_measurement(sim, x)
+    if !isnothing(y_mocap)
+        push!(sim.mocaphist, t=>y_mocap)
+    end
 
     # if !isnothing(y_mocap)
     #     push!(sim.mocaphist, t=>y_mocap)

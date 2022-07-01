@@ -21,6 +21,7 @@ arduino-cli lib install "Adafruit Unified Sensor"
     ```
 10. Install the libserialport library, building from source:
     ```
+    sudo apt-get install autoconf -y
     cd libserialport
     ./autogen
     ./configure
