@@ -1,6 +1,13 @@
 #include "rotations.h"
 #include "math.h"
 
+void qmat_inv(double* qinv, const double* q) {
+  qinv[0] = q[0];
+  qinv[1] = -q[1];
+  qinv[2] = -q[2];
+  qinv[3] = -q[3];
+}
+
 void qmat_quat2rotmat(double* Q, const double* q) {
   Q[0+0] = (q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
   Q[0+1] = 2 * (q[1] * q[2] + q[0]*q[3]);

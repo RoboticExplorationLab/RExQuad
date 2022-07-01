@@ -1,5 +1,6 @@
 #pragma once
 
+void qmat_inv(double* qinv, const double* q);
 void qmat_quat2rotmat(double* Q, const double* q);
 void qmat_skewmat(double* S, const double* x);
 void qmat_lmat(double* L, const double* q);
