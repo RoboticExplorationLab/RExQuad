@@ -13,9 +13,7 @@ rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp) {
   const int n = 16;  // dimension of filter state
   const int e = 15;  // dimension of error filter state
   const int n0 = 13;
-  int total_doubles = m + e + 4 * n + 4 * e * e + n0 + MAX_IMU_HISTORY * m;
-
-  double* imuhist[MAX_IMU_HISTORY];
+  int total_doubles = m + e + 4 * n + 4 * e * e + n0 + REXQUAD_QUEUE_SIZE * m;
 
   // Allocate all of the data needed in one block
   double* data = (double*)malloc(total_doubles * sizeof(double));
@@ -28,14 +26,14 @@ rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp) {
   double* xd = Pf + e * e;
   double* Pd = xd + n;
   double* xp = Pd + e * e;
-  double* Pp = xd + n;
+  double* Pp = xp + n;
   double* xn = Pp + e * e;
   double* Pn = xn + n;
   double* xhat = Pn + e * e;
   double* imuhist0 = xhat + n;
-  for (int i = 0; i < MAX_IMU_HISTORY; ++i) {
-    imuhist[i] = imuhist0 + i * m;
-  }
+
+  // Assign the data for the history of IMU measurements
+  rexquad_VectorQueue imuhist = rexquad_VectorQueueCreate(imuhist0, m);
 
   // Create filter
   rexquad_DelayedMEKF filter = {
@@ -60,21 +58,14 @@ rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp) {
 void rexquad_FreeDelayedMEKF(rexquad_DelayedMEKF* filter) { free(filter->Wf); }
 
 void rexquad_InitializeDelayedMEKF(rexquad_DelayedMEKF* filter, int delay_comp,
-                                   const double* Wf, const double* Vf, const double* x0,
+                                   const double* x0, const double* Wf, const double* Vf,
                                    const double* b0, const double* Pf0) {
   const int m = 6;
-  const int n = 15;
+  const int n = 16;
+  const int e = n - 1;
   const int n0 = 13;
 
   filter->delay_comp = delay_comp;
-
-  // Copy noise covariances
-  for (int i = 0; i < m; ++i) {
-    filter->Wf[i] = Wf[i];
-  }
-  for (int i = 0; i < n; ++i) {
-    filter->Vf[i] = Vf[i];
-  }
 
   // Copy initial state
   for (int i = 0; i < n0; ++i) {
@@ -86,20 +77,53 @@ void rexquad_InitializeDelayedMEKF(rexquad_DelayedMEKF* filter, int delay_comp,
     filter->xf[i] = x0[i];
   }
 
-  // Copy initial bias values into filter state
+  // (optional) Copy initial bias values into filter state
   for (int i = 0; i < m; ++i) {
-    filter->xf[i + 10] = b0[i];
+    double val = b0 ? b0[i] : 0.0;
+    filter->xf[i + 10] = val;
   }
 
-  // Copy initial covariance
-  for (int i = 0; i < n * n; ++i) {
-    filter->Pf[i] = Pf0[i];
-    filter->Pd[i] = Pf0[i];
+  // (optional) Copy noise covariances
+  for (int i = 0; i < m; ++i) {
+    double val = Wf ? Wf[i] : 1e-4;
+    filter->Wf[i] =  val;
+  }
+  if (Vf) {
+    for (int i = 0; i < e; ++i) {
+      filter->Vf[i] = Vf[i];
+    }
+  } else {
+    for (int i = 0; i < 9; ++i) {
+      filter->Vf[i] = 1e-4;
+    }
+    for (int i = 0; i < 6; ++i) {
+      filter->Vf[i+9] = 1e-6;
+    }
   }
 
-  // Copy filter state to delayed filtered state
+  // (optional) Copy initial covariance
+  if (Pf0) {
+    for (int i = 0; i < e * e; ++i) {
+      filter->Pf[i] = Pf0[i];
+      filter->Pd[i] = Pf0[i];
+      filter->Pn[i] = Pf0[i];
+    }
+  } else {
+    Matrix Pf = slap_MatrixFromArray(e, e, filter->Pf);
+    Matrix Pd = slap_MatrixFromArray(e, e, filter->Pd);
+    Matrix Pp = slap_MatrixFromArray(e, e, filter->Pn);
+    Matrix Pn = slap_MatrixFromArray(e, e, filter->Pn);
+    slap_MatrixSetIdentity(&Pf, 1.0);
+    slap_MatrixSetIdentity(&Pd, 1.0);
+    slap_MatrixSetIdentity(&Pp, 1.0);
+    slap_MatrixSetIdentity(&Pn, 1.0);
+  }
+
+  // Copy filter state to other states
   for (int i = 0; i < n; ++i) {
     filter->xd[i] = filter->xf[i];
+    filter->xp[i] = filter->xf[i];
+    filter->xn[i] = filter->xf[i];
   }
 }
 
@@ -114,7 +138,7 @@ void rexquad_InitializeDelayMEKFDefault(rexquad_DelayedMEKF* filter) {
   slap_MatrixSetConst(&Wf, 0.0001);
   slap_MatrixSetConst(&Vf, 0.0001);
   for (int i = 0; i < 6; ++i) {
-     slap_MatrixSetElement(&Vf, i + 9, 0, 1e-6);
+    slap_MatrixSetElement(&Vf, i + 9, 0, 1e-6);
   }
   slap_MatrixSetIdentity(&Pf, 1.0);
   slap_MatrixSetIdentity(&Pd, 1.0);
@@ -131,6 +155,18 @@ const double* rexquad_GetFilterState(const rexquad_DelayedMEKF* filter) {
 
 const double* rexquad_GetStateEstimate(const rexquad_DelayedMEKF* filter) {
   return filter->xhat;
+}
+inline const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter) {
+  return filter->xp;
+}
+inline const double* rexquad_GetPredictedCovariance(const rexquad_DelayedMEKF* filter) {
+  return filter->Pp;
+}
+inline const double* rexquad_GetUpdatedState(const rexquad_DelayedMEKF* filter) {
+  return filter->xn;
+}
+inline const double* rexquad_GetUpdatedCovariance(const rexquad_DelayedMEKF* filter) {
+  return filter->Pn;
 }
 
 void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
