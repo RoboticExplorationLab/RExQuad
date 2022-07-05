@@ -306,7 +306,7 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   // Derivative of qp wrt wb
   //  dqdb = -0.5 * h * G(qp)'L(qf) * dcay(phi2)
   double dqdb_[9];
-  Matrix GtL = slap_MatrixFromArray(3, 4, drot_);   // steal data from drot
+  Matrix GtL = slap_MatrixFromArray(3, 4, drot_);  // steal data from drot
   Matrix dqdb = slap_MatrixFromArray(3, 3, dqdb_);
   qmat_gmat(G.data, qp.data);
   qmat_dcay(dcay.data, phi2.data);
@@ -343,7 +343,7 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   Matrix PAt = slap_MatrixFromArray(15, 15, PAt_);
   slap_MatrixSetConst(&PAt, 0.0);
   const Matrix Pf_mat = slap_MatrixFromArray(15, 15, (double*)Pf);
-  // slap_MatrixCopyFromArray(&P)
+  // slap_MatrixCopyFromArray(&Pf_mat, Pf);
   slap_MatrixSetConst(&Pp, 0.0);
   slap_MatrixSetDiagonal(&Pp, filter->Vf);
 
@@ -353,15 +353,8 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   (void)Pf;
   (void)Pp;
 }
-inline const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter) {
-  return filter->xp;
-}
-inline const double* rexquad_GetPredictedCovariance(const rexquad_DelayedMEKF* filter) {
-  return filter->Pp;
-}
 void rexquad_MeasurementUpdate(rexquad_DelayedMEKF* filter, const double* xf,
                                const double* Pf, const double* y_mocap) {
-
   // Split up the filter state
   const Matrix rf = slap_MatrixFromArray(3, 1, (double*)xf + 0);
   const Matrix qf = slap_MatrixFromArray(4, 1, (double*)xf + 3);
@@ -409,7 +402,7 @@ void rexquad_MeasurementUpdate(rexquad_DelayedMEKF* filter, const double* xf,
   slap_MatrixMultiply(&S, &CP, &Cf, 0, 1, 1.0, 1.0);
 
   //   Lt = S\(Cf*Pf)
-  Matrix* Lt = &CP;   // Kalman gain transposed
+  Matrix* Lt = &CP;  // Kalman gain transposed
   slap_CholeskyFactorize(&S);
   slap_CholeskySolve(&S, Lt);
 
@@ -445,14 +438,129 @@ void rexquad_MeasurementUpdate(rexquad_DelayedMEKF* filter, const double* xf,
 
   tmp = slap_MatrixFromArray(6, 15, tmp_);  // use the memory from the previous temp array
   Matrix Wf_diag = slap_MatrixFromArray(6, 1, filter->Wf);
-  slap_DiagonalMultiplyLeft(&tmp, &Wf_diag, Lt, 1.0);
+  slap_DiagonalMultiplyLeft(&tmp, &Wf_diag, Lt);
   slap_MatrixMultiply(&Pn, Lt, &tmp, 1, 0, 1.0, 1.0);
 
-  (void) Pf;
+  (void)Pf;
 }
-const double* rexquad_GetUpdatedState(const rexquad_DelayedMEKF* filter) {
-  return filter->xn;
+
+void rexquad_CacheIMUMeasurement(rexquad_DelayedMEKF* filter, const double* y_imu) {
+  rexquad_VectorQueuePush(&filter->imuhist, y_imu);
 }
-const double* rexquad_GetUpdatedCovariance(const rexquad_DelayedMEKF* filter) {
-  return filter->Pn;
+
+int rexquad_GetIMUCacheLength(const rexquad_DelayedMEKF* filter) {
+  return rexquad_VectorQueueSize(&filter->imuhist);
+}
+
+const double* rexquad_GetDelayedIMUMeasurement(const rexquad_DelayedMEKF* filter,
+                                               int delay) {
+  return rexquad_VectorQueueGet(&filter->imuhist, delay);
+}
+
+void rexquad_PopLastIMUMeasurement(rexquad_DelayedMEKF* filter) {
+  rexquad_VectorQueuePop(&filter->imuhist);
+}
+
+void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_imu,
+                                 const double* y_mocap, double h) {
+  int n = 16;
+  int e = n - 1;
+
+  // Delayed filter state
+  puts("Get delayed filter state");
+  Matrix xd = slap_MatrixFromArray(n, 1, filter->xd);
+  Matrix Pd = slap_MatrixFromArray(e, e, filter->Pd);
+
+  // Updated filter state (after measurement update)
+  Matrix xn = slap_MatrixFromArray(n, 1, filter->xn);
+  Matrix Pn = slap_MatrixFromArray(e, e, filter->Pn);
+
+  // Current filter state
+  Matrix xf = slap_MatrixFromArray(n, 1, filter->xf);
+  Matrix Pf = slap_MatrixFromArray(e, e, filter->Pf);
+
+  // Predicted filter state (after prediction step)
+  Matrix xp = slap_MatrixFromArray(n, 1, filter->xp);
+  Matrix Pp = slap_MatrixFromArray(e, e, filter->Pp);
+
+  // Cache the IMU data
+  // NOTE: this method keeps the history at a given length
+  puts("Caching IMU Measurement");
+  rexquad_CacheIMUMeasurement(filter, y_imu);
+
+  // Get the estimated delay (in number of time steps
+  int delay = filter->delay_comp;
+  int imu_hist_length = rexquad_GetIMUCacheLength(filter);
+  if (delay > imu_hist_length - 1) {
+    delay = imu_hist_length - 1;
+  }
+  printf("Using delay of %d\n", delay);
+
+  // Use MOCAP measurement to update the delayed filter state
+  printf("xd0: ");
+  slap_PrintRowVector(&xd);
+  printf("Pd:\n");
+  slap_PrintMatrix(&Pd);
+  if (y_mocap != NULL) {
+    puts("Processing MOCAP measurement");
+    // Get the delayed IMU measurement
+    const double* y_imu_delayed = rexquad_GetDelayedIMUMeasurement(filter, delay);
+
+    // Advance the delayed measurement using the past IMU measurement
+    //  Updates filter->xp, filter->Pp
+    rexquad_StatePrediction(filter, xd.data, y_imu_delayed, Pd.data, h);
+    printf("xp: ");
+    slap_PrintRowVector(&xp);
+    printf("Pp:\n");
+    slap_PrintMatrix(&Pp);
+
+    // Update the delayed filtered estimate using the MOCAP measurement
+    //   Updates filter->xn, filter->Pn
+    rexquad_MeasurementUpdate(filter, xp.data, Pp.data, y_mocap);
+    printf("xn: ");
+    slap_PrintRowVector(&xn);
+
+    // Copy the updated state to the delayed state
+    slap_MatrixCopy(&xd, &xn);
+    slap_MatrixCopy(&Pd, &Pn);
+
+    // Pop off the last IMU Measurement since it's been processed
+    if (rexquad_VectorQueueSize(&filter->imuhist) > filter->delay_comp) {
+      rexquad_PopLastIMUMeasurement(filter);
+    }
+  }
+
+  // Use history of IMU data to predict the state at the current time
+  puts("Predicting the current state using IMU");
+  printf("xd: ");
+  slap_PrintRowVector(&xd);
+  slap_MatrixCopy(&xf, &xd);
+  slap_MatrixCopy(&Pf, &Pd);
+  for (int i = 0; i < delay - 1; ++i) {
+    const double* y_imu_delayed = rexquad_GetDelayedIMUMeasurement(filter, delay - i);
+
+    rexquad_StatePrediction(filter, xf.data, y_imu_delayed, Pd.data, h);
+    slap_MatrixCopy(&xf, &xp);
+    slap_MatrixCopy(&Pf, &Pp);
+  }
+
+  // Create state estimate from filter state
+  puts("Creating state estimate from filter state");
+  Matrix xf_rqv = slap_MatrixFromArray(10, 1, filter->xf);
+  Matrix w_bias = slap_MatrixFromArray(10, 1, filter->xf + 13);
+
+  // Read Gyro measurement
+  const Matrix w_imu = slap_MatrixFromArray(3, 1, (double*)y_imu + 3);
+
+  // Get estimate of angular velocity by subtracting bias from raw gyro data
+  //  what = w_gyro - w_bias
+  double what_[3];
+  Matrix what = slap_MatrixFromArray(3, 1, what_);
+  slap_MatrixAddition(&what, &w_imu, &w_bias, -1.0);
+
+  // Copy data into state estimate xhat = [r, q, v, w]
+  Matrix xhat_rqv = slap_MatrixFromArray(10, 1, filter->xhat);
+  Matrix xhat_w = slap_MatrixFromArray(3, 1, filter->xhat + 10);
+  slap_MatrixCopy(&xhat_rqv, &xf_rqv);
+  slap_MatrixCopy(&xhat_w, &what);
 }

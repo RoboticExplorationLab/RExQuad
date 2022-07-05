@@ -1,5 +1,7 @@
 #pragma once
 
+#include "vector_stack.h"
+
 #define MAX_IMU_HISTORY 20
 
 typedef struct {
@@ -15,7 +17,8 @@ typedef struct {
   double* xn;    // (16,) updated filter state [r,phi,v,vb,wb]
   double* Pn;    // (15,15) updated filter state covariance
   double* xhat;  // (13,) state estimate
-  double** imuhist;
+  rexquad_VectorQueue imuhist;
+
 } rexquad_DelayedMEKF;
 
 rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp);
@@ -23,8 +26,10 @@ rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp);
 void rexquad_FreeDelayedMEKF(rexquad_DelayedMEKF* filter);
 
 void rexquad_InitializeDelayedMEKF(rexquad_DelayedMEKF* filter, int delay_comp,
-                                   const double* Wf, const double* Vf, const double* x0,
+                                   const double* x0, const double* Wf, const double* Vf,
                                    const double* b0, const double* Pf0);
+
+void rexquad_SetInitialState(rexquad_DelayedMEKF* filter, const double* x0);
 
 void rexquad_InitializeDelayMEKFDefault(rexquad_DelayedMEKF* filter);
 
@@ -45,3 +50,6 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
 
 void rexquad_MeasurementUpdate(rexquad_DelayedMEKF* filter, const double* xf,
                                const double* Pf, const double* y_mocap);
+
+void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_imu,
+                                 const double* y_mocap, double h);
