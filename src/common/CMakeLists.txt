@@ -45,7 +45,10 @@ add_library(quadcommon
 
     linear_algebra.h
     linear_algebra.c
-)
+
+    vector_stack.h
+    vector_stack.c
+    )
 target_link_libraries(quadcommon
     PUBLIC
     ArduinoEigen
