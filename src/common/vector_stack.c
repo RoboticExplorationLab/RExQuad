@@ -2,11 +2,17 @@
 
 #include <string.h>
 
- rexquad_VectorQueue rexquad_VectorQueueCreate() {
+ rexquad_VectorQueue rexquad_VectorQueueCreate(void* buf, int vector_length) {
   rexquad_VectorQueue q;
-  memset(q._data, 0, REXQUAD_QUEUE_SIZE * sizeof(double*));
   q.front = 0;
   q.back = 0;
+  q.vector_length = vector_length;
+
+  // Assign vector data from a pre-allocated memory buffer
+  double* dbuf = (double*)buf;
+  for (int i = 0; i < REXQUAD_QUEUE_SIZE; ++i) {
+    q._data[i] = dbuf + i * vector_length;
+  }
   return q;
 }
  int rexquad_VectorQueueSize(const rexquad_VectorQueue* queue) {
@@ -17,12 +23,14 @@
    }
    return back - front;
  }
- void rexquad_VectorQueuePush(rexquad_VectorQueue* queue, ConstVector vec) {
+ void rexquad_VectorQueuePush(rexquad_VectorQueue* queue, const double* vec) {
    ++queue->back;
    if (queue->back >= REXQUAD_QUEUE_SIZE) {
      queue->back = queue->back % REXQUAD_QUEUE_SIZE;
    }
-   queue->_data[queue->back] = vec;
+   // Copy vector into queue
+   double* dest = queue->_data[queue->back];
+   memcpy(dest, vec, queue->vector_length * sizeof(double));
  }
  void rexquad_VectorQueuePop(rexquad_VectorQueue* queue) {
    ++queue->front;
@@ -30,7 +38,7 @@
      queue->front = queue->front % REXQUAD_QUEUE_SIZE;
    }
  }
- ConstVector rexquad_VectorQueueGet(const rexquad_VectorQueue* queue, int index) {
+const double* rexquad_VectorQueueGet(const rexquad_VectorQueue* queue, int index) {
    int len = rexquad_VectorQueueSize(queue);
    if (index >= len) {
      return NULL;
