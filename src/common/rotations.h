@@ -11,3 +11,6 @@ void qmat_icay(double* phi, const double* q);
 void qmat_dcay(double* D, const double* phi);
 void qmat_rotate(double* x2, const double* q, const double* x);
 void qmat_drotate(double* D, const double* q, const double* x);
+void qmat_compose(double* q3, const double* q1, const double* q2);
+void qmat_err(double* phi, const double* q1, const double* q2);
+void qmat_adderr(double* q, const double* q0, const double* phi);

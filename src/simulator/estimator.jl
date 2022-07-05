@@ -166,6 +166,7 @@ function measurement_update(filter::DelayedMEKF, xf, Pf, y_mocap)
     z = [rm-rf; icay(lmat(qf)'qm)]  # innovation
     S = Cf * Pf * Cf' + Wf
     Lf = (Pf*Cf')/S  # Kalman filter gain
+    # S \ Cf*Pf'
     Δx = Lf * z
     xn = [
         rf + Δx[1:3]; 

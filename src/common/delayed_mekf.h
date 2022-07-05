@@ -12,6 +12,8 @@ typedef struct {
   double* Pd;    // (15,15) delayed filter state covariance
   double* xp;    // (16,) predicted filter state [r,phi,v,vb,wb]
   double* Pp;    // (15,15) predicted filter state covariance
+  double* xn;    // (16,) updated filter state [r,phi,v,vb,wb]
+  double* Pn;    // (15,15) updated filter state covariance
   double* xhat;  // (13,) state estimate
   double** imuhist;
 } rexquad_DelayedMEKF;
@@ -34,5 +36,12 @@ const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter);
 
 const double* rexquad_GetPredictedCovariance(const rexquad_DelayedMEKF* filter);
 
+const double* rexquad_GetUpdatedState(const rexquad_DelayedMEKF* filter);
+
+const double* rexquad_GetUpdatedCovariance(const rexquad_DelayedMEKF* filter);
+
 void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
                              const double* uf, const double* Pf, double h);
+
+void rexquad_MeasurementUpdate(rexquad_DelayedMEKF* filter, const double* xf,
+                               const double* Pf, const double* y_mocap);

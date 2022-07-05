@@ -13,7 +13,7 @@ rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp) {
   const int n = 16;  // dimension of filter state
   const int e = 15;  // dimension of error filter state
   const int n0 = 13;
-  int total_doubles = m + e + 3 * n + 3 * e * e + n0 + MAX_IMU_HISTORY * m;
+  int total_doubles = m + e + 4 * n + 4 * e * e + n0 + MAX_IMU_HISTORY * m;
 
   double* imuhist[MAX_IMU_HISTORY];
 
@@ -29,7 +29,9 @@ rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp) {
   double* Pd = xd + n;
   double* xp = Pd + e * e;
   double* Pp = xd + n;
-  double* xhat = Pp + e * e;
+  double* xn = Pp + e * e;
+  double* Pn = xn + n;
+  double* xhat = Pn + e * e;
   double* imuhist0 = xhat + n;
   for (int i = 0; i < MAX_IMU_HISTORY; ++i) {
     imuhist[i] = imuhist0 + i * m;
@@ -46,6 +48,8 @@ rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp) {
       .Pd = Pd,
       .xp = xp,
       .Pp = Pp,
+      .xn = xn,
+      .Pn = Pn,
       .xhat = xhat,
       .imuhist = imuhist,
   };
@@ -318,4 +322,101 @@ inline const double* rexquad_GetPredictedState(const rexquad_DelayedMEKF* filter
 }
 inline const double* rexquad_GetPredictedCovariance(const rexquad_DelayedMEKF* filter) {
   return filter->Pp;
+}
+void rexquad_MeasurementUpdate(rexquad_DelayedMEKF* filter, const double* xf,
+                               const double* Pf, const double* y_mocap) {
+
+  // Split up the filter state
+  const Matrix rf = slap_MatrixFromArray(3, 1, (double*)xf + 0);
+  const Matrix qf = slap_MatrixFromArray(4, 1, (double*)xf + 3);
+  const Matrix vf = slap_MatrixFromArray(3, 1, (double*)xf + 7);
+  const Matrix ab = slap_MatrixFromArray(3, 1, (double*)xf + 10);
+  const Matrix wb = slap_MatrixFromArray(3, 1, (double*)xf + 13);
+
+  // Split up the MOCAP measurement
+  const Matrix rm = slap_MatrixFromArray(3, 1, (double*)y_mocap + 0);
+  const Matrix qm = slap_MatrixFromArray(4, 1, (double*)y_mocap + 3);
+
+  // Split up the updated state
+  Matrix rn = slap_MatrixFromArray(3, 1, filter->xn + 0);
+  Matrix qn = slap_MatrixFromArray(4, 1, filter->xn + 3);
+  Matrix vn = slap_MatrixFromArray(3, 1, filter->xn + 7);
+  Matrix an = slap_MatrixFromArray(3, 1, filter->xn + 10);
+  Matrix wn = slap_MatrixFromArray(3, 1, filter->xn + 13);
+
+  const Matrix Pf_mat = slap_MatrixFromArray(15, 15, (double*)Pf);
+  Matrix Pn = slap_MatrixFromArray(15, 15, filter->Pn);
+
+  // Innovation
+  double z_[6];
+  Matrix z = slap_MatrixFromArray(6, 1, z_);
+  Matrix dr = slap_MatrixFromArray(3, 1, z_ + 0);
+  Matrix dq = slap_MatrixFromArray(4, 1, z_ + 3);
+  slap_MatrixAddition(&dr, &rm, &rf, -1.0);
+  qmat_err(dq.data, qm.data, qf.data);
+
+  // Measurement Jacobian
+  double Cf_[90];
+  Matrix Cf = slap_MatrixFromArray(6, 15, Cf_);
+  slap_MatrixSetIdentity(&Cf, 1.0);
+
+  // Kalman gain
+  //   S = Cf * Pf * Cf' + Wf
+  double CPt_[90];
+  double S_[36];
+  Matrix CP = slap_MatrixFromArray(6, 15, CPt_);
+  Matrix S = slap_MatrixFromArray(6, 6, S_);
+  slap_MatrixSetConst(&CP, 0.0);
+  slap_MatrixSetConst(&S, 0.0);
+  slap_MatrixSetDiagonal(&S, filter->Wf);
+  slap_MatrixMultiply(&CP, &Cf, &Pf_mat, 0, 0, 1.0, 0.0);
+  slap_MatrixMultiply(&S, &CP, &Cf, 0, 1, 1.0, 1.0);
+
+  //   Lt = S\(Cf*Pf)
+  Matrix* Lt = &CP;   // Kalman gain transposed
+  slap_CholeskyFactorize(&S);
+  slap_CholeskySolve(&S, Lt);
+
+  // Update mean
+  double dx_[15];
+  Matrix dx = slap_MatrixFromArray(15, 1, dx_);
+  slap_MatrixSetConst(&dx, 0.0);
+  slap_MatrixMultiply(&dx, Lt, &z, 1, 0, 1.0, 0.0);
+
+  dr = slap_MatrixFromArray(3, 1, dx_ + 0);
+  dq = slap_MatrixFromArray(3, 1, dx_ + 3);
+  Matrix dv = slap_MatrixFromArray(3, 1, dx_ + 6);
+  Matrix da = slap_MatrixFromArray(3, 1, dx_ + 9);
+  Matrix dw = slap_MatrixFromArray(3, 1, dx_ + 12);
+
+  slap_MatrixAddition(&rn, &rf, &dr, 1.0);
+  qmat_adderr(qn.data, qf.data, dq.data);
+  slap_MatrixAddition(&vn, &vf, &dv, 1.0);
+  slap_MatrixAddition(&an, &ab, &da, 1.0);
+  slap_MatrixAddition(&wn, &wb, &dw, 1.0);
+
+  // Update covariance
+  //  Pn = (I-Lf*Cf)*Pf*(I-Lf*Cf)' + Lf*Wf*Lf'
+  double LC_[225];
+  double tmp_[225];
+  Matrix LC = slap_MatrixFromArray(15, 15, LC_);
+  Matrix tmp = slap_MatrixFromArray(15, 15, tmp_);
+  slap_MatrixSetConst(&LC, 0.0);
+  slap_MatrixMultiply(&LC, Lt, &Cf, 1, 0, -1.0, 0.0);
+  slap_AddIdentity(&LC, 1.0);
+  slap_MatrixMultiply(&tmp, &Pf_mat, &LC, 0, 1, 1.0, 0.0);
+  slap_MatrixMultiply(&Pn, &LC, &tmp, 0, 0, 1.0, 0.0);
+
+  tmp = slap_MatrixFromArray(6, 15, tmp_);  // use the memory from the previous temp array
+  Matrix Wf_diag = slap_MatrixFromArray(6, 1, filter->Wf);
+  slap_DiagonalMultiplyLeft(&tmp, &Wf_diag, Lt, 1.0);
+  slap_MatrixMultiply(&Pn, Lt, &tmp, 1, 0, 1.0, 1.0);
+
+  (void) Pf;
+}
+const double* rexquad_GetUpdatedState(const rexquad_DelayedMEKF* filter) {
+  return filter->xn;
+}
+const double* rexquad_GetUpdatedCovariance(const rexquad_DelayedMEKF* filter) {
+  return filter->Pn;
 }

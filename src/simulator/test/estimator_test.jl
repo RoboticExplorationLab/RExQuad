@@ -23,4 +23,6 @@ y_imu = [
 Pd = Matrix(1.0I,15,15)
 h = 0.01
 xp,Pp = state_prediction(filter, xd, y_imu, Pd, h)
-println(xp)
+
+y_mocap = [1.1, 1.2, 2.3, 0.9997, 0.02618, 0, 0,]
+xd, Pd = measurement_update(filter, xp, Pp, y_mocap)
