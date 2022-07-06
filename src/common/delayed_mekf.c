@@ -169,6 +169,10 @@ inline const double* rexquad_GetUpdatedCovariance(const rexquad_DelayedMEKF* fil
   return filter->Pn;
 }
 
+inline const double* rexquad_GetDelayedState(const rexquad_DelayedMEKF* filter) {
+  return filter->xd;
+}
+
 void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
                              const double* uf, const double* Pf, double h) {
   const Matrix rf = slap_MatrixFromArray(3, 1, (double*)xf + 0);
@@ -271,6 +275,7 @@ void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
   // Predicted biases (keep the same)
   slap_MatrixCopy(&ap, &ab);
   slap_MatrixCopy(&wp, &wb);
+
 
   // Derivative of rp wrt q
   //  dvdp = h * drotate(qf, vf) * G(qf)
@@ -467,7 +472,6 @@ void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_im
   int e = n - 1;
 
   // Delayed filter state
-  puts("Get delayed filter state");
   Matrix xd = slap_MatrixFromArray(n, 1, filter->xd);
   Matrix Pd = slap_MatrixFromArray(e, e, filter->Pd);
 
@@ -485,7 +489,6 @@ void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_im
 
   // Cache the IMU data
   // NOTE: this method keeps the history at a given length
-  puts("Caching IMU Measurement");
   rexquad_CacheIMUMeasurement(filter, y_imu);
 
   // Get the estimated delay (in number of time steps
@@ -494,31 +497,20 @@ void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_im
   if (delay > imu_hist_length - 1) {
     delay = imu_hist_length - 1;
   }
-  printf("Using delay of %d\n", delay);
+  // printf("Using delay of %d\n", delay);
 
   // Use MOCAP measurement to update the delayed filter state
-  printf("xd0: ");
-  slap_PrintRowVector(&xd);
-  printf("Pd:\n");
-  slap_PrintMatrix(&Pd);
   if (y_mocap != NULL) {
-    puts("Processing MOCAP measurement");
     // Get the delayed IMU measurement
     const double* y_imu_delayed = rexquad_GetDelayedIMUMeasurement(filter, delay);
 
     // Advance the delayed measurement using the past IMU measurement
     //  Updates filter->xp, filter->Pp
     rexquad_StatePrediction(filter, xd.data, y_imu_delayed, Pd.data, h);
-    printf("xp: ");
-    slap_PrintRowVector(&xp);
-    printf("Pp:\n");
-    slap_PrintMatrix(&Pp);
 
     // Update the delayed filtered estimate using the MOCAP measurement
     //   Updates filter->xn, filter->Pn
     rexquad_MeasurementUpdate(filter, xp.data, Pp.data, y_mocap);
-    printf("xn: ");
-    slap_PrintRowVector(&xn);
 
     // Copy the updated state to the delayed state
     slap_MatrixCopy(&xd, &xn);
@@ -531,13 +523,10 @@ void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_im
   }
 
   // Use history of IMU data to predict the state at the current time
-  puts("Predicting the current state using IMU");
-  printf("xd: ");
-  slap_PrintRowVector(&xd);
   slap_MatrixCopy(&xf, &xd);
   slap_MatrixCopy(&Pf, &Pd);
   for (int i = 0; i < delay - 1; ++i) {
-    const double* y_imu_delayed = rexquad_GetDelayedIMUMeasurement(filter, delay - i);
+    const double* y_imu_delayed = rexquad_GetDelayedIMUMeasurement(filter, delay - i - 1);
 
     rexquad_StatePrediction(filter, xf.data, y_imu_delayed, Pd.data, h);
     slap_MatrixCopy(&xf, &xp);
@@ -545,7 +534,6 @@ void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_im
   }
 
   // Create state estimate from filter state
-  puts("Creating state estimate from filter state");
   Matrix xf_rqv = slap_MatrixFromArray(10, 1, filter->xf);
   Matrix w_bias = slap_MatrixFromArray(10, 1, filter->xf + 13);
 
