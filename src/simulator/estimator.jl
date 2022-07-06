@@ -59,11 +59,7 @@ function get_state_estimate!(filter::DelayedMEKF, y_imu, y_mocap, dt)
     if !isnothing(y_mocap)
         # Advance the delayed measurement using the IMU measurement from that time
         y_imu_delayed = filter.imuhist[end-delay]
-        @show xd
-        display(Pd)
         xpred, Ppred = state_prediction(filter, xd, y_imu_delayed, Pd, dt) 
-        @show xpred
-        display(filter.Wf)
 
         # Update the delayed filter estimate using the mocap measurement
         xd_, Pd_ = measurement_update(filter, xpred, Ppred, y_mocap)
@@ -116,10 +112,6 @@ function state_prediction(filter::DelayedMEKF, xf, uf, Pf, h)
 
     phi1 = -0.5*h*ωhat
     phi2 = +0.5*h*ωhat
-    @show af
-    @show ωf 
-    @show phi1
-    @show phi2
 
     # IMU Prediction
     y = cay(phi1)             # rotation from this time step to the next

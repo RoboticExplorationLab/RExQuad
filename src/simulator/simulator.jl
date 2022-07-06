@@ -181,24 +181,11 @@ end
 
 function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_measurement=false, imu_per_pose=1, pose_delay=0, send_ground_truth=false)
     x = sim.xhist[end]    # true state
-    x̂ = sim.x̂hist[end]    # state estimate
-    xf = sim.xfhist[end]  # filter state
-    Pf = sim.Pfhist[end]   # filter state covariance
-    xd = sim.xdhist[end]   # delayed filter state
-    Pd = sim.Pdhist[end]   # delayed filter state covariance
-    delay = min(sim.opts.delay_comp, length(sim.xhist))
 
-    # Evaluate controller
-    u = getcontrol(sim.ctrl, x̂, [], t)
-    # u = getcontrol(sim.ctrl, x, [], t)
-
-    # # Get measurement
-    # y = getmeasurement(sim, x, u, t)
-
-    # Use control to get simulated IMU measurement
-    y_imu = imu_measurement(sim, x, u)
+    # Use previous control to get simulated IMU measurement
+    uprev = length(sim.uhist) > 0 ? sim.uhist[end] : trim_controls()
+    y_imu = imu_measurement(sim, x, uprev)
     push!(sim.imuhist, y_imu)
-
 
     # Get (delayed) mocap measurement
     y_mocap = mocap_measurement(sim, x)
@@ -206,37 +193,13 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
         push!(sim.mocaphist, t=>y_mocap)
     end
 
-    # if !isnothing(y_mocap)
-    #     push!(sim.mocaphist, t=>y_mocap)
-
-    #     # Advance the delayed measurement using the IMU measurement from that time
-    #     y_imu_delayed = sim.imuhist[end-delay]
-    #     xpred, Ppred = filter_state_prediction(sim, xd, y_imu_delayed, Pd, dt)
-
-    #     # Update the delayed filter estimate using mocap measurement
-    #     xd, Pd = filter_mocap_update(sim, xpred, Ppred, y_mocap)
-    # end
-    # push!(sim.xdhist, xd)
-    # push!(sim.Pdhist, Pd)
-
-    # # Use history of IMU data to predict the state at the current time
-    # xf .= xd
-    # Pf .= Pd
-    # for i = 1:delay-1
-    #     y_imu_delayed = sim.imuhist[end-delay+i]
-    #     xf,Pf = filter_state_prediction(sim, xf, y_imu_delayed, Pf, dt)
-    # end
-    # push!(sim.xfhist, xf)
-    # push!(sim.Pfhist, Pf)
-
-    # # Set state estimate to prediction from IMU
-    # # y_gyro = gyro_measurement(sim, xn)
-    # y_gyro = y_imu[4:6]     # get current angvel from IMU
-    # b_gyro = xf[14:16]      # predicted gyro bias
-    # ωhat = y_gyro - b_gyro  # predicted angular velocity
-    # xhat = [xf[1:10]; ωhat]
+    # Get state estimate
     xhat = get_state_estimate!(sim.filter, y_imu, y_mocap, dt)
     push!(sim.x̂hist, copy(xhat))
+
+    # Evaluate controller
+    u = getcontrol(sim.ctrl, xhat, [], t)
+    push!(sim.uhist, u)
 
     # Propagate state
     xn = dynamics_rk4(x, u, dt)
