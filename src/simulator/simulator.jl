@@ -141,7 +141,7 @@ function initialize!(sim::Simulator, x0, xhat0, dt, tf)
     reset!(sim; approx_size)
 
     # Initialize filter
-    initialize!(sim.filter, x0, Wf=sim.opts.Wf, Vf=sim.opts.Vf, delay_comp=sim.opts.delay_comp)
+    initialize!(sim.filter, xhat0, Wf=sim.opts.Wf, Vf=sim.opts.Vf, delay_comp=sim.opts.delay_comp)
 
     # Set initial state
     push!(sim.xhist, x0)

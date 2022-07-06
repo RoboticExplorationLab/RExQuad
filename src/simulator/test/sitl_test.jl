@@ -53,8 +53,10 @@ y_mocap = [0.1; 0.2; 1.1; cay([0,0,0.1])]
 xhat = [zeros(3); 1; zeros(3); zeros(6)]
 getcontrol(sitl, xhat, [], 0.0)
 get_state_estimate!(sitl, y_imu, y_mocap, 0.01)
+finish(sitl)
 
 ## Initialize Simulator
+sitl = SITL(5555, 5556)
 filter = DelayedMEKF()
 sim = Simulator(sitl, filter)
 open(sim.vis)
@@ -66,6 +68,51 @@ rate = 100  # Hertz
 dt = 1/rate
 
 tf = 4.0
+d = 5
+sim.opts.delay_comp = d
+sim.opts.mocap_delay = d
 sim.opts.use_ground_truth = false 
+
 runsim(sim, x, tf=tf)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
+
+## Save a part of the trajectory to a file for testing
+function write_vectors_to_c(header, impl, vecs, name)
+    N = length(vecs)
+    n = length(vecs[1])
+    println(header, "double $name[$N][$n];")
+    println(impl, "double $name[$N][$n] = {")
+    for i = 1:N
+        print(impl, "  {")
+        for j = 1:n
+            print(impl, vecs[i][j], ",")
+        end
+        println(impl, "},");
+    end
+    println(impl, "};")
+end
+
+N = 10
+header = open(joinpath(@__DIR__, "../../common/test/filter_data.h"), "w")
+impl  = open(joinpath(@__DIR__, "../../common/test/filter_data.c"), "w")
+println(header, "const int MOCAP_DELAY = $d;")
+println(impl, "#include \"filter_data.h\"")
+write_vectors_to_c(header, impl, sim.imuhist[1:N], "imuhist")
+write_vectors_to_c(header, impl, last.(sim.mocaphist[1:N-d]), "mocaphist")
+write_vectors_to_c(header, impl, sim.x̂hist[1:N+1], "xhist")
+
+close(header)
+close(impl)
+
+## Check that the results are repeatable
+filter = DelayedMEKF()
+x0 = sim.x̂hist[1]
+initialize!(filter, x0, delay_comp=d)
+h = 0.01
+err = map(1:N) do i
+    y_imu = sim.imuhist[i]
+    y_mocap = i <= d ? nothing : last(sim.mocaphist[i-d])
+    xhat = get_state_estimate!(filter, y_imu, y_mocap, h)
+    norm(xhat - sim.x̂hist[i+1])
+end
+norm(err) ≈ 0
