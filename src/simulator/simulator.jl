@@ -19,6 +19,7 @@ include("estimator.jl")
 speye(n) = spdiagm(ones(n))
 
 Base.@kwdef mutable struct SimOpts
+    use_ground_truth::Bool = false
     recvtimeout_ms::Int = 100
     mocap_delay::Int = 0  # actual delay of mocap data
     imu_per_pose::Int = 1
@@ -198,7 +199,11 @@ function step!(sim::Simulator, t, dt; t_start=time(), visualize=:none, send_meas
     push!(sim.x̂hist, copy(xhat))
 
     # Evaluate controller
-    u = getcontrol(sim.ctrl, xhat, [], t)
+    u = if sim.opts.use_ground_truth
+        getcontrol(sim.ctrl, x, [], t)
+    else
+        getcontrol(sim.ctrl, xhat, [], t)
+    end
     push!(sim.uhist, u)
 
     # Propagate state

@@ -1,3 +1,7 @@
+function qinv(q)
+    return [q[1]; -q[2:4]]
+end
+
 function skew(x)
     [
         0 -x[3] x[2]

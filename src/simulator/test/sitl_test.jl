@@ -37,20 +37,35 @@ using CoordinateTransformations
 using RobotZoo
 
 include("../simulator.jl")
+include("../sitl.jl")
+
+
+## Initialize SITL interface
+sitl = SITL(5555, 5556)
+sub = sitl.sub
+pub = sitl.pub
+y_imu = [
+    0.25, 0.24, 0.23,
+    0.33, 0.32, 0.31
+]
+y_mocap = [0.1; 0.2; 1.1; cay([0,0,0.1])]
+
+xhat = [zeros(3); 1; zeros(3); zeros(6)]
+getcontrol(sitl, xhat, [], 0.0)
+get_state_estimate!(sitl, y_imu, y_mocap, 0.01)
 
 ## Initialize Simulator
-sim = Simulator(5562, 5563)
+filter = DelayedMEKF()
+sim = Simulator(sitl, filter)
 open(sim.vis)
 
 ## Run the simulator
-x = [0;2.0;0.5; 1; zeros(3); zeros(6)]
+x = [0; 2; 0.5; 1; zeros(3); zeros(6)]
 u = trim_controls()
 rate = 100  # Hertz
 dt = 1/rate
 
 tf = 4.0
-sim.ctrl.opts[:send_ground_truth] = true
-sim.ctrl.opts[:imu_per_pose] = 1
-sim.ctrl.opts[:pose_delay] = 0
+sim.opts.use_ground_truth = false 
 runsim(sim, x, tf=tf)
 RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)

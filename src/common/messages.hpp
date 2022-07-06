@@ -126,6 +126,23 @@ void StateMsgFromVector(StateMsg& msg, const T* x) {
   msg.wz = x[12];
 }
 
+template<class T>
+void StateMsgToVector(const StateMsg& msg, T* x) {
+  x[0] = msg.x;
+  x[1] = msg.y;
+  x[2] = msg.z;
+  x[3] = msg.qw;
+  x[4] = msg.qx;
+  x[5] = msg.qy;
+  x[6] = msg.qz;
+  x[7] = msg.vx;
+  x[8] = msg.vy;
+  x[9] = msg.vz;
+  x[10] = msg.wx;
+  x[11] = msg.wy;
+  x[12] = msg.wz;
+}
+
 struct IMUMeasurementMsg {
   static constexpr uint8_t MsgID = 105;  // 'i'
   float ax;

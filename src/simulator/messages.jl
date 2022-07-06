@@ -172,6 +172,7 @@ end
 function ControlMsg(u::AbstractVector{<:Real})
     ControlMsg(u[1], u[2], u[3], u[4])
 end
+getcontrol(msg::ControlMsg) = tovector(msg)
 
 struct StateControlMsg
     x::Float32   # position
@@ -343,6 +344,11 @@ function StateMsg(buf::AbstractVector{UInt8}, off::Integer=0)
         bytestofloat(buf, 11 * 4 + off),
         bytestofloat(buf, 12 * 4 + off),
     )
+end
+
+function StateMsg(x::Vector{<:AbstractFloat})
+    length(x) == 13 || throw(DimensionMismatch("x must have length 13.")) 
+    StateMsg(x...)
 end
 
 function getstate(xu::StateMsg)

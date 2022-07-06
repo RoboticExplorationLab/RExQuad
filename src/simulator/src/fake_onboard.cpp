@@ -13,6 +13,11 @@
 #include "common/riccati.hpp"
 // #include "common/workspace.h"
 #include "common/problem_data.h"
+
+extern "C" {
+#include "common/delayed_mekf.h"
+}
+
 // #include "EmbeddedMPC.h"
 // #include "common/osqpsolver.hpp"
 
@@ -23,15 +28,20 @@ constexpr int kMaxBufferSize = 100;
 std::string pubport = "5555";
 std::string subport = "5556";
 bool g_verbose = 1;
+const double kTimestep = 0.01;
 
 // Aliases
 using Time = uint64_t;
 using Pose = rexquad::PoseMsg;
-using Control = rexquad::ControlMsg;
+using ControlMsg = rexquad::ControlMsg;
 using StateControl = rexquad::StateControlMsg;
 using Measurement = rexquad::MeasurementMsg;
 using IMUMeasurement = rexquad::IMUMeasurementMsg;
+using StateMsg = rexquad::StateMsg;
 constexpr int kStateControlSize = sizeof(StateControl) + 1;
+constexpr int kStateMsgSize = sizeof(StateMsg) + 1;
+constexpr int kControlMsgSize = sizeof(ControlMsg) + 1;
+
 
 // Controller
 rexquad::FeedbackGain K;
@@ -43,12 +53,16 @@ rexquad::InputVector ueq;
 
 // State Estimation
 rexquad::StateEstimator filter;
+rexquad_DelayedMEKF mekf;
 
 // Globals
 Pose posedata;
 StateControl statecontrolmsg;
 Measurement measurementmsg;
 IMUMeasurement imudata;
+StateMsg g_statemsg;
+ControlMsg g_controlmsg;
+
 // rexquad::OSQPSolver osqpsolver(nstates, ninputs, nhorizon);  // from problem_data.h
 rexquad::RiccatiSolver g_mpc_controller(31);
 void* context;
@@ -163,6 +177,11 @@ void setup() {
 
   // Filter settings
   filter.SetIntegrateLinearAccel(false);
+  int delay_comp = 10;
+  double x0[13] = {0,0,0, 1,0,0,0, 0,0,0, 0,0,0};   // initial state estimate
+  double b0[6] = {0,0,0, 0,0,0};   // bias estimate
+  mekf = rexquad_NewDelayedMEKF(delay_comp);
+  rexquad_InitializeDelayedMEKF(&mekf, delay_comp, x0, NULL, NULL, b0, NULL);
 
   // Set up ZMQ Subscriber to get info from simulator
   fmt::print("Setting up ZMQ connections...\n");
@@ -203,7 +222,14 @@ void loop() {
 
   auto tnow = std::chrono::high_resolution_clock::now();
   auto t_msg_us = std::chrono::duration_cast<std::chrono::microseconds>(tnow - tstart);
+  double t = 0.0;  // TODO: get actual time from start of loop
+
+  double y_imu[6];
+  double y_mocap[7];
+  const double* xhat_;
+
   switch (msgid) {
+    // Update State Estimate
     case rexquad::MeasurementMsg::MsgID:
       good_conversion = MeasurementMsgFromBytes(measurementmsg, buf_recv);
 
@@ -228,12 +254,70 @@ void loop() {
       imudata.wy = measurementmsg.wy;
       imudata.wz = measurementmsg.wz;
 
-      // Update Filter
-      filter.IMUMeasurement(imudata, t_msg_us.count());
-      filter.PoseMeasurement(posedata, t_msg_us.count());
-      send_message = true;
-      use_ground_truth = true;
+      // Save data to arrays
+      y_imu[0] = imudata.ax;
+      y_imu[1] = imudata.ay;
+      y_imu[2] = imudata.az;
+      y_imu[3] = imudata.wx;
+      y_imu[4] = imudata.wy;
+      y_imu[5] = imudata.wz;
+      y_mocap[0] = posedata.x;
+      y_mocap[1] = posedata.y;
+      y_mocap[2] = posedata.z;
+      y_mocap[3] = posedata.qw;
+      y_mocap[4] = posedata.qx;
+      y_mocap[5] = posedata.qy;
+      y_mocap[6] = posedata.qz;
+      rexquad_UpdateStateEstimate(&mekf, y_imu, y_mocap, kTimestep);
+      xhat_ = rexquad_GetStateEstimate(&mekf);
+      for (int i = 0; i < 13; ++i) {
+        xhat[i] = xhat_[i];
+      }
+//      filter.IMUMeasurement(imudata, t_msg_us.count());
+//      filter.PoseMeasurement(posedata, t_msg_us.count());
+
+      // Send back state estimate
+      if (g_verbose) {
+        fmt::print("  Sending back xhat: [ ");
+        for (int i = 0; i < 13; ++i) {
+          fmt::print("{:.3f} ", xhat_[i]);
+        }
+        fmt::print("]\n");
+      }
+      rexquad::StateMsgFromVector(g_statemsg, xhat_);
+      rexquad::StateMsgToBytes(g_statemsg, buf_send);
+      zmq_send(pub, buf_send, kStateMsgSize, 0);
+
       break;
+
+    // Calculate control
+    case rexquad::StateMsg::MsgID:
+      good_conversion = rexquad::StateMsgFromBytes(g_statemsg, buf_recv);
+      if (g_verbose) {
+        fmt::print("  Successful conversion to StateMsg: {}\n", good_conversion);
+      }
+      rexquad::StateMsgToVector(g_statemsg, xhat.data());
+
+      // Calculate control
+      u = g_mpc_controller.ControlPolicy(xhat, t);
+      // rexquad::ErrorState(e, xhat, xeq);
+      // u = -K * e + ueq;
+
+      // Send control back over ZMQ
+      for (int i = 0; i < 4; ++i) {
+        g_controlmsg.data[i] = u[i];
+      }
+      if (g_verbose) {
+        fmt::print("  Sending u = [");
+        for (int i = 0; i < 4; ++i) {
+          fmt::print(" {}", g_controlmsg.data[i]);
+        }
+        fmt::print(" ]\n");
+      }
+      rexquad::ControlMsgToBytes(g_controlmsg, buf_send);
+      zmq_send(pub, buf_send, kControlMsgSize, 0);
+      break;
+
     case rexquad::IMUMeasurementMsg::MsgID:
       good_conversion = IMUMeasurementMsgFromBytes(imudata, buf_recv);
       if (g_verbose) {
@@ -266,11 +350,6 @@ void loop() {
       filter.GetStateEstimate(xhat);
     }
 
-    // Calculate control
-    double t = 0.0;  // TODO: get actual time from start of loop
-    u = g_mpc_controller.ControlPolicy(xhat, t);
-    // rexquad::ErrorState(e, xhat, xeq);
-    // u = -K * e + ueq;
 
     // Send control and state estimate back over ZMQ to simulator
     UpdateStateControlMsg(statecontrolmsg, xhat, u);

@@ -59,6 +59,24 @@ initialize!(filter, x0; b0)
 xhat = get_state_estimate!(filter, y_imu, y_mocap, h)
 println(xhat)
 
+## Double Update 
+y_imu = [
+    0.25, 0.24, 0.23,
+    0.33, 0.32, 0.31
+]
+y_mocap = [0.1; 0.2; 1.1; cay([0,0,0.1])]
+x0 = [0; 0; 1; cay([0,0,0]); zeros(6)]
+b0 = [0.2,0.3,0.3, 0.1,-0.2,0.11]
+h = 0.01
+delay_comp = 10
+
+filter = DelayedMEKF()
+initialize!(filter, x0; b0, delay_comp)
+
+get_state_estimate!(filter, y_imu, nothing, h)
+xhat = get_state_estimate!(filter, y_imu, y_mocap, h)
+@show xhat;
+
 ## Delayed MOCAP
 y_imu = [
     0.25, 0.24, 0.23,
@@ -73,6 +91,12 @@ delay_comp = 10
 filter = DelayedMEKF()
 initialize!(filter, x0; b0, delay_comp)
 
+get_state_estimate!(filter, y_imu, nothing, h)
+y_imu[1] += 0.1
+get_state_estimate!(filter, y_imu, nothing, h)
+y_imu[1] += 0.1
+get_state_estimate!(filter, y_imu, nothing, h)
+y_imu[1] += 0.1
 get_state_estimate!(filter, y_imu, nothing, h)
 xhat = get_state_estimate!(filter, y_imu, y_mocap, h)
 @show xhat;
