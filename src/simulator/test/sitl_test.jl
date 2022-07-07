@@ -80,7 +80,7 @@ RobotMeshes.visualize_trajectory!(sim.vis, sim, tf, sim.xhist)
 function write_vectors_to_c(header, impl, vecs, name)
     N = length(vecs)
     n = length(vecs[1])
-    println(header, "double $name[$N][$n];")
+    println(header, "extern double $name[$N][$n];")
     println(impl, "double $name[$N][$n] = {")
     for i = 1:N
         print(impl, "  {")
@@ -95,6 +95,7 @@ end
 N = 10
 header = open(joinpath(@__DIR__, "../../common/test/filter_data.h"), "w")
 impl  = open(joinpath(@__DIR__, "../../common/test/filter_data.c"), "w")
+println(header, "#pragma once")
 println(header, "const int MOCAP_DELAY = $d;")
 println(impl, "#include \"filter_data.h\"")
 write_vectors_to_c(header, impl, sim.imuhist[1:N], "imuhist")

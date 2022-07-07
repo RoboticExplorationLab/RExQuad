@@ -47,10 +47,13 @@ const double* rexquad_GetUpdatedCovariance(const rexquad_DelayedMEKF* filter);
 
 const double* rexquad_GetDelayedState(const rexquad_DelayedMEKF* filter);
 
-void rexquad_StatePrediction(rexquad_DelayedMEKF* filter, const double* xf,
+void rexquad_StatePrediction(const rexquad_DelayedMEKF* filter, double* xp, double* Pp,
+                             const double* xf,
                              const double* uf, const double* Pf, double h);
 
-void rexquad_MeasurementUpdate(rexquad_DelayedMEKF* filter, const double* xf,
+void rexquad_MeasurementUpdate(const rexquad_DelayedMEKF* filter,
+                               double* xn, double* Pn,
+                               const double* xf,
                                const double* Pf, const double* y_mocap);
 
 void rexquad_UpdateStateEstimate(rexquad_DelayedMEKF* filter, const double* y_imu,

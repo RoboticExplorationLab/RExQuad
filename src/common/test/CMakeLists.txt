@@ -1,6 +1,9 @@
 function (common_test testname)
   add_executable(${testname}_test
     ${testname}_test.cpp
+
+    filter_data.h
+    filter_data.c
   )
   target_link_libraries(${testname}_test
     PRIVATE

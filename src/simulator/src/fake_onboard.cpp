@@ -29,6 +29,8 @@ std::string pubport = "5555";
 std::string subport = "5556";
 bool g_verbose = 1;
 const double kTimestep = 0.01;
+const double kInitialImuBias[6] = {0, 0, 0, 0, 0, 0};
+const int kDelayComp = 5;
 
 // Aliases
 using Time = uint64_t;
@@ -41,7 +43,6 @@ using StateMsg = rexquad::StateMsg;
 constexpr int kStateControlSize = sizeof(StateControl) + 1;
 constexpr int kStateMsgSize = sizeof(StateMsg) + 1;
 constexpr int kControlMsgSize = sizeof(ControlMsg) + 1;
-
 
 // Controller
 rexquad::FeedbackGain K;
@@ -62,6 +63,7 @@ Measurement measurementmsg;
 IMUMeasurement imudata;
 StateMsg g_statemsg;
 ControlMsg g_controlmsg;
+bool g_is_filter_initialized = false;
 
 // rexquad::OSQPSolver osqpsolver(nstates, ninputs, nhorizon);  // from problem_data.h
 rexquad::RiccatiSolver g_mpc_controller(31);
@@ -178,10 +180,8 @@ void setup() {
   // Filter settings
   filter.SetIntegrateLinearAccel(false);
   int delay_comp = 10;
-  double x0[13] = {0,0,0, 1,0,0,0, 0,0,0, 0,0,0};   // initial state estimate
-  double b0[6] = {0,0,0, 0,0,0};   // bias estimate
   mekf = rexquad_NewDelayedMEKF(delay_comp);
-  rexquad_InitializeDelayedMEKF(&mekf, delay_comp, x0, NULL, NULL, b0, NULL);
+  g_is_filter_initialized = false;
 
   // Set up ZMQ Subscriber to get info from simulator
   fmt::print("Setting up ZMQ connections...\n");
@@ -268,13 +268,33 @@ void loop() {
       y_mocap[4] = posedata.qx;
       y_mocap[5] = posedata.qy;
       y_mocap[6] = posedata.qz;
+
+      // Initialize filter with first measurement
+      if (!g_is_filter_initialized) {
+        double x0[13];
+        for (int i = 0; i < 7; ++i) {
+          x0[i] = y_mocap[i];
+        }
+        for (int i = 0; i < 6; ++i) {
+          x0[7 + i] = 0.0;
+        }
+        if (g_verbose) {
+          fmt::print("Initializing filter with x = [{},{},{}], q = [{},{},{},{}]\n.", x0[0],
+                     x0[1], x0[2], x0[3], x0[4], x0[5], x0[6]);
+        }
+        rexquad_InitializeDelayedMEKF(&mekf, kDelayComp, x0, NULL, NULL, kInitialImuBias,
+                                      NULL);
+        g_is_filter_initialized = true;
+      }
+
+      // Process measurements
       rexquad_UpdateStateEstimate(&mekf, y_imu, y_mocap, kTimestep);
+
+      // Get state estimate from filter
       xhat_ = rexquad_GetStateEstimate(&mekf);
       for (int i = 0; i < 13; ++i) {
         xhat[i] = xhat_[i];
       }
-//      filter.IMUMeasurement(imudata, t_msg_us.count());
-//      filter.PoseMeasurement(posedata, t_msg_us.count());
 
       // Send back state estimate
       if (g_verbose) {
@@ -349,7 +369,6 @@ void loop() {
     } else {
       filter.GetStateEstimate(xhat);
     }
-
 
     // Send control and state estimate back over ZMQ to simulator
     UpdateStateControlMsg(statecontrolmsg, xhat, u);
