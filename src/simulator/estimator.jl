@@ -59,6 +59,7 @@ function get_state_estimate!(filter::DelayedMEKF, y_imu, y_mocap, dt)
     if !isnothing(y_mocap)
         # Advance the delayed measurement using the IMU measurement from that time
         y_imu_delayed = filter.imuhist[end-delay]
+        println("  y_imu $delay: ", y_imu_delayed)
         xpred, Ppred = state_prediction(filter, xd, y_imu_delayed, Pd, dt) 
 
         # Update the delayed filter estimate using the mocap measurement
@@ -70,9 +71,12 @@ function get_state_estimate!(filter::DelayedMEKF, y_imu, y_mocap, dt)
     # Use history of IMU data to predict the state at the current time
     xf .= xd
     Pf .= Pd
+    println("  xd:      ", round.(xf, sigdigits=3))
     for i = 1:delay-1
         y_imu_delayed = filter.imuhist[end-delay+i]
+        println("  y_imu $(delay-i): ", y_imu_delayed)
         xf_,Pf_ = state_prediction(filter, xf, y_imu_delayed, Pf, dt)
+        println("  xf:      ", round.(xf_, sigdigits=3))
         xf .= xf_
         Pf .= Pf_
     end
@@ -81,8 +85,11 @@ function get_state_estimate!(filter::DelayedMEKF, y_imu, y_mocap, dt)
     y_gyro = y_imu[4:6]      # current angular velocity recorded by IMU
     b_gyro = xf[14:16]       # predicted gyro bias
     ωhat = y_gyro - b_gyro   # predicted angular velocity
+    println("  w_imu:   ", y_gyro)
+    println("  w_bias:  ", b_gyro)
     xhat[1:10] .= xf[1:10]   # copy position, attitude, and linear velocity from filter state
     xhat[11:13] .= ωhat      # copy angular velocity
+    println("  xhat:    ", round.(xhat, sigdigits=3))
     return xhat
 end
 

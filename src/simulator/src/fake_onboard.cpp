@@ -27,7 +27,7 @@ constexpr int kMaxBufferSize = 100;
 // const bool kUseGroundTruth = 0;
 std::string pubport = "5555";
 std::string subport = "5556";
-bool g_verbose = 1;
+bool g_verbose = 0;
 const double kTimestep = 0.01;
 const double kInitialImuBias[6] = {0, 0, 0, 0, 0, 0};
 const int kDelayComp = 5;
@@ -278,7 +278,7 @@ void loop() {
         for (int i = 0; i < 6; ++i) {
           x0[7 + i] = 0.0;
         }
-        if (g_verbose) {
+        if (g_verbose || 1) {
           fmt::print("Initializing filter with x = [{},{},{}], q = [{},{},{},{}]\n.", x0[0],
                      x0[1], x0[2], x0[3], x0[4], x0[5], x0[6]);
         }

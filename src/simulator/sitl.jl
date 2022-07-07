@@ -47,6 +47,7 @@ function SITL(pub_port=5555, sub_port=pub_port+1)
 end
 
 function initialize!(sitl::SITL, x0; kwargs...)
+    sitl.xhat .= x0
     return nothing
 end
 
@@ -100,7 +101,12 @@ function getcontrol(sitl::SITL, x, y, t)
 end
 
 function get_state_estimate!(sitl::SITL, y_imu, y_mocap, dt)
-    y_msg = MeasurementMsg(y_mocap..., 0, 0, 0, y_imu...)
+    if isnothing(y_mocap)
+        x = sitl.xhat
+        y_msg = MeasurementMsg(x[1:7]..., 0, 0, 0, y_imu...)
+    else
+        y_msg = MeasurementMsg(y_mocap..., 0, 0, 0, y_imu...)
+    end
     sendandreceive!(sitl, y_msg)
     return sitl.xhat
 end

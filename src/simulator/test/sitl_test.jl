@@ -58,7 +58,7 @@ finish(sitl)
 ## Initialize Simulator
 sitl = SITL(5555, 5556)
 filter = DelayedMEKF()
-sim = Simulator(sitl, filter)
+sim = Simulator(sitl, sitl)
 open(sim.vis)
 
 ## Run the simulator
@@ -110,10 +110,12 @@ filter = DelayedMEKF()
 x0 = sim.x̂hist[1]
 initialize!(filter, x0, delay_comp=d)
 h = 0.01
-err = map(1:N) do i
+err = map(1:6) do i
+    println("\nProcessing step $i")
     y_imu = sim.imuhist[i]
     y_mocap = i <= d ? nothing : last(sim.mocaphist[i-d])
     xhat = get_state_estimate!(filter, y_imu, y_mocap, h)
     norm(xhat - sim.x̂hist[i+1])
 end
 norm(err) ≈ 0
+sim.imuhist[1:6]

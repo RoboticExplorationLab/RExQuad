@@ -143,17 +143,19 @@ TEST(DelayedMEKFTests, SimTest) {
   int i;
 
   // First Update
-  for (i = 0; i < 5; ++i) {
+  for (i = 0; i < 10; ++i) {
     y_imu_ = imuhist[i];
-    y_mocap_ = nullptr;
+    if (i < MOCAP_DELAY) {
+      y_mocap_ = nullptr;
+    } else {
+      y_mocap_ = mocaphist[i - MOCAP_DELAY];
+    }
     rexquad_UpdateStateEstimate(&filter, y_imu_, y_mocap_, h);
     xhat_expected = slap_MatrixFromArray(13, 1, xhist[i+1]);
     err = slap_MatrixNormedDifference(&xhat, &xhat_expected);
-    fmt::print("  i = {}, err = {}\n", i, err);
+    EXPECT_LT(err, 1e-12);
   }
-
-  fmt::print("xhat: ");
-  slap_PrintRowVector(&xhat);
+  (void)err;
 
   rexquad_FreeDelayedMEKF(&filter);
 }

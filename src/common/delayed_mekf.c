@@ -8,6 +8,14 @@
 #include "linear_algebra.h"
 #include "rotations.h"
 
+void PrintVector(const double* x, int n) {
+  printf("[ ");
+  for (int i = 0; i < n; ++i) {
+    printf("%.3g ", x[i]);
+  }
+  printf("]\n");
+}
+
 rexquad_DelayedMEKF rexquad_NewDelayedMEKF(int delay_comp) {
   const int m = 6;
   const int n = 16;  // dimension of filter state
@@ -260,13 +268,13 @@ void rexquad_StatePrediction(const rexquad_DelayedMEKF* filter, double* xp, doub
 
   // Velocity in the old body frame
   //  vpk = vf + h * (ahat - Qf'g)
-  double gi_[3];
+  double gb_[3];
   double vpk_[3];
   Matrix vpk = slap_MatrixFromArray(3, 1, vpk_);
-  Matrix gi = slap_MatrixFromArray(3, 1, gi_);  // gravity in inertial (world) frame
-  qmat_rotate(gi.data, qf.data, g.data);
+  Matrix gb = slap_MatrixFromArray(3, 1, gb_);  // gravity in body frame
+  qmat_rotate(gb.data, qf_inv.data, g.data);
   slap_MatrixCopy(&vpk, &ahat);
-  slap_MatrixAddition(&vpk, &vpk, &gi, -1.0);
+  slap_MatrixAddition(&vpk, &vpk, &gb, -1.0);
   slap_MatrixAddition(&vpk, &vf, &vpk, h);
 
   // Velocity in the new body frame
