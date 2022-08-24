@@ -16,3 +16,6 @@
 [submodule "src/firmware/libraries/radiohead_libraries/RadioHead_Teensy"]
 	path = src/firmware/libraries/radiohead_libraries/RadioHead_Teensy
 	url = https://github.com/PaulStoffregen/RadioHead.git
+[submodule "src/firmware/libraries/ArduinoEigen"]
+	path = src/firmware/libraries/ArduinoEigen
+	url = https://github.com/hideakitai/ArduinoEigen.git

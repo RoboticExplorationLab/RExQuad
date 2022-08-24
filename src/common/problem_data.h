@@ -5,7 +5,8 @@
  * This file contains the data for the MPC problem
  */
 
-#include <EmbeddedMPC.h>
+// #include <EmbeddedMPC.h>
+typedef double c_float;
 
 const int nstates = 12;
 const int ninputs = 4;

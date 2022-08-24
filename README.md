@@ -1,6 +1,13 @@
 Install Teensy Loader
 Install Arduino CLI
 
+# Install submodules
+If you didn't clone recursively, update the submodules with
+```
+git submodule init
+git submodule update
+```
+
 # Install Arduino CLI
 cd `~/.local` 
 ```
@@ -25,6 +32,13 @@ arduino-cli lib install "Adafruit Unified Sensor"
 
 ```
 
+## Add yourself to the dialout and tty groups
+
+```
+sudo usermod -a -G tty <username>
+sudo usermod -a -G dialout <username>
+```
+
 # Deps
 9. Clone the libserialport library:
     ```
@@ -38,6 +52,10 @@ arduino-cli lib install "Adafruit Unified Sensor"
     make
     sudo make install
 
+Note you may need to install `autoreconf`:
+```
+sudo apt-get install dh-autoreconf
+```
 
 # Accelerometer Wiring (SPI)
 Accel -> Feather
