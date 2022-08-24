@@ -1,6 +1,17 @@
 Install Teensy Loader
 Install Arduino CLI
 
+# Install Arduino CLI
+cd `~/.local` 
+```
+curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+```
+make sure `~/.local` is on your system `PATH`.
+
+# Change install location
+Modify `arduino-cli.yaml` to be your home directory (replace `/home/brian/`)
+
+# Install Arduino Library
 ```
 sudo cp 00-teensy.rules /etc/udev/rules.d/
 arduino-cli core install teensy:avr
