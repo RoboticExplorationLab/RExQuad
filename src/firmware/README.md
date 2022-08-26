@@ -9,3 +9,7 @@ and sends communications back to the base station via a secondard LoRa radio.
 
 All of the Arduino libraries used by these scripts are located in the `libraries` directory. Additionally, these scripts include and compile against the 
 code in `src/common`.
+
+
+# Main Scripts
+basestation/
